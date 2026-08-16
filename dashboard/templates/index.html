@@ -93,19 +93,15 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(r => r.json())
         .then(data => {
             const disks = data.disks || [];
-            const mounts = data.mounts || [];
-            const realMounts = mounts.filter(m => 
-                !m.fs.includes('proc') && !m.fs.includes('sys') && 
-                !m.fs.includes('dev') && !m.fs.includes('run') && m.target !== '/'
-            );
-            const df = disks.find(d => d.mount === '/');
-            const used = df ? df.used : 'N/A';
-            const avail = df ? df.avail : 'N/A';
+            const rootDisk = disks.find(d => d.mount === '/') || disks[0];
+            const total = rootDisk ? rootDisk.size : 'N/A';
+            const avail = rootDisk ? rootDisk.avail : 'N/A';
+            const used = rootDisk ? rootDisk.used : 'N/A';
             document.getElementById('storage-overview').innerHTML = 
                 `<div class="overview-stats">
-                    <div class="stat-big">${used}</div>
-                    <div class="stat-label">Used on /</div>
-                    <div class="stat-detail">${avail} available · ${realMounts.length} mounts</div>
+                    <div class="stat-big">${total}</div>
+                    <div class="stat-label">Total Storage</div>
+                    <div class="stat-detail">${used} used · ${avail} free</div>
                 </div>`;
         })
         .catch(() => {

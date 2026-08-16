@@ -1,54 +1,85 @@
 """
-Storage and disk management.
+Storage utilities: disk usage via df -h, mount info, and directory usage.
 """
 import subprocess
-import os
-
-from dashboard.dependencies import run_command, run_sudo_command
+from typing import List, Dict, Any
 
 
-def get_disk_usage() -> list[dict]:
-    """
-    Run df -h and return parsed mount information.
-    """
-    code, out, err = run_command(["df", "-h"], timeout=10)
-    if code != 0:
-        return [{"error": err}]
-    
-    mounts = []
-    lines = out.split("\n")
-    # Skip header line
-    for line in lines[1:]:
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split()
-        if len(parts) >= 6:
-            mounts.append({
-                "fs": parts[0],
+PSEUDO_FS = frozenset([
+    "tmpfs", "devtmpfs", "devpts", "proc", "sysfs", "cgroup",
+    "cgroup2", "debugfs", "tracefs", "fusectl", "pstore",
+    "bpf", "configfs", "securityfs", "hugetlbfs",
+    "dev", "run",  # pseudo mounts with no device prefix
+])
+
+
+def _run_df() -> List[Dict[str, str]]:
+    """Run 'df -h' and parse output, filtering pseudo FSes and deduplicating
+    bind mounts (keep only the root mount for each physical device)."""
+    try:
+        result = subprocess.run(
+            ["df", "-h"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        lines = result.stdout.strip().split('\n')
+        if len(lines) < 2:
+            return []
+
+        entries: List[Dict[str, str]] = []
+        for line in lines[1:]:
+            parts = line.split()
+            if len(parts) < 6:
+                continue
+            fs = parts[0]
+            fs_base = fs.split('/')[-1] if '/' in fs else fs
+            if fs_base in PSEUDO_FS:
+                continue
+            entries.append({
+                "fs": fs,
                 "size": parts[1],
                 "used": parts[2],
                 "avail": parts[3],
                 "use_pct": parts[4],
                 "mount": parts[5],
             })
-    return mounts
+
+        # Deduplicate by device: keep the entry with the shortest mount path
+        seen: Dict[str, Dict[str, str]] = {}
+        for e in entries:
+            device = e["fs"]
+            if device not in seen:
+                seen[device] = e
+            elif len(e["mount"]) < len(seen[device]["mount"]):
+                seen[device] = e
+
+        return list(seen.values())
+    except Exception:
+        return []
 
 
-def get_mounts() -> list[dict]:
-    """
-    Read /proc/mounts for detailed mount info.
-    """
+def get_disk_usage() -> List[Dict[str, str]]:
+    """Get disk usage from df -h."""
+    return _run_df()
+
+
+def get_mounts() -> List[Dict[str, str]]:
+    """Read /proc/mounts for mount info, filtering pseudo FSes."""
     mounts = []
     try:
-        with open("/proc/mounts", "r") as f:
+        with open('/proc/mounts', 'r') as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 4:
+                    fs = parts[2]
+                    fs_base = fs.split('/')[-1] if '/' in fs else fs
+                    if fs_base in PSEUDO_FS:
+                        continue
                     mounts.append({
                         "source": parts[0],
                         "target": parts[1],
-                        "fs": parts[2],
+                        "fs": fs,
                         "options": parts[3],
                     })
     except Exception:
@@ -56,52 +87,44 @@ def get_mounts() -> list[dict]:
     return mounts
 
 
-def get_dir_usage(paths: list[str] = None, top_n: int = 10) -> list[dict]:
-    """
-    Get disk usage for top directories.
-    paths: list of paths to check (default: /, /home, /var)
-    """
-    if paths is None:
-        paths = ["/", "/home", "/var"]
-    
-    results = []
+def get_dir_usage() -> List[Dict[str, Any]]:
+    """Get directory usage via du -sh on common paths."""
+    paths = ['/', '/home', '/var', '/tmp']
+    result = []
     for path in paths:
-        if not os.path.exists(path):
-            continue
-        code, out, err = run_command(
-            ["du", "-sh", path + "/*", "--exclude=/proc", "--exclude=/sys", "--exclude=/dev", "--exclude=/run"],
+        try:
+            p = subprocess.run(
+                ["du", "-sh", path],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            size = p.stdout.strip().split()[0] if p.stdout.strip() else '?'
+            result.append({
+                "base_path": path,
+                "total_size": size,
+                "directories": [{"path": path, "size": size}],
+            })
+        except Exception:
+            result.append({
+                "base_path": path,
+                "total_size": '?',
+                "directories": [],
+            })
+    return result
+
+
+def unmount(mount_point: str) -> Dict[str, Any]:
+    """Unmount a filesystem (requires sudo)."""
+    try:
+        result = subprocess.run(
+            ["sudo", "umount", mount_point],
+            capture_output=True,
+            text=True,
             timeout=30,
         )
-        if code == 0:
-            dirs = []
-            for line in out.split("\n"):
-                line = line.strip()
-                if not line:
-                    continue
-                parts = line.split("\t")
-                if len(parts) == 2:
-                    size = parts[0]
-                    d = parts[1]
-                    # Skip the path prefix
-                    if d.startswith(path):
-                        d = d[len(path):].lstrip("/")
-                    dirs.append({"path": d, "size": size})
-            # Sort by size (human readable — simple approach)
-            dirs.sort(key=lambda x: x["size"], reverse=True)
-            results.append({
-                "base_path": path,
-                "directories": dirs[:top_n],
-            })
-    
-    return results
-
-
-def unmount(mount_point: str) -> dict:
-    """Unmount a filesystem (requires sudo)."""
-    code, out, err = run_sudo_command(["umount", mount_point], timeout=15)
-    return {
-        "success": code == 0,
-        "mount": mount_point,
-        "output": out,
-        "error": err,
-    }
+        if result.returncode == 0:
+            return {"success": True, "output": result.stdout}
+        return {"success": False, "error": result.stderr.strip() or "umount failed"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

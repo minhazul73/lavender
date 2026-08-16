@@ -10,18 +10,17 @@ from dashboard.services.systemd import (
     service_toggle_enabled,
     get_all_units,
 )
-from dashboard.services.storage import (
-    get_disk_usage,
-    get_mounts,
-    get_dir_usage,
-    unmount,
-)
 from dashboard.services.processes import (
     get_top_processes,
     get_system_load,
     kill_process,
     get_memory_info,
     get_memory_human,
+)
+from dashboard.services.storage import (
+    get_disk_usage,
+    get_mounts,
+    get_dir_usage,
 )
 
 router = APIRouter()
@@ -88,15 +87,6 @@ async def api_storage():
         "mounts": get_mounts(),
         "dir_usage": get_dir_usage(),
     }
-
-
-@router.post("/system/storage/unmount")
-async def api_unmount(mount_point: str = Query(..., description="Mount point to unmount")):
-    """Unmount a filesystem."""
-    result = unmount(mount_point)
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Unmount failed"))
-    return result
 
 
 # ---- Processes ----

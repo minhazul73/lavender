@@ -55,6 +55,7 @@
     </div>
 </div>
 
+<script>
 function loadBattery() {
     fetch('/api/device/battery')
         .then(r => r.json())
@@ -89,7 +90,11 @@ function renderBattery(battery) {
                 <div class="battery-row"><span class="label">State:</span> 
                     <span class="badge ${stateClass}">${state}</span></div>
                 ${battery.voltage ? `<div class="battery-row"><span class="label">Voltage:</span> <span class="value">${battery.voltage} V</span></div>` : ''}
-                ${battery.capacity ? `<div class="battery-row"><span class="label">Capacity:</span> <span class="value">${battery.capacity} Wh</span></div>` : ''}
+                ${battery.capacity !== null ? `<div class="battery-row"><span class="label">Capacity:</span> <span class="value">${battery.capacity}%</span></div>` : ''}
+                ${battery.energy ? `<div class="battery-row"><span class="label">Energy:</span> <span class="value">${battery.energy} Wh</span></div>` : ''}
+                ${battery.energy_full ? `<div class="battery-row"><span class="label">Full Charge:</span> <span class="value">${battery.energy_full} Wh</span></div>` : ''}
+                ${battery.energy_rate ? `<div class="battery-row"><span class="label">Charge Rate:</span> <span class="value">${battery.energy_rate} W</span></div>` : ''}
+                ${battery.temperature !== null ? `<div class="battery-row"><span class="label">Temperature:</span> <span class="value">${battery.temperature}°C</span></div>` : ''}
                 ${battery.time_to_empty ? `<div class="battery-row"><span class="label">Time to Empty:</span> <span class="value">${battery.time_to_empty}</span></div>` : ''}
                 ${battery.time_to_full ? `<div class="battery-row"><span class="label">Time to Full:</span> <span class="value">${battery.time_to_full}</span></div>` : ''}
                 ${battery.model ? `<div class="battery-row"><span class="label">Model:</span> <span class="value">${escapeHtml(battery.model)}</span></div>` : ''}
@@ -97,6 +102,11 @@ function renderBattery(battery) {
             </div>
         </div>
     `;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function loadThermal() {

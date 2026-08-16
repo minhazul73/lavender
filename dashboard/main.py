@@ -56,16 +56,16 @@ async def services_page(request: Request):
     return templates.TemplateResponse(request=request, name="services.html", context={"request": request})
 
 
-@app.get("/storage")
-async def storage_page(request: Request):
-    """Storage/disk page."""
-    return templates.TemplateResponse(request=request, name="storage.html", context={"request": request})
-
-
 @app.get("/processes")
 async def processes_page(request: Request):
     """Processes page."""
     return templates.TemplateResponse(request=request, name="processes.html", context={"request": request})
+
+
+@app.get("/storage")
+async def storage_page(request: Request):
+    """Storage/disk page."""
+    return templates.TemplateResponse(request=request, name="storage.html", context={"request": request})
 
 
 @app.get("/network")
