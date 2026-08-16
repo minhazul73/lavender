@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Power — Hermes Dashboard{% endblock %}
+{% block page_title %}Power Control{% endblock %}
+
+{% block content %}
+<div class="power-controls">
+    <div class="power-warning">
+        <div class="warning-icon">⚠</div>
+        <div>
+            <h3>Destructive Actions</h3>
+            <p>These actions will affect the entire system. Confirm each action before proceeding.</p>
+        </div>
+    </div>
+
+    <div class="power-grid">
+        <!-- Reboot -->
+        <div class="power-card">
+            <div class="power-icon reboot">🔄</div>
+            <h3>Reboot</h3>
+            <p>Restart the system. All running services will be stopped and restarted.</p>
+            <button class="btn btn-danger" id="btn-reboot">Reboot System</button>
+        </div>
+
+        <!-- Power Off -->
+        <div class="power-card">
+            <div class="power-icon poweroff">⏻</div>
+            <h3>Power Off</h3>
+            <p>Shut down the system completely. The device will lose power.</p>
+            <button class="btn btn-danger" id="btn-poweroff">Power Off</button>
+        </div>
+
+        <!-- Suspend -->
+        <div class="power-card">
+            <div class="power-icon suspend">💤</div>
+            <h3>Suspend</h3>
+            <p>Suspend the system to RAM. The device will appear off but retain state in memory.</p>
+            <button class="btn btn-warning" id="btn-suspend">Suspend</button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Modals -->
+<div id="reboot-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3>⚠ Confirm Reboot</h3>
+        <p>Are you sure you want to reboot the system?</p>
+        <div class="alert alert-warning">
+            All running services will be stopped. Unsaved data may be lost.
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('reboot-modal')">Cancel</button>
+            <button class="btn btn-danger" id="confirm-reboot">Reboot</button>
+        </div>
+    </div>
+</div>
+
+<div id="poweroff-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3>⚠ Confirm Power Off</h3>
+        <p>Are you sure you want to power off the system?</p>
+        <div class="alert alert-warning">
+            The device will shut down completely. This action cannot be undone.
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('poweroff-modal')">Cancel</button>
+            <button class="btn btn-danger" id="confirm-poweroff">Power Off</button>
+        </div>
+    </div>
+</div>
+
+<div id="suspend-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3>⚠ Confirm Suspend</h3>
+        <p>Are you sure you want to suspend the system?</p>
+        <div class="alert alert-warning">
+            The device will enter a low-power state. Press the power button to resume.
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('suspend-modal')">Cancel</button>
+            <button class="btn btn-warning" id="confirm-suspend">Suspend</button>
+        </div>
+    </div>
+</div>
+
+<!-- Action Result Modal -->
+<div id="action-result-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3 id="result-title">Action Result</h3>
+        <div id="result-body"></div>
+        <div class="modal-actions">
+            <button class="btn" id="result-close">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showPowerModal(modalId, action, confirmBtnId) {
+    document.getElementById(confirmBtnId).onclick = function() {
+        this.disabled = true;
+        this.textContent = '...';
+        
+        htmx.send('POST', `/api/device/power/${action}`, {
+            target: '#result-body',
+            swap: 'innerHTML',
+            onLoad: function(response) {
+                const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+                if (data.success) {
+                    document.getElementById('result-title').textContent = '✓ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' Initiated';
+                    document.getElementById('result-body').innerHTML = 
+                        '<div class="alert alert-success">The ' + action + ' command has been sent to the system.</div>' +
+                        (data.output ? '<pre class="logs-output">' + escapeHtml(data.output) + '</pre>' : '') +
+                        '<p class="text-muted">Note: If this was a reboot or poweroff, the dashboard may become unavailable momentarily.</p>';
+                } else {
+                    document.getElementById('result-title').textContent = '✗ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' Failed';
+                    document.getElementById('result-body').innerHTML = 
+                        '<div class="alert alert-error">Failed to ' + action + '.</div>' +
+                        '<pre class="logs-output">' + escapeHtml(data.error || 'Unknown error') + '</pre>' +
+                        '<p class="text-muted">This may be due to insufficient sudo permissions.</p>';
+                }
+                document.getElementById('result-close').onclick = function() {
+                    closeModal('action-result-modal');
+                    // Close the original modal too
+                    closeModal(modalId);
+                };
+                openModal('action-result-modal');
+            }
+        });
+    };
+    openModal(modalId);
+}
+
+document.getElementById('btn-reboot').addEventListener('click', function() {
+    showPowerModal('reboot-modal', 'reboot', 'confirm-reboot');
+});
+
+document.getElementById('btn-poweroff').addEventListener('click', function() {
+    showPowerModal('poweroff-modal', 'poweroff', 'confirm-poweroff');
+});
+
+document.getElementById('btn-suspend').addEventListener('click', function() {
+    showPowerModal('suspend-modal', 'suspend', 'confirm-suspend');
+});
+</script>
+{% endblock %}

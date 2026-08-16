@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Processes — Hermes Dashboard{% endblock %}
+{% block page_title %}Processes & Resources{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div class="sort-group">
+        <label>Sort by:</label>
+        <select id="sort-by" class="select">
+            <option value="mem">Memory</option>
+            <option value="cpu">CPU</option>
+        </select>
+    </div>
+    <div class="limit-group">
+        <label>Show:</label>
+        <select id="process-limit" class="select">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+    <button class="btn" id="refresh-procs">Refresh</button>
+</div>
+
+<!-- System Load & Memory -->
+<div class="info-grid">
+    <div class="info-card">
+        <h4>Load Average</h4>
+        <div class="load-display" id="load-display">
+            <span class="loading">Loading...</span>
+        </div>
+    </div>
+    <div class="info-card">
+        <h4>Memory Usage</h4>
+        <div id="memory-display">
+            <span class="loading">Loading...</span>
+        </div>
+    </div>
+    <div class="info-card">
+        <h4>Uptime</h4>
+        <div id="uptime-display">
+            <span class="loading">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Process Table -->
+<div class="card">
+    <div class="card-header">
+        <h3>Processes (<span id="proc-count">0</span>)</h3>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-condensed">
+                <thead>
+                    <tr>
+                        <th>PID</th>
+                        <th>User</th>
+                        <th>CPU%</th>
+                        <th>MEM%</th>
+                        <th>VSZ</th>
+                        <th>RSS</th>
+                        <th>State</th>
+                        <th>Start</th>
+                        <th>Time</th>
+                        <th>Command</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="processes-table">
+                    <tr><td colspan="11" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Kill Confirmation Modal -->
+<div id="kill-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3>Kill Process</h3>
+        <p>Are you sure you want to kill PID <span id="kill-pid" class="mono"></span>?</p>
+        <div class="alert alert-warning">This will terminate the process immediately (SIGKILL).</div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('kill-modal')">Cancel</button>
+            <button class="btn btn-danger" id="confirm-kill">Kill</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentProcesses = [];
+
+function loadProcesses(sortBy = 'mem', limit = 20) {
+    htmx.send('GET', `/api/system/processes?sort_by=${sortBy}&limit=${limit}`, {
+        target: '#processes-table',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            try {
+                const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+                currentProcesses = data.processes || [];
+                document.getElementById('proc-count').textContent = currentProcesses.length;
+                document.getElementById('processes-table').innerHTML = renderProcesses(currentProcesses);
+                
+                // Load system info separately
+                if (data.load) {
+                    renderLoad(data.load);
+                }
+                if (data.memory) {
+                    renderMemory(data.memory);
+                }
+            } catch(e) {
+                console.error('Parse error:', e);
+            }
+        }
+    });
+}
+
+function renderProcesses(procs) {
+    if (!procs || procs.length === 0) {
+        return '<tr><td colspan="11" class="text-center">No processes found</td></tr>';
+    }
+    return procs.map(p => {
+        const cpuClass = p.cpu > 50 ? 'crit' : (p.cpu > 10 ? 'warn' : '');
+        const memClass = p.mem > 20 ? 'crit' : (p.mem > 5 ? 'warn' : '');
+        return `
+        <tr>
+            <td class="mono">${p.pid}</td>
+            <td>${p.user}</td>
+            <td><span class="${cpuClass}">${p.cpu.toFixed(1)}</span></td>
+            <td><span class="${memClass}">${p.mem.toFixed(1)}</span></td>
+            <td class="mono small">${p.vsz}</td>
+            <td class="mono small">${p.rss}</td>
+            <td class="mono small">${p.stat}</td>
+            <td class="mono small">${p.start}</td>
+            <td class="mono small">${p.time}</td>
+            <td class="command-cell" title="${escapeHtml(p.command)}">${truncateCmd(p.command, 40)}</td>
+            <td>
+                <button class="btn btn-xs btn-danger" onclick="confirmKill(${p.pid}, '${escapeHtml(p.command)}')">Kill</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function truncateCmd(cmd, maxLen) {
+    if (!cmd) return '';
+    if (cmd.length <= maxLen) return cmd;
+    return cmd.substring(0, maxLen - 3) + '...';
+}
+
+function renderLoad(load) {
+    document.getElementById('load-display').innerHTML = `
+        <div class="load-values">
+            <span class="load-1">${load['1min'].toFixed(2)}</span>
+            <span class="load-5">${load['5min'].toFixed(2)}</span>
+            <span class="load-15">${load['15min'].toFixed(2)}</span>
+        </div>
+    `;
+    document.getElementById('uptime-display').textContent = load.uptime_formatted || 'Unknown';
+}
+
+function renderMemory(mem) {
+    const m = mem.parsed || {};
+    document.getElementById('memory-display').innerHTML = `
+        <div class="mem-values">
+            <div><span class="mem-label">Total:</span> <span class="mem-value">${m.total || 'N/A'}</span></div>
+            <div><span class="mem-label">Used:</span> <span class="mem-value">${m.used || 'N/A'}</span></div>
+            <div><span class="mem-label">Free:</span> <span class="mem-value">${m.free || 'N/A'}</span></div>
+            ${m.swap_total ? `<div><span class="mem-label">Swap:</span> <span class="mem-value">${m.swap_total}</span></div>` : ''}
+        </div>
+    `;
+}
+
+function confirmKill(pid, cmd) {
+    document.getElementById('kill-pid').textContent = pid;
+    openModal('kill-modal');
+}
+
+document.getElementById('confirm-kill').addEventListener('click', function() {
+    const pid = document.getElementById('kill-pid').textContent;
+    this.disabled = true;
+    this.textContent = 'Killing...';
+    
+    htmx.send('POST', `/api/system/processes/kill?pid=${pid}`, {
+        target: '#kill-modal',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            if (data.success) {
+                document.getElementById('kill-modal').innerHTML = 
+                    '<div class="modal-backdrop"></div><div class="modal-content">' +
+                    '<h3>✓ Killed</h3><p>Process ' + pid + ' has been terminated.</p>' +
+                    '<div class="modal-actions">' +
+                    '<button class="btn" onclick="closeModal(\'kill-modal\'); loadProcesses(\'' + 
+                    document.getElementById('sort-by').value + '\', ' + document.getElementById('process-limit').value + ');">Close</button>' +
+                    '</div></div>';
+            } else {
+                document.getElementById('kill-modal').innerHTML = 
+                    '<div class="modal-backdrop"></div><div class="modal-content">' +
+                    '<h3>✗ Failed</h3><p>' + escapeHtml(data.error || 'Unknown error') + '</p>' +
+                    '<div class="modal-actions">' +
+                    '<button class="btn btn-secondary" onclick="closeModal(\'kill-modal\')">Close</button>' +
+                    '</div></div>';
+            }
+        }
+    });
+});
+
+document.getElementById('sort-by').addEventListener('change', function() {
+    loadProcesses(this.value, parseInt(document.getElementById('process-limit').value));
+});
+
+document.getElementById('process-limit').addEventListener('change', function() {
+    loadProcesses(document.getElementById('sort-by').value, parseInt(this.value));
+});
+
+document.getElementById('refresh-procs').addEventListener('click', function() {
+    loadProcesses(document.getElementById('sort-by').value, parseInt(document.getElementById('process-limit').value));
+});
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Initial load
+loadProcesses('mem', 20);
+</script>
+{% endblock %}

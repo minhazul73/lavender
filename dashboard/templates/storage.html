@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Storage — Hermes Dashboard{% endblock %}
+{% block page_title %}Storage & Disk{% endblock %}
+
+{% block content %}
+<div class="tabs">
+    <button class="tab active" data-tab="disks">Disk Usage</button>
+    <button class="tab" data-tab="mounts">Mounts</button>
+    <button class="tab" data-tab="du">Directory Usage</button>
+</div>
+
+<!-- Disk Usage Tab -->
+<div class="tab-content active" id="tab-disks">
+    <div class="card">
+        <div class="card-header">
+            <h3>Disk Usage (df -h)</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Filesystem</th>
+                            <th>Size</th>
+                            <th>Used</th>
+                            <th>Avail</th>
+                            <th>Use%</th>
+                            <th>Mount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="disks-table">
+                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mounts Tab -->
+<div class="tab-content" id="tab-mounts">
+    <div class="card">
+        <div class="card-header">
+            <h3>Mount Points</h3>
+            <button class="btn btn-sm" id="refresh-mounts">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Target</th>
+                            <th>Filesystem</th>
+                            <th>Options</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mounts-table">
+                        <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Directory Usage Tab -->
+<div class="tab-content" id="tab-du">
+    <div class="card">
+        <div class="card-header">
+            <h3>Disk Usage by Directory</h3>
+            <div class="radio-group">
+                <label><input type="checkbox" id="du-all"> Show all paths</label>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="du-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unmount Confirmation Modal -->
+<div id="unmount-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3>Unmount <span id="unmount-target"></span></h3>
+        <p>Are you sure you want to unmount <span id="unmount-mount" class="mono"></span>?</p>
+        <div class="alert alert-warning">This may cause data loss if the filesystem is in use.</div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('unmount-modal')">Cancel</button>
+            <button class="btn btn-danger" id="confirm-unmount">Unmount</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadDisks() {
+    htmx.send('GET', '/api/system/storage', {
+        target: '#disks-table',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const disks = data.disks || [];
+            document.getElementById('disks-table').innerHTML = renderDisks(disks);
+        }
+    });
+}
+
+function renderDisks(disks) {
+    if (!disks || disks.length === 0) {
+        return '<tr><td colspan="6" class="text-center">No disk info available</td></tr>';
+    }
+    return disks.map(d => {
+        const usePct = d.use_pct ? parseInt(d.use_pct) : 0;
+        const warnClass = usePct > 80 ? 'warn' : (usePct > 90 ? 'crit' : '');
+        return `
+        <tr>
+            <td class="mono small">${d.fs}</td>
+            <td>${d.size}</td>
+            <td>${d.used}</td>
+            <td>${d.avail}</td>
+            <td><span class="use-pct ${warnClass}">${d.use_pct}</span></td>
+            <td class="mono">${d.mount}</td>
+        </tr>`;
+    }).join('');
+}
+
+function loadMounts() {
+    htmx.send('GET', '/api/system/storage', {
+        target: '#mounts-table',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const mounts = data.mounts || [];
+            document.getElementById('mounts-table').innerHTML = renderMounts(mounts);
+        }
+    });
+}
+
+function renderMounts(mounts) {
+    if (!mounts || mounts.length === 0) {
+        return '<tr><td colspan="5" class="text-center">No mounts found</td></tr>';
+    }
+    return mounts.map(m => {
+        // Skip pseudo filesystems
+        if (m.fs.includes('proc') || m.fs.includes('sys') || m.fs.includes('dev')) {
+            return '';
+        }
+        return `
+        <tr>
+            <td class="mono small">${m.source}</td>
+            <td class="mono">${m.target}</td>
+            <td class="mono small">${m.fs}</td>
+            <td class="mono small">${m.options}</td>
+            <td>
+                ${m.fs !== 'proc' && m.fs !== 'sysfs' && m.fs !== 'devtmpfs' && m.fs !== 'tmpfs' ? 
+                    `<button class="btn btn-xs btn-danger" onclick="confirmUnmount('${m.target}')">Unmount</button>` : ''}
+            </td>
+        </tr>`;
+    }).filter(r => r).join('');
+}
+
+function loadDirUsage(showAll = false) {
+    const paths = showAll ? ['/', '/home', '/var', '/tmp'] : ['/', '/home', '/var'];
+    // Use HTMX to get dir usage - we'll load via the storage API
+    htmx.send('GET', '/api/system/storage', {
+        target: '#du-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const dirUsage = data.dir_usage || [];
+            document.getElementById('du-content').innerHTML = renderDirUsage(dirUsage, showAll);
+        }
+    });
+}
+
+function renderDirUsage(dirUsage, showAll) {
+    if (!dirUsage || dirUsage.length === 0) {
+        return '<p class="text-muted">No directory usage data available</p>';
+    }
+    return dirUsage.map(du => {
+        if (showAll || du.base_path !== '/') {
+            const dirsHtml = du.directories.map(d => `
+                <div class="du-row">
+                    <span class="du-size">${d.size}</span>
+                    <span class="du-path mono">${d.path}</span>
+                </div>`).join('');
+            return `
+            <div class="du-section">
+                <h4>${du.base_path}</h4>
+                <div class="du-list">${dirsHtml}</div>
+            </div>`;
+        }
+        return '';
+    }).filter(r => r).join('');
+}
+
+function confirmUnmount(mountPoint) {
+    document.getElementById('unmount-target').textContent = mountPoint;
+    document.getElementById('unmount-mount').textContent = mountPoint;
+    openModal('unmount-modal');
+}
+
+document.getElementById('confirm-unmount').addEventListener('click', function() {
+    const mountPoint = document.getElementById('unmount-mount').textContent;
+    this.disabled = true;
+    this.textContent = 'Unmounting...';
+    
+    htmx.send('POST', `/api/system/storage/unmount?mount_point=${encodeURIComponent(mountPoint)}`, {
+        target: '#unmount-modal',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            if (data.success) {
+                document.getElementById('unmount-modal').innerHTML = 
+                    '<div class="modal-backdrop"></div><div class="modal-content">' +
+                    '<h3>✓ Unmounted</h3><p>' + mountPoint + ' has been unmounted.</p>' +
+                    '<div class="modal-actions">' +
+                    '<button class="btn" onclick="closeModal(\'unmount-modal\'); loadMounts();">Close</button>' +
+                    '</div></div>';
+            } else {
+                document.getElementById('unmount-modal').innerHTML = 
+                    '<div class="modal-backdrop"></div><div class="modal-content">' +
+                    '<h3>✗ Failed</h3><p>' + escapeHtml(data.error || 'Unknown error') + '</p>' +
+                    '<div class="modal-actions">' +
+                    '<button class="btn btn-secondary" onclick="closeModal(\'unmount-modal\')">Close</button>' +
+                    '</div></div>';
+            }
+        }
+    });
+});
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    });
+});
+
+document.getElementById('refresh-mounts').addEventListener('click', loadMounts);
+document.getElementById('du-all').addEventListener('change', function() {
+    loadDirUsage(this.checked);
+});
+
+// Initial load
+loadDisks();
+loadMounts();
+loadDirUsage(false);
+</script>
+{% endblock %}

@@ -1,0 +1,227 @@
+"""
+Battery, thermal, and CPU frequency management.
+"""
+import subprocess
+import os
+
+from dashboard.dependencies import run_command
+
+
+def get_battery_info() -> dict:
+    """
+    Get battery information using upower.
+    """
+    # Find battery device
+    code, out, err = run_command(["upower", "-e"], timeout=10)
+    battery_path = None
+    if code == 0:
+        for line in out.split("\n"):
+            if "battery" in line.lower():
+                battery_path = line.strip()
+                break
+    
+    if not battery_path:
+        # Try the known path from environment check
+        battery_path = "/org/freedesktop/UPower/devices/battery_qcom_battery"
+    
+    # Get detailed info
+    code, out, err = run_command(["upower", "-i", battery_path], timeout=10)
+    if code != 0:
+        return {"error": err, "note": "upower not available or battery not found"}
+    
+    info = {}
+    current_key = None
+    for line in out.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        
+        # Parse key: value lines from upower -i output
+        # Format: "    key:               value" (same line)
+        # or:     "    key:" (value continues on next line)
+        if ":" in line:
+            parts = line.split(":", 1)
+            key = parts[0].strip()
+            value = parts[1].strip() if len(parts) > 1 else ""
+            if value:
+                # key: value on same line
+                info[key] = value
+                current_key = None
+            else:
+                # key: (value on next line)
+                current_key = key
+                info[current_key] = ""
+        elif current_key:
+            # continuation of previous key's value
+            value = line.strip()
+            if value:
+                if info[current_key]:
+                    info[current_key] += " " + value
+                else:
+                    info[current_key] = value
+    
+    # Parse key fields
+    result = {
+        "percentage": None,
+        "state": None,
+        "voltage": None,
+        "time_to_empty": None,
+        "time_to_full": None,
+        "capacity": None,
+        "serial": None,
+        "vendor": None,
+        "model": None,
+        "note": "Battery info" if info else "No battery detected",
+    }
+    
+    for key, value in info.items():
+        if "percentage" in key.lower():
+            try:
+                result["percentage"] = int(value.replace("%", "").strip())
+            except (ValueError, AttributeError):
+                pass
+        elif "state" in key.lower():
+            result["state"] = value
+        elif "voltage" in key.lower() and "minimum" not in key.lower() and "maximum" not in key.lower():
+            try:
+                result["voltage"] = float(value.replace("V", "").strip())
+            except (ValueError, AttributeError):
+                pass
+        elif "time to empty" in key.lower():
+            result["time_to_empty"] = value
+        elif "time to full" in key.lower():
+            result["time_to_full"] = value
+        elif "capacity" in key.lower():
+            try:
+                result["capacity"] = int(value.replace("Wh", "").strip())
+            except (ValueError, AttributeError):
+                pass
+        elif "serial" in key.lower():
+            result["serial"] = value
+        elif "vendor" in key.lower():
+            result["vendor"] = value
+        elif "model" in key.lower() or "native path" in key.lower():
+            if "model" in key.lower():
+                result["model"] = value
+    
+    return result
+
+
+def get_thermal_zones() -> list[dict]:
+    """
+    Read thermal zones from /sys/class/thermal/.
+    """
+    zones = []
+    thermal_dir = "/sys/class/thermal"
+    
+    if not os.path.isdir(thermal_dir):
+        return [{"note": "No thermal zones available"}]
+    
+    for entry in sorted(os.listdir(thermal_dir)):
+        if entry.startswith("thermal_zone"):
+            zone_path = os.path.join(thermal_dir, entry)
+            zone = {
+                "name": entry,
+                "type": "",
+                "temp_millicelsius": None,
+                "temp_celsius": None,
+                "warning": False,
+            }
+            
+            # Read type
+            type_path = os.path.join(zone_path, "type")
+            if os.path.isfile(type_path):
+                try:
+                    with open(type_path, "r") as f:
+                        zone["type"] = f.read().strip()
+                except Exception:
+                    pass
+            
+            # Read temperature
+            temp_path = os.path.join(zone_path, "temp")
+            if os.path.isfile(temp_path):
+                try:
+                    with open(temp_path, "r") as f:
+                        temp_raw = int(f.read().strip())
+                        zone["temp_millicelsius"] = temp_raw
+                        zone["temp_celsius"] = round(temp_raw / 1000, 1)
+                        # Check threshold (from config: 70000 m°C = 70°C)
+                        if temp_raw > 70000:
+                            zone["warning"] = True
+                except Exception:
+                    pass
+            
+            zones.append(zone)
+    
+    return zones
+
+
+def get_cpu_frequencies() -> list[dict]:
+    """
+    Read CPU frequencies from /sys/devices/system/cpu/.
+    """
+    cpu_freqs = []
+    cpu_dir = "/sys/devices/system/cpu"
+    
+    if not os.path.isdir(cpu_dir):
+        return [{"note": "CPU frequency info not available"}]
+    
+    for entry in sorted(os.listdir(cpu_dir)):
+        if entry.startswith("cpu") and entry.isdigit():
+            cpu_num = int(entry[3:])
+            cpu_path = os.path.join(cpu_dir, entry)
+            cpu_info = {
+                "cpu": cpu_num,
+                "frequency_khz": None,
+                "frequency_mhz": None,
+            }
+            
+            # Read current frequency
+            freq_path = os.path.join(cpu_path, "cpufreq", "scaling_cur_freq")
+            if os.path.isfile(freq_path):
+                try:
+                    with open(freq_path, "r") as f:
+                        freq = int(f.read().strip())
+                        cpu_info["frequency_khz"] = freq
+                        cpu_info["frequency_mhz"] = round(freq / 1000, 1)
+                except Exception:
+                    pass
+            
+            # Read governor
+            gov_path = os.path.join(cpu_path, "cpufreq", "scaling_governor")
+            if os.path.isfile(gov_path):
+                try:
+                    with open(gov_path, "r") as f:
+                        cpu_info["governor"] = f.read().strip()
+                except Exception:
+                    pass
+            
+            cpu_freqs.append(cpu_info)
+    
+    return cpu_freqs
+
+
+def get_cpu_scaling_available() -> dict:
+    """Get available CPU frequency governors and ranges."""
+    result = {"governors": [], "min_freq": None, "max_freq": None}
+    cpu0_path = "/sys/devices/system/cpu/cpu0/cpufreq"
+    
+    if os.path.isdir(cpu0_path):
+        try:
+            avail_path = os.path.join(cpu0_path, "scaling_available_governors")
+            if os.path.isfile(avail_path):
+                with open(avail_path, "r") as f:
+                    result["governors"] = f.read().strip().split()
+            
+            min_path = os.path.join(cpu0_path, "scaling_min_freq")
+            max_path = os.path.join(cpu0_path, "scaling_max_freq")
+            if os.path.isfile(min_path):
+                with open(min_path, "r") as f:
+                    result["min_freq"] = int(f.read().strip())
+            if os.path.isfile(max_path):
+                with open(max_path, "r") as f:
+                    result["max_freq"] = int(f.read().strip())
+        except Exception:
+            pass
+    
+    return result

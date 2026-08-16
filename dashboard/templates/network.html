@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Network — Hermes Dashboard{% endblock %}
+{% block page_title %}Network & WiFi{% endblock %}
+
+{% block content %}
+<div class="tabs">
+    <button class="tab active" data-tab="interfaces">Interfaces</button>
+    <button class="tab" data-tab="wifi">WiFi</button>
+    <button class="tab" data-tab="dns">DNS</button>
+    <button class="tab" data-tab="ping">Connectivity</button>
+</div>
+
+<!-- Interfaces Tab -->
+<div class="tab-content active" id="tab-interfaces">
+    <div class="card">
+        <div class="card-header">
+            <h3>Network Interfaces</h3>
+            <button class="btn btn-sm" id="refresh-ifaces">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div class="interfaces-grid" id="interfaces-grid">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- WiFi Tab -->
+<div class="tab-content" id="tab-wifi">
+    <div class="card">
+        <div class="card-header">
+            <h3>WiFi Information</h3>
+            <button class="btn btn-sm" id="refresh-wifi">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div id="wifi-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DNS Tab -->
+<div class="tab-content" id="tab-dns">
+    <div class="card">
+        <div class="card-header">
+            <h3>DNS Servers</h3>
+            <button class="btn btn-sm" id="refresh-dns">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div id="dns-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connectivity Tab -->
+<div class="tab-content" id="tab-ping">
+    <div class="card">
+        <div class="card-header">
+            <h3>Connectivity Check</h3>
+        </div>
+        <div class="card-body">
+            <div class="ping-controls">
+                <div class="form-group">
+                    <label>Target:</label>
+                    <input type="text" id="ping-target" class="input" value="8.8.8.8" placeholder="IP or hostname">
+                </div>
+                <div class="form-group">
+                    <label>Count:</label>
+                    <input type="number" id="ping-count" class="input" value="3" min="1" max="10" style="width: 60px;">
+                </div>
+                <button class="btn" id="btn-ping">Ping</button>
+            </div>
+            <div id="ping-result">
+                <p class="text-muted">Run a ping test to check connectivity.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadInterfaces() {
+    htmx.send('GET', '/api/device/network', {
+        target: '#interfaces-grid',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('interfaces-grid').innerHTML = renderInterfaces(data.interfaces || []);
+        }
+    });
+}
+
+function renderInterfaces(ifaces) {
+    if (!ifaces || ifaces.length === 0) {
+        return '<p class="text-muted">No interfaces found</p>';
+    }
+    return ifaces.map(iface => `
+        <div class="iface-card">
+            <div class="iface-header">
+                <h4>${iface.name}</h4>
+                <span class="badge ${iface.state === 'UP' ? 'status-active' : 'status-inactive'}">${iface.state}</span>
+            </div>
+            <div class="iface-details">
+                <div><span class="label">Type:</span> <span class="value">${iface.type}</span></div>
+                <div><span class="label">MTU:</span> <span class="value">${iface.mtu}</span></div>
+                <div><span class="label">Flags:</span> <span class="value">${iface.flags.join(', ')}</span></div>
+                ${iface.addresses.length > 0 ? `
+                <div class="addr-list">
+                    <span class="label">Addresses:</span>
+                    ${iface.addresses.map(a => `<span class="addr-badge">${a}</span>`).join(' ')}
+                </div>` : '<div class="addr-list"><span class="label">Addresses:</span> <span class="text-muted">none</span></div>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadWifi() {
+    htmx.send('GET', '/api/device/network', {
+        target: '#wifi-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('wifi-content').innerHTML = renderWifi(data.wifi || []);
+        }
+    });
+}
+
+function renderWifi(wifi) {
+    if (!wifi || wifi.length === 0) {
+        return '<p class="text-muted">No WiFi interfaces detected. iw may not be available.</p>';
+    }
+    const notes = wifi.filter(w => w.note);
+    const infos = wifi.filter(w => !w.note);
+    
+    if (notes.length > 0) {
+        return notes.map(n => `<p class="text-muted">${n.note}</p>`).join('');
+    }
+    
+    return infos.map(w => `
+        <div class="wifi-card">
+            <div class="wifi-header">
+                <h4>Interface: ${w.interface}</h4>
+                <span class="wifi-method">via ${w.method || 'unknown'}</span>
+            </div>
+            <div class="wifi-details">
+                ${w.ssid ? `<div><span class="label">SSID:</span> <span class="value">${escapeHtml(w.ssid)}</span></div>` : ''}
+                ${w.signal ? `<div><span class="label">Signal:</span> <span class="value">${w.signal} dBm</span></div>` : ''}
+                ${w.quality ? `<div><span class="label">Quality:</span> <span class="value">${w.quality}</span></div>` : ''}
+                ${w.channel ? `<div><span class="label">Channel:</span> <span class="value">${w.channel}</span></div>` : ''}
+                ${w.tx_rate ? `<div><span class="label">TX Rate:</span> <span class="value">${w.tx_rate}</span></div>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function loadDns() {
+    htmx.send('GET', '/api/device/network', {
+        target: '#dns-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('dns-content').innerHTML = renderDns(data.dns || []);
+        }
+    });
+}
+
+function renderDns(dns) {
+    if (!dns || dns.length === 0) {
+        return '<p class="text-muted">No DNS servers configured</p>';
+    }
+    return `
+        <div class="dns-list">
+            ${dns.map(d => `
+                <div class="dns-item">
+                    <span class="dns-ip mono">${d}</span>
+                    <span class="dns-label">nameserver</span>
+                </div>`).join('')}
+        </div>
+    `;
+}
+
+function doPing() {
+    const target = document.getElementById('ping-target').value.trim();
+    const count = parseInt(document.getElementById('ping-count').value) || 3;
+    
+    if (!target) {
+        document.getElementById('ping-result').innerHTML = '<p class="text-muted">Please enter a target.</p>';
+        return;
+    }
+    
+    document.getElementById('btn-ping').disabled = true;
+    document.getElementById('btn-ping').textContent = 'Pinging...';
+    document.getElementById('ping-result').innerHTML = '<div class="loading">Pinging ' + target + '...</div>';
+    
+    htmx.send('GET', `/api/device/network/ping?target=${encodeURIComponent(target)}&count=${count}`, {
+        target: '#ping-result',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('btn-ping').disabled = false;
+            document.getElementById('btn-ping').textContent = 'Ping';
+            renderPingResult(data);
+        }
+    });
+}
+
+function renderPingResult(data) {
+    if (!data || !data.success) {
+        return `
+            <div class="ping-failed">
+                <h4>✗ Ping Failed</h4>
+                <p>Could not reach <span class="mono">${data?.target || 'target'}</span></p>
+                ${data?.error ? '<pre class="logs-output">' + escapeHtml(data.error) + '</pre>' : ''}
+            </div>
+        `;
+    }
+    
+    const latency = data.avg_latency;
+    const latencyClass = latency < 50 ? 'good' : (latency < 150 ? 'warn' : 'crit');
+    
+    return `
+        <div class="ping-success">
+            <h4>✓ Ping Successful</h4>
+            <div class="ping-stats">
+                <div><span class="label">Target:</span> <span class="value mono">${data.target}</span></div>
+                <div><span class="label">Avg Latency:</span> <span class="value ${latencyClass}">${latency.toFixed(1)} ms</span></div>
+            </div>
+            ${data.output ? '<details><summary>Full output</summary><pre class="logs-output">' + escapeHtml(data.output) + '</pre></details>' : ''}
+        </div>
+    `;
+}
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    });
+});
+
+document.getElementById('refresh-ifaces').addEventListener('click', loadInterfaces);
+document.getElementById('refresh-wifi').addEventListener('click', loadWifi);
+document.getElementById('refresh-dns').addEventListener('click', loadDns);
+document.getElementById('btn-ping').addEventListener('click', doPing);
+
+// Initial load
+loadInterfaces();
+loadWifi();
+loadDns();
+</script>
+{% endblock %}

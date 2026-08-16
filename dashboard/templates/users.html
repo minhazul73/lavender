@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Users — Hermes Dashboard{% endblock %}
+{% block page_title %}Users & Permissions{% endblock %}
+
+{% block content %}
+<div class="tabs">
+    <button class="tab active" data-tab="users">Users</button>
+    <button class="tab" data-tab="groups">Groups</button>
+    <button class="tab" data-tab="current">Current User</button>
+    <button class="tab" data-tab="sudoers">Sudoers</button>
+</div>
+
+<!-- Users Tab -->
+<div class="tab-content active" id="tab-users">
+    <div class="card">
+        <div class="card-header">
+            <h3>Human Users (uid ≥ 1000)</h3>
+            <button class="btn btn-sm" id="refresh-users">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>UID</th>
+                            <th>GID</th>
+                            <th>Home</th>
+                            <th>Shell</th>
+                            <th>Comment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table">
+                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Groups Tab -->
+<div class="tab-content" id="tab-groups">
+    <div class="card">
+        <div class="card-header">
+            <h3>Groups</h3>
+            <button class="btn btn-sm" id="refresh-groups">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>GID</th>
+                            <th>Members</th>
+                        </tr>
+                    </thead>
+                    <tbody id="groups-table">
+                        <tr><td colspan="3" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current User Tab -->
+<div class="tab-content" id="tab-current">
+    <div class="card">
+        <div class="card-header">
+            <h3>Current User Info</h3>
+            <button class="btn btn-sm" id="refresh-current">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div id="current-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sudoers Tab -->
+<div class="tab-content" id="tab-sudoers">
+    <div class="card">
+        <div class="card-header">
+            <h3>Sudoers Configuration</h3>
+            <button class="btn btn-sm" id="refresh-sudoers">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div id="sudoers-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadUsers() {
+    htmx.send('GET', '/api/device/users', {
+        target: '#users-table',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const users = data.users || [];
+            document.getElementById('users-table').innerHTML = renderUsers(users);
+        }
+    });
+}
+
+function renderUsers(users) {
+    if (!users || users.length === 0) {
+        return '<tr><td colspan="6" class="text-center">No human users found</td></tr>';
+    }
+    return users.map(u => `
+        <tr>
+            <td class="mono">${u.name}</td>
+            <td>${u.uid}</td>
+            <td>${u.gid}</td>
+            <td class="mono small">${u.home}</td>
+            <td class="mono small">${u.shell}</td>
+            <td>${u.comment || ''}</td>
+        </tr>
+    `).join('');
+}
+
+function loadGroups() {
+    htmx.send('GET', '/api/device/users', {
+        target: '#groups-table',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const groups = data.groups || [];
+            document.getElementById('groups-table').innerHTML = renderGroups(groups);
+        }
+    });
+}
+
+function renderGroups(groups) {
+    if (!groups || groups.length === 0) {
+        return '<tr><td colspan="3" class="text-center">No groups found</td></tr>';
+    }
+    return groups.map(g => `
+        <tr>
+            <td class="mono">${g.name}</td>
+            <td>${g.gid}</td>
+            <td>${(g.members || []).join(', ') || '—'}</td>
+        </tr>
+    `).join('');
+}
+
+function loadCurrentUser() {
+    htmx.send('GET', '/api/device/users', {
+        target: '#current-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const cu = data.current_user || {};
+            document.getElementById('current-content').innerHTML = renderCurrentUser(cu);
+        }
+    });
+}
+
+function renderCurrentUser(cu) {
+    return `
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="label">UID:</span>
+                <span class="value">${cu.uid}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">GID:</span>
+                <span class="value">${cu.gid}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Groups:</span>
+                <span class="value">${(cu.groups || []).join(', ') || '—'}</span>
+            </div>
+            ${cu.id_output ? `
+            <div class="info-item">
+                <span class="label">id output:</span>
+                <pre class="mono small">${escapeHtml(cu.id_output)}</pre>
+            </div>` : ''}
+        </div>
+    `;
+}
+
+function loadSudoers() {
+    htmx.send('GET', '/api/device/users', {
+        target: '#sudoers-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('sudoers-content').innerHTML = renderSudoers(data.sudoers || {});
+        }
+    });
+}
+
+function renderSudoers(sudoers) {
+    return `
+        <div class="sudoers-info">
+            <div class="info-item">
+                <span class="label">Sudoers file exists:</span>
+                <span class="value">${sudoers.sudoers_available ? 'Yes' : 'No'}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">visudo -c:</span>
+                <span class="value ${sudoers.visudo_ok ? 'good' : 'crit'}">${sudoers.visudo_ok ? '✓ OK' : '✗ Error'}</span>
+            </div>
+            ${sudoers.visudo_msg ? `
+            <div class="info-item">
+                <span class="label">Check output:</span>
+                <pre class="mono small">${escapeHtml(sudoers.visudo_msg)}</pre>
+            </div>` : ''}
+            ${sudoers.sudoers_content ? `
+            <div class="info-item">
+                <span class="label">Content (first 2000 chars):</span>
+                <pre class="sudoers-content mono small">${escapeHtml(sudoers.sudoers_content.substring(0, 2000))}</pre>
+            </div>` : '<p class="text-muted">Sudoers file not readable (expected on postmarketOS)</p>'}
+        </div>
+    `;
+}
+
+document.getElementById('refresh-users').addEventListener('click', loadUsers);
+document.getElementById('refresh-groups').addEventListener('click', loadGroups);
+document.getElementById('refresh-current').addEventListener('click', loadCurrentUser);
+document.getElementById('refresh-sudoers').addEventListener('click', loadSudoers);
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    });
+});
+
+// Initial load
+loadUsers();
+loadGroups();
+loadCurrentUser();
+loadSudoers();
+</script>
+{% endblock %}

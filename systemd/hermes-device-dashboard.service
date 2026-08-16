@@ -1,0 +1,29 @@
+[Unit]
+Description=Hermes Device Dashboard (Web UI)
+Documentation=file:///home/rahat/hermes-device-dashboard/README.md
+After=network.target hermes-gateway.service
+
+[Service]
+Type=simple
+User=rahat
+Group=rahat
+WorkingDirectory=/home/rahat/hermes-device-dashboard
+ExecStart=/home/rahat/.local/share/uv/tools/hermes-agent/bin/python -m uvicorn dashboard.main:app --host 0.0.0.0 --port 8080 --log-level info
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+# Resource limits for phone (≤3GB RAM)
+MemoryMax=300M
+MemoryHigh=200M
+CPUQuota=50%
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/rahat/hermes-device-dashboard
+PrivateTmp=yes
+
+[Install]
+WantedBy=default.target

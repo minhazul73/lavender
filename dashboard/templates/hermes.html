@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+
+{% block title %}Hermes — Hermes Dashboard{% endblock %}
+{% block page_title %}Hermes Gateway & Dashboard{% endblock %}
+
+{% block content %}
+<div class="tabs">
+    <button class="tab active" data-tab="status">Status</button>
+    <button class="tab" data-tab="logs">Logs</button>
+    <button class="tab" data-tab="cron">Cron Jobs</button>
+    <button class="tab" data-tab="sessions">Sessions</button>
+    <button class="tab" data-tab="memory">Memory Pressure</button>
+</div>
+
+<!-- Status Tab -->
+<div class="tab-content active" id="tab-status">
+    <div class="status-grid">
+        <!-- Gateway Status -->
+        <div class="card">
+            <div class="card-header">
+                <h3>🤖 Hermes Gateway</h3>
+                <button class="btn btn-sm" id="refresh-gateway-status">Refresh</button>
+            </div>
+            <div class="card-body">
+                <div id="gateway-status">
+                    <div class="loading">Loading...</div>
+                </div>
+                <div class="service-actions">
+                    <button class="btn btn-sm" id="btn-restart-gateway">Restart</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Status -->
+        <div class="card">
+            <div class="card-header">
+                <h3>📊 Hermes Dashboard</h3>
+                <button class="btn btn-sm" id="refresh-dashboard-status">Refresh</button>
+            </div>
+            <div class="card-body">
+                <div id="dashboard-status">
+                    <div class="loading">Loading...</div>
+                </div>
+                <div class="service-actions">
+                    <button class="btn btn-sm" id="btn-restart-dashboard">Restart</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hermes Info -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Hermes Information</h3>
+            </div>
+            <div class="card-body">
+                <div id="hermes-info">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Tab -->
+<div class="tab-content" id="tab-logs">
+    <div class="card">
+        <div class="card-header">
+            <h3>Service Logs</h3>
+            <div class="log-controls">
+                <select id="log-service" class="select">
+                    <option value="gateway">Hermes Gateway</option>
+                    <option value="dashboard">Hermes Dashboard</option>
+                </select>
+                <select id="log-lines" class="select">
+                    <option value="50">50 lines</option>
+                    <option value="100">100 lines</option>
+                    <option value="200">200 lines</option>
+                </select>
+                <button class="btn btn-sm" id="refresh-logs">Refresh</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="logs-container" id="logs-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cron Jobs Tab -->
+<div class="tab-content" id="tab-cron">
+    <div class="card">
+        <div class="card-header">
+            <h3>Hermes Cron Jobs</h3>
+            <button class="btn btn-sm" id="refresh-cron">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div id="cron-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sessions Tab -->
+<div class="tab-content" id="tab-sessions">
+    <div class="card">
+        <div class="card-header">
+            <h3>Hermes Sessions</h3>
+            <button class="btn btn-sm" id="refresh-sessions">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div id="sessions-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Memory Pressure Tab -->
+<div class="tab-content" id="tab-memory">
+    <div class="card">
+        <div class="card-header">
+            <h3>Memory Pressure</h3>
+            <button class="btn btn-sm" id="refresh-memory">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div id="memory-content">
+                <div class="loading">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restart Confirmation Modal -->
+<div id="restart-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3 id="restart-title">Restart Service</h3>
+        <p id="restart-message"></p>
+        <div class="progress" id="restart-progress" style="display:none;"></div>
+        <div id="restart-result"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('restart-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadGatewayStatus() {
+    htmx.send('GET', '/api/hermes/status', {
+        target: '#gateway-status',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const gw = data.gateway || {};
+            document.getElementById('gateway-status').innerHTML = renderServiceStatus(gw, 'Gateway');
+        }
+    });
+}
+
+function loadDashboardStatus() {
+    htmx.send('GET', '/api/hermes/status', {
+        target: '#dashboard-status',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const dash = data.dashboard || {};
+            document.getElementById('dashboard-status').innerHTML = renderServiceStatus(dash, 'Dashboard');
+        }
+    });
+}
+
+function renderServiceStatus(status, name) {
+    const active = status.active;
+    const state = status.sub_state || status.load_state || 'unknown';
+    const activeClass = active ? 'status-active' : 'status-inactive';
+    const pid = status.main_pid ? `PID: ${status.main_pid}` : 'No PID';
+    
+    return `
+        <div class="service-status ${activeClass}">
+            <div class="status-row">
+                <span class="status-indicator ${activeClass}"></span>
+                <span><strong>${name}</strong> is ${active ? 'running' : 'stopped'}</span>
+            </div>
+            ${pid ? `<div class="status-row"><span class="label">PID:</span> <span class="mono">${pid}</span></div>` : ''}
+            ${status.memory ? `<div class="status-row"><span class="label">Memory:</span> <span>${status.memory}</span></div>` : ''}
+            ${status.cpu ? `<div class="status-row"><span class="label">CPU:</span> <span>${status.cpu}</span></div>` : ''}
+            <div class="status-row"><span class="label">State:</span> <span class="mono">${state}</span></div>
+        </div>
+    `;
+}
+
+function loadHermesInfo() {
+    htmx.send('GET', '/api/hermes/status', {
+        target: '#hermes-info',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const info = data.info || {};
+            document.getElementById('hermes-info').innerHTML = renderHermesInfo(info);
+        }
+    });
+}
+
+function renderHermesInfo(info) {
+    const version = info.version || 'Unknown';
+    const skills = info.skills || [];
+    
+    return `
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="label">Version:</span>
+                <span class="value mono">${escapeHtml(version)}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Skills:</span>
+                <span class="value">${info.skills_count || 0} available</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Hermes Home:</span>
+                <span class="value mono">${escapeHtml(info.hermes_home || '~')}</span>
+            </div>
+        </div>
+        ${skills.length > 0 ? `
+        <div class="skills-list">
+            <h4>Available Skills</h4>
+            <div class="skills-tags">
+                ${skills.map(s => `<span class="skill-tag">${escapeHtml(s)}</span>`).join(' ')}
+            </div>
+        </div>` : '<p class="text-muted">No skills found</p>'}
+    `;
+}
+
+function loadLogs() {
+    const service = document.getElementById('log-service').value;
+    const lines = parseInt(document.getElementById('log-lines').value);
+    
+    htmx.send('GET', `/api/hermes/logs?service=${service}&lines=${lines}`, {
+        target: '#logs-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('logs-content').innerHTML = renderLogs(data.logs || '', service);
+        }
+    });
+}
+
+function renderLogs(logs, service) {
+    if (!logs || logs.trim() === '') {
+        return '<p class="text-muted">No logs available</p>';
+    }
+    return `<pre class="logs-output">${escapeHtml(logs)}</pre>`;
+}
+
+function loadCron() {
+    htmx.send('GET', '/api/hermes/cron', {
+        target: '#cron-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('cron-content').innerHTML = renderCron(data.jobs || []);
+        }
+    });
+}
+
+function renderCron(jobs) {
+    if (!jobs || jobs.length === 0) {
+        return '<p class="text-muted">No cron jobs found</p>';
+    }
+    
+    return jobs.map(j => {
+        if (j.note) {
+            return `<p class="text-muted">${j.note}</p>`;
+        }
+        if (j.source === 'ticker') {
+            return `
+            <div class="cron-item">
+                <div class="cron-header">
+                    <span class="label">Ticker:</span>
+                    <span class="value mono">${j.file}</span>
+                </div>
+                <div class="cron-detail">
+                    <span class="label">Content:</span>
+                    <span class="value mono">${escapeHtml(j.content)}</span>
+                </div>
+            </div>`;
+        }
+        if (j.source === 'executions.db') {
+            return `
+            <div class="cron-item">
+                <div class="cron-header">
+                    <span class="label">Table:</span>
+                    <span class="value mono">${j.table}</span>
+                </div>
+                <pre class="cron-data">${escapeHtml(JSON.stringify(j.data, null, 2))}</pre>
+            </div>`;
+        }
+        return `<div class="cron-item"><pre>${escapeHtml(JSON.stringify(j, null, 2))}</pre></div>`;
+    }).join('');
+}
+
+function loadSessions() {
+    htmx.send('GET', '/api/hermes/sessions', {
+        target: '#sessions-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('sessions-content').innerHTML = renderSessions(data.sessions || []);
+        }
+    });
+}
+
+function renderSessions(sessions) {
+    if (!sessions || sessions.length === 0) {
+        return '<p class="text-muted">No session data available</p>';
+    }
+    
+    const countItem = sessions.find(s => s.session_count !== undefined);
+    
+    return `
+        ${countItem ? `<div class="info-item"><span class="label">Total Sessions:</span> <span class="value">${countItem.session_count}</span></div>` : ''}
+        ${sessions.filter(s => s.data).map(s => `
+            <div class="session-item">
+                <span class="label">Source:</span> <span class="value mono">${s.table}</span>
+                <details>
+                    <summary>View data</summary>
+                    <pre class="session-data">${escapeHtml(JSON.stringify(s.data, null, 2))}</pre>
+                </details>
+            </div>
+        `).join('')}
+    `;
+}
+
+function loadMemoryPressure() {
+    htmx.send('GET', '/api/hermes/memory-pressure', {
+        target: '#memory-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('memory-content').innerHTML = renderMemoryPressure(data);
+        }
+    });
+}
+
+function renderMemoryPressure(data) {
+    const warning = data.warning;
+    const ramPct = data.ram_used_pct || 0;
+    const swapPct = data.swap_used_pct || 0;
+    
+    const ramClass = ramPct > 85 ? 'crit' : (ramPct > 70 ? 'warn' : 'good');
+    const swapClass = swapPct > 50 ? 'warn' : 'good';
+    
+    return `
+        <div class="pressure-display ${warning ? 'pressure-warn' : ''}">
+            <div class="pressure-gauge">
+                <div class="pressure-label">RAM Usage</div>
+                <div class="pressure-value ${ramClass}">${ramPct}%</div>
+            </div>
+            <div class="pressure-gauge">
+                <div class="pressure-label">Swap Usage</div>
+                <div class="pressure-value ${swapClass}">${swapPct}%</div>
+            </div>
+            ${warning ? `<div class="alert alert-warning">⚠ ${data.details || 'High memory pressure detected'}</div>` : ''}
+            ${!warning ? '<div class="alert alert-success">✓ Memory pressure is normal</div>' : ''}
+        </div>
+    `;
+}
+
+// Restart service handler
+function restartService(service) {
+    document.getElementById('restart-title').textContent = `Restart ${service}`;
+    document.getElementById('restart-message').textContent = `Are you sure you want to restart ${service}? This may cause a brief interruption.`;
+    document.getElementById('restart-progress').style.display = 'block';
+    document.getElementById('restart-result').innerHTML = '';
+    openModal('restart-modal');
+    
+    htmx.send('POST', `/api/hermes/restart-${service === 'gateway' ? 'gateway' : 'dashboard'}`, {
+        target: '#restart-result',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            document.getElementById('restart-progress').style.display = 'none';
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            if (data.success) {
+                document.getElementById('restart-result').innerHTML = 
+                    '<div class="alert alert-success">✓ ' + service + ' restarted successfully</div>';
+                // Refresh status
+                if (service === 'gateway') loadGatewayStatus();
+                else loadDashboardStatus();
+            } else {
+                document.getElementById('restart-result').innerHTML = 
+                    '<div class="alert alert-error">✗ Failed: ' + escapeHtml(data.error || 'Unknown error') + '</div>';
+            }
+        }
+    });
+}
+
+document.getElementById('btn-restart-gateway').addEventListener('click', function() {
+    restartService('gateway');
+});
+
+document.getElementById('btn-restart-dashboard').addEventListener('click', function() {
+    restartService('dashboard');
+});
+
+document.getElementById('refresh-gateway-status').addEventListener('click', loadGatewayStatus);
+document.getElementById('refresh-dashboard-status').addEventListener('click', loadDashboardStatus);
+document.getElementById('refresh-logs').addEventListener('click', loadLogs);
+document.getElementById('refresh-cron').addEventListener('click', loadCron);
+document.getElementById('refresh-sessions').addEventListener('click', loadSessions);
+document.getElementById('refresh-memory').addEventListener('click', loadMemoryPressure);
+
+document.getElementById('log-service').addEventListener('change', loadLogs);
+document.getElementById('log-lines').addEventListener('change', loadLogs);
+
+// Initial load
+loadGatewayStatus();
+loadDashboardStatus();
+loadHermesInfo();
+loadLogs();
+loadCron();
+loadSessions();
+loadMemoryPressure();
+</script>
+{% endblock %}

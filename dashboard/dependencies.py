@@ -1,0 +1,135 @@
+"""
+Shared dependencies and utility functions for the Hermes Device Dashboard.
+"""
+import subprocess
+import shutil
+import os
+from typing import Optional
+
+from dashboard.config import SUDO_COMMANDS, HERMES_BIN, HERMES_HOME, HERMES_CRON_DIR, HERMES_STATE_DB
+
+
+def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    """
+    Run a command and return (returncode, stdout, stderr).
+    cmd should be a list of arguments.
+    """
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return result.returncode, result.stdout.strip(), result.stderr.strip()
+    except subprocess.TimeoutExpired:
+        return -1, "", "Command timed out"
+    except FileNotFoundError:
+        return -1, "", f"Command not found: {cmd[0]}"
+    except Exception as e:
+        return -1, "", str(e)
+
+
+def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    """
+    Run a command with sudo. Returns (returncode, stdout, stderr).
+    Note: This will prompt for a password if sudo requires interactive auth.
+    """
+    full_cmd = ["sudo"] + cmd
+    return run_command(full_cmd, timeout)
+
+
+def which(program: str) -> Optional[str]:
+    """Find program in PATH, return full path or None."""
+    return shutil.which(program)
+
+
+def parse_passwd_users(min_uid: int = 1000) -> list[dict]:
+    """Parse /etc/passwd and return human users (uid >= min_uid)."""
+    users = []
+    try:
+        with open("/etc/passwd", "r") as f:
+            for line in f:
+                parts = line.strip().split(":")
+                if len(parts) >= 7:
+                    uid = int(parts[2])
+                    if uid >= min_uid:
+                        users.append({
+                            "name": parts[0],
+                            "uid": uid,
+                            "gid": int(parts[3]),
+                            "home": parts[5],
+                            "shell": parts[6],
+                            "comment": parts[4],
+                        })
+    except Exception:
+        pass
+    return users
+
+
+def parse_groups() -> list[dict]:
+    """Parse /etc/group and return all groups."""
+    groups = []
+    try:
+        with open("/etc/group", "r") as f:
+            for line in f:
+                parts = line.strip().split(":")
+                if len(parts) >= 4:
+                    groups.append({
+                        "name": parts[0],
+                        "gid": int(parts[2]),
+                        "members": parts[3].split(",") if parts[3] else [],
+                    })
+    except Exception:
+        pass
+    return groups
+
+
+def get_current_user_info() -> dict:
+    """Get info about the current user."""
+    info = {"uid": os.getuid(), "gid": os.getgid(), "groups": []}
+    try:
+        result = subprocess.run(["id"], capture_output=True, text=True, timeout=5)
+        info["id_output"] = result.stdout.strip()
+    except Exception:
+        info["id_output"] = "unknown"
+    try:
+        result = subprocess.run(["groups"], capture_output=True, text=True, timeout=5)
+        info["groups"] = result.stdout.strip().split()
+    except Exception:
+        info["groups"] = []
+    return info
+
+
+def get_hermes_version() -> str:
+    """Get Hermes version string."""
+    code, out, err = run_command([HERMES_BIN, "--version"], timeout=10)
+    if code == 0:
+        return out
+    return f"Error: {err}"
+
+
+def get_hermes_skills() -> list[str]:
+    """List available Hermes skills."""
+    skills_dir = os.path.join(HERMES_HOME, "skills")
+    if os.path.isdir(skills_dir):
+        try:
+            return sorted([d for d in os.listdir(skills_dir) if os.path.isdir(os.path.join(skills_dir, d))])
+        except Exception:
+            pass
+    return []
+
+
+def read_sudoers() -> str:
+    """Read /etc/sudoers content (read-only)."""
+    try:
+        with open("/etc/sudoers", "r") as f:
+            return f.read()
+    except Exception:
+        return ""
+
+
+def visudo_check() -> tuple[bool, str]:
+    """Run visudo -c to check sudoers syntax."""
+    code, out, err = run_command(["sudo", "visudo", "-c"], timeout=10)
+    return code == 0, out + err

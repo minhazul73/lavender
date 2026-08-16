@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Services — Hermes Dashboard{% endblock %}
+{% block page_title %}Systemd Services{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <div class="filter-group">
+        <label>Filter:</label>
+        <select id="scope-filter" class="select">
+            <option value="all">All Services</option>
+            <option value="user">User Only</option>
+            <option value="system">System Only</option>
+        </select>
+        <select id="state-filter" class="select">
+            <option value="">All States</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="failed">Failed</option>
+        </select>
+    </div>
+    <button class="btn" id="refresh-services">Refresh</button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>All Services (<span id="service-count">0</span>)</h3>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Scope</th>
+                        <th>Load</th>
+                        <th>Active</th>
+                        <th>Sub</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="services-table">
+                    <tr><td colspan="6" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Service Detail Modal -->
+<div id="service-detail-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-lg">
+        <h3 id="service-detail-title">Service Details</h3>
+        <div id="service-detail-body"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('service-detail-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Service Logs Modal -->
+<div id="service-logs-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-lg">
+        <h3>Logs: <span id="service-logs-title"></span></h3>
+        <div class="logs-container" id="service-logs-body"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('service-logs-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Service Action Modal -->
+<div id="service-action-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3 id="service-action-title">Action</h3>
+        <p id="service-action-message"></p>
+        <div class="progress" id="service-action-progress" style="display:none;"></div>
+        <div id="service-action-result"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('service-action-modal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentServices = [];
+
+function loadServices(scope = 'all') {
+    const params = scope !== 'all' ? `?scope=${scope}` : '';
+    htmx.send('GET', `/api/system/services${params}`, {
+        target: '#services-table',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            try {
+                const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+                currentServices = data.services || [];
+                document.getElementById('service-count').textContent = data.count || 0;
+            } catch(e) {
+                console.error('Parse error:', e);
+            }
+        }
+    });
+}
+
+// Render services table
+function renderServices(services) {
+    if (!services || services.length === 0) {
+        return '<tr><td colspan="6" class="text-center">No services found</td></tr>';
+    }
+    return services.map(s => {
+        const activeClass = s.active_state === 'active' ? 'status-active' : 
+                           s.active_state === 'failed' ? 'status-failed' : 'status-inactive';
+        return `
+        <tr>
+            <td><span class="mono">${s.name}</span></td>
+            <td><span class="badge ${s.scope}">${s.scope}</span></td>
+            <td><span class="mono small">${s.load_state}</span></td>
+            <td><span class="status-indicator ${activeClass}"></span> ${s.active_state}</td>
+            <td class="mono small">${s.sub_state}</td>
+            <td>
+                <button class="btn btn-xs" onclick="viewService('${s.name}', '${s.scope}')">View</button>
+                <button class="btn btn-xs btn-info" onclick="viewLogs('${s.name}', '${s.scope}')">Logs</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function viewService(name, scope) {
+    const user = scope === 'user';
+    htmx.send('GET', `/api/system/services/${encodeURIComponent(name)}?user=${user}`, {
+        target: '#service-detail-body',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('service-detail-title').textContent = name;
+            renderServiceDetail(data);
+            openModal('service-detail-modal');
+        }
+    });
+}
+
+function renderServiceDetail(data) {
+    const status = data.active ? '<span class="status-active">Active</span>' : '<span class="status-failed">Inactive</span>';
+    const pid = data.main_pid ? `PID: ${data.main_pid}` : 'No PID';
+    return `
+        <div class="service-status-row">
+            <span class="label">Status:</span>
+            <span class="value">${status} (${data.sub_state})</span>
+        </div>
+        <div class="service-status-row">
+            <span class="label">PID:</span>
+            <span class="value mono">${pid}</span>
+        </div>
+        <div class="service-status-row">
+            <span class="label">Memory:</span>
+            <span class="value">${data.memory || 'N/A'}</span>
+        </div>
+        <div class="service-status-row">
+            <span class="label">CPU:</span>
+            <span class="value">${data.cpu || 'N/A'}</span>
+        </div>
+        <div class="service-actions">
+            <button class="btn btn-sm" onclick="doAction('${data.name}', 'start', ${data.user})">Start</button>
+            <button class="btn btn-sm" onclick="doAction('${data.name}', 'stop', ${data.user})">Stop</button>
+            <button class="btn btn-sm" onclick="doAction('${data.name}', 'restart', ${data.user})">Restart</button>
+            <button class="btn btn-sm" onclick="doAction('${data.name}', 'enable', ${data.user})">Enable</button>
+            <button class="btn btn-sm" onclick="doAction('${data.name}', 'disable', ${data.user})">Disable</button>
+        </div>
+        ${data.output ? '<h4>Output:</h4><pre class="logs-output">' + escapeHtml(data.output) + '</pre>' : ''}
+        ${data.error ? '<h4 class="error">Error:</h4><pre class="logs-output error">' + escapeHtml(data.error) + '</pre>' : ''}
+    `;
+}
+
+function viewLogs(name, scope) {
+    const user = scope === 'user';
+    htmx.send('GET', `/api/system/services/${encodeURIComponent(name)}/logs?user=${user}&lines=100`, {
+        target: '#service-logs-body',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('service-logs-title').textContent = name;
+            document.getElementById('service-logs-body').innerHTML = 
+                '<pre class="logs-output">' + escapeHtml(data.logs || '') + '</pre>';
+            openModal('service-logs-modal');
+        }
+    });
+}
+
+function doAction(name, action, user) {
+    if (!confirm(`Perform "${action}" on "${name}"?`)) return;
+    
+    document.getElementById('service-action-title').textContent = action.charAt(0).toUpperCase() + action.slice(1);
+    document.getElementById('service-action-message').textContent = `Running ${action} on ${name}...`;
+    document.getElementById('service-action-progress').style.display = 'block';
+    document.getElementById('service-action-result').innerHTML = '';
+    openModal('service-action-modal');
+    
+    htmx.send('POST', `/api/system/services/${encodeURIComponent(name)}/${action}?user=${user}`, {
+        target: '#service-action-result',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            document.getElementById('service-action-progress').style.display = 'none';
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            if (data.success) {
+                document.getElementById('service-action-result').innerHTML = 
+                    '<div class="alert alert-success">✓ ' + action + ' completed</div>';
+                // Refresh the table
+                loadServices(document.getElementById('scope-filter').value);
+            } else {
+                document.getElementById('service-action-result').innerHTML = 
+                    '<div class="alert alert-error">✗ Failed: ' + escapeHtml(data.error || 'Unknown error') + '</div>';
+            }
+        }
+    });
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Filter change handlers
+document.getElementById('scope-filter').addEventListener('change', function() {
+    loadServices(this.value);
+});
+
+document.getElementById('state-filter').addEventListener('change', function() {
+    filterByState(this.value);
+});
+
+function filterByState(state) {
+    const tbody = document.getElementById('services-table');
+    if (!state) {
+        tbody.innerHTML = renderServices(currentServices);
+        return;
+    }
+    const filtered = currentServices.filter(s => s.active_state === state);
+    tbody.innerHTML = renderServices(filtered);
+}
+
+document.getElementById('refresh-services').addEventListener('click', function() {
+    loadServices(document.getElementById('scope-filter').value);
+});
+
+// Initial load
+loadServices('all');
+</script>
+{% endblock %}

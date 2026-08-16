@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hermes Device Dashboard{% endblock %}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="dashboard">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">HD</div>
+            <div class="brand">
+                <h1>Hermes Dashboard</h1>
+                <span class="subtitle">Redmi Note 7</span>
+            </div>
+        </div>
+        <nav class="nav">
+            <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
+                <span class="nav-icon">📊</span>
+                Overview
+            </a>
+            <a href="/services" class="nav-item {% if request.url.path.startswith('/services') %}active{% endif %}">
+                <span class="nav-icon">⚙️</span>
+                Services
+            </a>
+            <a href="/storage" class="nav-item {% if request.url.path.startswith('/storage') %}active{% endif %}">
+                <span class="nav-icon">💾</span>
+                Storage
+            </a>
+            <a href="/processes" class="nav-item {% if request.url.path.startswith('/processes') %}active{% endif %}">
+                <span class="nav-icon">📋</span>
+                Processes
+            </a>
+            <a href="/network" class="nav-item {% if request.url.path.startswith('/network') %}active{% endif %}">
+                <span class="nav-icon">🌐</span>
+                Network
+            </a>
+            <a href="/battery" class="nav-item {% if request.url.path.startswith('/battery') %}active{% endif %}">
+                <span class="nav-icon">🔋</span>
+                Battery
+            </a>
+            <a href="/hermes" class="nav-item {% if request.url.path.startswith('/hermes') %}active{% endif %}">
+                <span class="nav-icon">🤖</span>
+                Hermes
+            </a>
+            <a href="/packages" class="nav-item {% if request.url.path.startswith('/packages') %}active{% endif %}">
+                <span class="nav-icon">📦</span>
+                Packages
+            </a>
+            <a href="/users" class="nav-item {% if request.url.path.startswith('/users') %}active{% endif %}">
+                <span class="nav-icon">👤</span>
+                Users
+            </a>
+            <a href="/power" class="nav-item {% if request.url.path.startswith('/power') %}active{% endif %}">
+                <span class="nav-icon">🔌</span>
+                Power
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <span class="version">v1.0.0</span>
+        </div>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <h2 class="page-title">{% block page_title %}Overview{% endblock %}</h2>
+            <div class="topbar-actions">
+                <span class="refresh-hint">
+                    <button class="btn-icon" hx-post="/api/system/services" hx-target="#services-data" hx-swap="innerHTML">
+                        Refresh
+                    </button>
+                </span>
+            </div>
+        </header>
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirm-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3 id="confirm-title">Are you sure?</h3>
+        <p id="confirm-message"></p>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" id="confirm-button">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/script.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

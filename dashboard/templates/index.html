@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Overview — Hermes Dashboard{% endblock %}
+{% block page_title %}Overview{% endblock %}
+
+{% block content %}
+<div class="overview-grid">
+    <!-- Systemd Services Summary -->
+    <section class="card">
+        <h3>⚙️ System Services</h3>
+        <div id="services-overview">
+            <div class="loading">Loading...</div>
+        </div>
+        <div class="card-actions">
+            <button class="btn btn-sm" hx-get="/services">View All</button>
+        </div>
+    </section>
+
+    <!-- Storage Summary -->
+    <section class="card">
+        <h3>💾 Storage</h3>
+        <div id="storage-overview">
+            <div class="loading">Loading...</div>
+        </div>
+    </section>
+
+    <!-- Memory & Load -->
+    <section class="card">
+        <h3>🧠 Memory & Load</h3>
+        <div id="memory-overview">
+            <div class="loading">Loading...</div>
+        </div>
+    </section>
+
+    <!-- Network Quality -->
+    <section class="card">
+        <h3>🌐 Network Quality</h3>
+        <div id="network-overview">
+            <div class="loading">Loading...</div>
+        </div>
+    </section>
+
+    <!-- Battery -->
+    <section class="card">
+        <h3>🔋 Battery</h3>
+        <div id="battery-overview">
+            <div class="loading">Loading...</div>
+        </div>
+    </section>
+
+    <!-- Hermes Status -->
+    <section class="card">
+        <h3>🤖 Hermes</h3>
+        <div id="hermes-overview">
+            <div class="loading">Loading...</div>
+        </div>
+    </section>
+</div>
+
+<script>
+// Load all overview data on page load
+htmx.process(document.body);
+
+function loadAll() {
+    // Load services
+    htmx.load(document.getElementById('services-overview'));
+    // Each section loads its own data
+}
+
+// Use HTMX to load each section
+document.addEventListener('DOMContentLoaded', function() {
+    // Services overview
+    htmx.send('GET', '/api/system/services', {
+        target: '#services-overview',
+        swap: 'innerHTML',
+    });
+
+    // Storage overview
+    htmx.send('GET', '/api/system/storage', {
+        target: '#storage-overview',
+        swap: 'innerHTML',
+    });
+
+    // Memory overview
+    htmx.send('GET', '/api/system/memory', {
+        target: '#memory-overview',
+        swap: 'innerHTML',
+    });
+
+    // Network quality
+    htmx.send('GET', '/api/hermes/network-quality', {
+        target: '#network-overview',
+        swap: 'innerHTML',
+    });
+
+    // Battery overview
+    htmx.send('GET', '/api/device/battery', {
+        target: '#battery-overview',
+        swap: 'innerHTML',
+    });
+
+    // Hermes overview
+    htmx.send('GET', '/api/hermes/status', {
+        target: '#hermes-overview',
+        swap: 'innerHTML',
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Packages — Hermes Dashboard{% endblock %}
+{% block page_title %}Packages & Updates{% endblock %}
+
+{% block content %}
+<div class="tabs">
+    <button class="tab active" data-tab="installed">Installed</button>
+    <button class="tab" data-tab="upgradable">Upgradable</button>
+    <button class="tab" data-tab="search">Search</button>
+</div>
+
+<!-- Installed Tab -->
+<div class="tab-content active" id="tab-installed">
+    <div class="card">
+        <div class="card-header">
+            <h3>Installed Packages</h3>
+            <button class="btn btn-sm" id="refresh-installed">Refresh</button>
+        </div>
+        <div class="card-body">
+            <div class="info-row">
+                <span class="label">Total Installed:</span>
+                <span class="value" id="installed-count">Loading...</span>
+            </div>
+            <p class="text-muted">Full list available via <code>apk info</code>. Showing count only for performance.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Upgradable Tab -->
+<div class="tab-content" id="tab-upgradable">
+    <div class="card">
+        <div class="card-header">
+            <h3>Available Updates</h3>
+            <div class="header-actions">
+                <button class="btn btn-sm" id="refresh-upgradable">Refresh</button>
+                <button class="btn btn-sm btn-danger" id="btn-upgrade-all">Upgrade All</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="upgradable-content">
+                <div class="loading">Loading...</div>
+            </div>
+            <div class="upgrade-result" id="upgrade-result"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Tab -->
+<div class="tab-content" id="tab-search">
+    <div class="card">
+        <div class="card-header">
+            <h3>Search Packages</h3>
+        </div>
+        <div class="card-body">
+            <div class="search-form">
+                <input type="text" id="search-query" class="input" placeholder="Package name...">
+                <button class="btn" id="btn-search">Search</button>
+            </div>
+            <div id="search-results">
+                <p class="text-muted">Enter a package name to search.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upgrade Confirmation Modal -->
+<div id="upgrade-modal" class="modal" style="display:none;">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <h3>Upgrade Packages</h3>
+        <p>This will run <code>sudo apk upgrade</code> to upgrade all installed packages to their latest versions.</p>
+        <div class="alert alert-warning">
+            This may take several minutes and require downloading packages.
+            The dashboard will be unavailable during the upgrade if the service is affected.
+        </div>
+        <div class="progress" id="upgrade-progress" style="display:none;"></div>
+        <div id="upgrade-output"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('upgrade-modal')">Cancel</button>
+            <button class="btn btn-danger" id="confirm-upgrade">Upgrade</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadInstalled() {
+    htmx.send('GET', '/api/device/packages', {
+        target: '#installed-count',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('installed-count').textContent = data.installed_count || 0;
+        }
+    });
+}
+
+function loadUpgradable() {
+    htmx.send('GET', '/api/device/packages', {
+        target: '#upgradable-content',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            const upgradable = data.upgradable || [];
+            document.getElementById('upgradable-content').innerHTML = renderUpgradable(upgradable);
+        }
+    });
+}
+
+function renderUpgradable(pkgs) {
+    if (!pkgs || pkgs.length === 0 || pkgs[0]?.error) {
+        return '<p class="text-muted">No upgradable packages found. System is up to date! ✓</p>';
+    }
+    
+    return `
+        <div class="upgradable-list">
+            ${pkgs.map(p => `
+                <div class="upgradable-item">
+                    <span class="pkg-name">${escapeHtml(p.name_clean || p.name)}</span>
+                    <span class="pkg-version">${p.current_version ? 'currently: ' + p.current_version : ''}
+                        ${p.version ? ' → ' + p.version : ''}</span>
+                </div>
+            `).join('')}
+        </div>
+        <p class="text-muted pkg-count">${pkgs.length} package(s) can be upgraded</p>
+    `;
+}
+
+function doSearch() {
+    const query = document.getElementById('search-query').value.trim();
+    if (!query) {
+        document.getElementById('search-results').innerHTML = '<p class="text-muted">Please enter a search term.</p>';
+        return;
+    }
+    
+    document.getElementById('btn-search').disabled = true;
+    document.getElementById('search-results').innerHTML = '<div class="loading">Searching...</div>';
+    
+    htmx.send('GET', `/api/device/packages/search?query=${encodeURIComponent(query)}`, {
+        target: '#search-results',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            document.getElementById('btn-search').disabled = false;
+            document.getElementById('search-results').innerHTML = renderSearchResults(data.results || []);
+        }
+    });
+}
+
+function renderSearchResults(results) {
+    if (!results || results.length === 0) {
+        return '<p class="text-muted">No packages found matching your query.</p>';
+    }
+    return `
+        <div class="search-results-list">
+            ${results.map(r => `
+                <div class="search-result">
+                    <span class="pkg-name">${escapeHtml(r.name)}</span>
+                </div>
+            `).join('')}
+        </div>
+        <p class="text-muted pkg-count">${results.length} result(s)</p>
+    `;
+}
+
+function confirmUpgrade() {
+    document.getElementById('upgrade-progress').style.display = 'block';
+    document.getElementById('upgrade-output').innerHTML = '<p class="text-muted">Starting upgrade...</p>';
+    document.getElementById('confirm-upgrade').disabled = true;
+    openModal('upgrade-modal');
+    
+    htmx.send('POST', '/api/device/packages/upgrade', {
+        target: '#upgrade-output',
+        swap: 'innerHTML',
+        onLoad: function(response) {
+            document.getElementById('upgrade-progress').style.display = 'none';
+            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+            if (data.success) {
+                document.getElementById('upgrade-output').innerHTML = 
+                    '<div class="alert alert-success">✓ Upgrade completed successfully</div>' +
+                    (data.output ? '<details><summary>Output</summary><pre class="logs-output">' + 
+                        escapeHtml(data.output) + '</pre></details>' : '');
+                // Refresh the upgradable list
+                loadUpgradable();
+            } else {
+                document.getElementById('upgrade-output').innerHTML = 
+                    '<div class="alert alert-error">✗ Upgrade failed</div>' +
+                    '<pre class="logs-output">' + escapeHtml(data.error || 'Unknown error') + '</pre>';
+            }
+            document.getElementById('confirm-upgrade').disabled = false;
+        }
+    });
+}
+
+document.getElementById('btn-upgrade-all').addEventListener('click', function() {
+    document.getElementById('upgrade-modal').querySelector('h3').textContent = 'Upgrade All Packages';
+    document.getElementById('upgrade-modal').querySelector('p').innerHTML = 
+        'This will run <code>sudo apk upgrade</code> to upgrade all installed packages to their latest versions.';
+    openModal('upgrade-modal');
+});
+
+document.getElementById('confirm-upgrade').addEventListener('click', confirmUpgrade);
+document.getElementById('btn-search').addEventListener('click', doSearch);
+document.getElementById('search-query').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') doSearch();
+});
+
+document.getElementById('refresh-installed').addEventListener('click', loadInstalled);
+document.getElementById('refresh-upgradable').addEventListener('click', loadUpgradable);
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    });
+});
+
+// Initial load
+loadInstalled();
+loadUpgradable();
+</script>
+{% endblock %}
