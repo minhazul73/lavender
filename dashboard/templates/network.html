@@ -83,14 +83,14 @@
 
 <script>
 function loadInterfaces() {
-    htmx.send('GET', '/api/device/network', {
-        target: '#interfaces-grid',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/network')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('interfaces-grid').innerHTML = renderInterfaces(data.interfaces || []);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('interfaces-grid').innerHTML = '<p class="text-muted">Failed to load interfaces</p>';
+        });
 }
 
 function renderInterfaces(ifaces) {
@@ -118,14 +118,14 @@ function renderInterfaces(ifaces) {
 }
 
 function loadWifi() {
-    htmx.send('GET', '/api/device/network', {
-        target: '#wifi-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/network')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('wifi-content').innerHTML = renderWifi(data.wifi || []);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('wifi-content').innerHTML = '<p class="text-muted">Failed to load WiFi info</p>';
+        });
 }
 
 function renderWifi(wifi) {
@@ -157,14 +157,14 @@ function renderWifi(wifi) {
 }
 
 function loadDns() {
-    htmx.send('GET', '/api/device/network', {
-        target: '#dns-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/network')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('dns-content').innerHTML = renderDns(data.dns || []);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('dns-content').innerHTML = '<p class="text-muted">Failed to load DNS info</p>';
+        });
 }
 
 function renderDns(dns) {
@@ -195,33 +195,36 @@ function doPing() {
     document.getElementById('btn-ping').textContent = 'Pinging...';
     document.getElementById('ping-result').innerHTML = '<div class="loading">Pinging ' + target + '...</div>';
     
-    htmx.send('GET', `/api/device/network/ping?target=${encodeURIComponent(target)}&count=${count}`, {
-        target: '#ping-result',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch(`/api/device/network/ping?target=${encodeURIComponent(target)}&count=${count}`)
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('btn-ping').disabled = false;
             document.getElementById('btn-ping').textContent = 'Ping';
-            renderPingResult(data);
-        }
-    });
+            renderPingResult(data, document.getElementById('ping-result'));
+        })
+        .catch(e => {
+            document.getElementById('btn-ping').disabled = false;
+            document.getElementById('btn-ping').textContent = 'Ping';
+            document.getElementById('ping-result').innerHTML = '<p class="text-muted">Ping failed: ' + e.message + '</p>';
+        });
 }
 
-function renderPingResult(data) {
+function renderPingResult(data, container) {
     if (!data || !data.success) {
-        return `
+        container.innerHTML = `
             <div class="ping-failed">
                 <h4>✗ Ping Failed</h4>
                 <p>Could not reach <span class="mono">${data?.target || 'target'}</span></p>
                 ${data?.error ? '<pre class="logs-output">' + escapeHtml(data.error) + '</pre>' : ''}
             </div>
         `;
+        return;
     }
     
     const latency = data.avg_latency;
     const latencyClass = latency < 50 ? 'good' : (latency < 150 ? 'warn' : 'crit');
     
-    return `
+    container.innerHTML = `
         <div class="ping-success">
             <h4>✓ Ping Successful</h4>
             <div class="ping-stats">

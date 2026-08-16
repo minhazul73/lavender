@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Services — Hermes Dashboard{% endblock %}
+{% block title %}Services — RN7 Linux Dashboard{% endblock %}
 {% block page_title %}Systemd Services{% endblock %}
 
 {% block content %}
@@ -39,7 +39,7 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="services-table">
+                <tbody id="services-table" hx-get="/api/system/services" hx-trigger="load, refresh-services.click" hx-swap="innerHTML">
                     <tr><td colspan="6" class="text-center">Loading...</td></tr>
                 </tbody>
             </table>
@@ -84,28 +84,46 @@
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
 let currentServices = [];
 
+// The table body uses hx-get to load data declaratively
+// We enhance it: after loading, parse JSON and render HTML rows
+document.addEventListener('DOMContentLoaded', function() {
+    // The hx-get on #services-table will load the JSON.
+    // We intercept and render it as HTML table rows.
+    // Use htmx's onLoad swap override via a custom handler.
+    
+    // Actually, HTMX can't auto-render JSON as table rows.
+    // We need to load the data via fetch and render manually.
+    // Replace the hx-get on tbody with a manual load.
+    
+    const tbody = document.getElementById('services-table');
+    tbody.removeAttribute('hx-get');
+    tbody.removeAttribute('hx-trigger');
+    tbody.removeAttribute('hx-swap');
+    
+    loadServices('all');
+});
+
 function loadServices(scope = 'all') {
     const params = scope !== 'all' ? `?scope=${scope}` : '';
-    htmx.send('GET', `/api/system/services${params}`, {
-        target: '#services-table',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            try {
-                const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
-                currentServices = data.services || [];
-                document.getElementById('service-count').textContent = data.count || 0;
-            } catch(e) {
-                console.error('Parse error:', e);
-            }
-        }
-    });
+    fetch(`/api/system/services${params}`)
+        .then(r => r.json())
+        .then(data => {
+            currentServices = data.services || [];
+            document.getElementById('service-count').textContent = data.count || 0;
+            document.getElementById('services-table').innerHTML = renderServices(currentServices);
+        })
+        .catch(e => {
+            document.getElementById('services-table').innerHTML = 
+                '<tr><td colspan="6" class="text-center text-muted">Failed to load services</td></tr>';
+        });
 }
 
-// Render services table
 function renderServices(services) {
     if (!services || services.length === 0) {
         return '<tr><td colspan="6" class="text-center">No services found</td></tr>';
@@ -130,16 +148,16 @@ function renderServices(services) {
 
 function viewService(name, scope) {
     const user = scope === 'user';
-    htmx.send('GET', `/api/system/services/${encodeURIComponent(name)}?user=${user}`, {
-        target: '#service-detail-body',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch(`/api/system/services/${encodeURIComponent(name)}?user=${user}`)
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('service-detail-title').textContent = name;
-            renderServiceDetail(data);
+            document.getElementById('service-detail-body').innerHTML = renderServiceDetail(data);
             openModal('service-detail-modal');
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('service-detail-body').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderServiceDetail(data) {
@@ -176,17 +194,17 @@ function renderServiceDetail(data) {
 
 function viewLogs(name, scope) {
     const user = scope === 'user';
-    htmx.send('GET', `/api/system/services/${encodeURIComponent(name)}/logs?user=${user}&lines=100`, {
-        target: '#service-logs-body',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch(`/api/system/services/${encodeURIComponent(name)}/logs?user=${user}&lines=100`)
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('service-logs-title').textContent = name;
             document.getElementById('service-logs-body').innerHTML = 
                 '<pre class="logs-output">' + escapeHtml(data.logs || '') + '</pre>';
             openModal('service-logs-modal');
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('service-logs-body').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function doAction(name, action, user) {
@@ -198,23 +216,24 @@ function doAction(name, action, user) {
     document.getElementById('service-action-result').innerHTML = '';
     openModal('service-action-modal');
     
-    htmx.send('POST', `/api/system/services/${encodeURIComponent(name)}/${action}?user=${user}`, {
-        target: '#service-action-result',
-        swap: 'innerHTML',
-        onLoad: function(response) {
+    fetch(`/api/system/services/${encodeURIComponent(name)}/${action}?user=${user}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('service-action-progress').style.display = 'none';
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
             if (data.success) {
                 document.getElementById('service-action-result').innerHTML = 
                     '<div class="alert alert-success">✓ ' + action + ' completed</div>';
-                // Refresh the table
                 loadServices(document.getElementById('scope-filter').value);
             } else {
                 document.getElementById('service-action-result').innerHTML = 
                     '<div class="alert alert-error">✗ Failed: ' + escapeHtml(data.error || 'Unknown error') + '</div>';
             }
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('service-action-progress').style.display = 'none';
+            document.getElementById('service-action-result').innerHTML = 
+                '<div class="alert alert-error">✗ Failed: ' + escapeHtml(e.message || 'Unknown error') + '</div>';
+        });
 }
 
 function escapeHtml(str) {
@@ -244,8 +263,5 @@ function filterByState(state) {
 document.getElementById('refresh-services').addEventListener('click', function() {
     loadServices(document.getElementById('scope-filter').value);
 });
-
-// Initial load
-loadServices('all');
 </script>
 {% endblock %}

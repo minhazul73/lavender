@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Power — Hermes Dashboard{% endblock %}
+{% block title %}Power — RN7 Linux Dashboard{% endblock %}
 {% block page_title %}Power Control{% endblock %}
-
 {% block content %}
 <div class="power-controls">
     <div class="power-warning">
@@ -104,11 +103,9 @@ function showPowerModal(modalId, action, confirmBtnId) {
         this.disabled = true;
         this.textContent = '...';
         
-        htmx.send('POST', `/api/device/power/${action}`, {
-            target: '#result-body',
-            swap: 'innerHTML',
-            onLoad: function(response) {
-                const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+        fetch(`/api/device/power/${action}`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
                 if (data.success) {
                     document.getElementById('result-title').textContent = '✓ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' Initiated';
                     document.getElementById('result-body').innerHTML = 
@@ -124,12 +121,22 @@ function showPowerModal(modalId, action, confirmBtnId) {
                 }
                 document.getElementById('result-close').onclick = function() {
                     closeModal('action-result-modal');
-                    // Close the original modal too
                     closeModal(modalId);
                 };
                 openModal('action-result-modal');
-            }
-        });
+            })
+            .catch(e => {
+                document.getElementById('result-title').textContent = '✗ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' Failed';
+                document.getElementById('result-body').innerHTML = 
+                    '<div class="alert alert-error">Failed to ' + action + '.</div>' +
+                    '<pre class="logs-output">' + escapeHtml(e.message || 'Unknown error') + '</pre>' +
+                    '<p class="text-muted">Network error.</p>';
+                document.getElementById('result-close').onclick = function() {
+                    closeModal('action-result-modal');
+                    closeModal(modalId);
+                };
+                openModal('action-result-modal');
+            });
     };
     openModal(modalId);
 }
@@ -145,5 +152,10 @@ document.getElementById('btn-poweroff').addEventListener('click', function() {
 document.getElementById('btn-suspend').addEventListener('click', function() {
     showPowerModal('suspend-modal', 'suspend', 'confirm-suspend');
 });
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 </script>
 {% endblock %}

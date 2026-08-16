@@ -148,27 +148,27 @@
 
 <script>
 function loadGatewayStatus() {
-    htmx.send('GET', '/api/hermes/status', {
-        target: '#gateway-status',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/hermes/status')
+        .then(r => r.json())
+        .then(data => {
             const gw = data.gateway || {};
             document.getElementById('gateway-status').innerHTML = renderServiceStatus(gw, 'Gateway');
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('gateway-status').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function loadDashboardStatus() {
-    htmx.send('GET', '/api/hermes/status', {
-        target: '#dashboard-status',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/hermes/status')
+        .then(r => r.json())
+        .then(data => {
             const dash = data.dashboard || {};
             document.getElementById('dashboard-status').innerHTML = renderServiceStatus(dash, 'Dashboard');
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('dashboard-status').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderServiceStatus(status, name) {
@@ -192,15 +192,15 @@ function renderServiceStatus(status, name) {
 }
 
 function loadHermesInfo() {
-    htmx.send('GET', '/api/hermes/status', {
-        target: '#hermes-info',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/hermes/status')
+        .then(r => r.json())
+        .then(data => {
             const info = data.info || {};
             document.getElementById('hermes-info').innerHTML = renderHermesInfo(info);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('hermes-info').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderHermesInfo(info) {
@@ -236,14 +236,14 @@ function loadLogs() {
     const service = document.getElementById('log-service').value;
     const lines = parseInt(document.getElementById('log-lines').value);
     
-    htmx.send('GET', `/api/hermes/logs?service=${service}&lines=${lines}`, {
-        target: '#logs-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch(`/api/hermes/logs?service=${service}&lines=${lines}`)
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('logs-content').innerHTML = renderLogs(data.logs || '', service);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('logs-content').innerHTML = '<p class="text-muted">Failed to load logs</p>';
+        });
 }
 
 function renderLogs(logs, service) {
@@ -254,14 +254,14 @@ function renderLogs(logs, service) {
 }
 
 function loadCron() {
-    htmx.send('GET', '/api/hermes/cron', {
-        target: '#cron-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/hermes/cron')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('cron-content').innerHTML = renderCron(data.jobs || []);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('cron-content').innerHTML = '<p class="text-muted">Failed to load cron</p>';
+        });
 }
 
 function renderCron(jobs) {
@@ -301,14 +301,14 @@ function renderCron(jobs) {
 }
 
 function loadSessions() {
-    htmx.send('GET', '/api/hermes/sessions', {
-        target: '#sessions-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/hermes/sessions')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('sessions-content').innerHTML = renderSessions(data.sessions || []);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('sessions-content').innerHTML = '<p class="text-muted">Failed to load sessions</p>';
+        });
 }
 
 function renderSessions(sessions) {
@@ -333,14 +333,14 @@ function renderSessions(sessions) {
 }
 
 function loadMemoryPressure() {
-    htmx.send('GET', '/api/hermes/memory-pressure', {
-        target: '#memory-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/hermes/memory-pressure')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('memory-content').innerHTML = renderMemoryPressure(data);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('memory-content').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderMemoryPressure(data) {
@@ -375,24 +375,25 @@ function restartService(service) {
     document.getElementById('restart-result').innerHTML = '';
     openModal('restart-modal');
     
-    htmx.send('POST', `/api/hermes/restart-${service === 'gateway' ? 'gateway' : 'dashboard'}`, {
-        target: '#restart-result',
-        swap: 'innerHTML',
-        onLoad: function(response) {
+    fetch(`/api/hermes/restart-${service === 'gateway' ? 'gateway' : 'dashboard'}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('restart-progress').style.display = 'none';
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
             if (data.success) {
                 document.getElementById('restart-result').innerHTML = 
                     '<div class="alert alert-success">✓ ' + service + ' restarted successfully</div>';
-                // Refresh status
                 if (service === 'gateway') loadGatewayStatus();
                 else loadDashboardStatus();
             } else {
                 document.getElementById('restart-result').innerHTML = 
                     '<div class="alert alert-error">✗ Failed: ' + escapeHtml(data.error || 'Unknown error') + '</div>';
             }
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('restart-progress').style.display = 'none';
+            document.getElementById('restart-result').innerHTML = 
+                '<div class="alert alert-error">✗ Failed: ' + escapeHtml(e.message || 'Unknown error') + '</div>';
+        });
 }
 
 document.getElementById('btn-restart-gateway').addEventListener('click', function() {

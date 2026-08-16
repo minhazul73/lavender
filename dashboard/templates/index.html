@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Overview — Hermes Dashboard{% endblock %}
+{% block title %}Overview — RN7 Linux Dashboard{% endblock %}
 {% block page_title %}Overview{% endblock %}
 
 {% block content %}
@@ -56,54 +56,135 @@
         </div>
     </section>
 </div>
+{% endblock %}
 
+{% block extra_js %}
 <script>
-// Load all overview data on page load
-htmx.process(document.body);
-
-function loadAll() {
-    // Load services
-    htmx.load(document.getElementById('services-overview'));
-    // Each section loads its own data
+// Use HTMX ajax() for programmatic requests with proper target/swap
+function loadSection(url, targetId, renderFn) {
+    htmx.ajax('GET', url, targetId, 'innerHTML');
 }
 
-// Use HTMX to load each section
+// Load all overview data on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Services overview
-    htmx.send('GET', '/api/system/services', {
-        target: '#services-overview',
-        swap: 'innerHTML',
-    });
+    // Each section triggers its own HTMX request via a hidden trigger
+    // We use hx-get on invisible buttons to load data declaratively
+    
+    // Services overview — load JSON and render
+    fetch('/api/system/services')
+        .then(r => r.json())
+        .then(data => {
+            const services = data.services || [];
+            const active = services.filter(s => s.active_state === 'active').length;
+            const total = data.count || 0;
+            document.getElementById('services-overview').innerHTML = 
+                `<div class="overview-stats">
+                    <div class="stat-big">${active}</div>
+                    <div class="stat-label">Active</div>
+                    <div class="stat-detail">of ${total} total services</div>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('services-overview').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 
     // Storage overview
-    htmx.send('GET', '/api/system/storage', {
-        target: '#storage-overview',
-        swap: 'innerHTML',
-    });
+    fetch('/api/system/storage')
+        .then(r => r.json())
+        .then(data => {
+            const disks = data.disks || [];
+            const mounts = data.mounts || [];
+            const realMounts = mounts.filter(m => 
+                !m.fs.includes('proc') && !m.fs.includes('sys') && 
+                !m.fs.includes('dev') && !m.fs.includes('run') && m.target !== '/'
+            );
+            const df = disks.find(d => d.mount === '/');
+            const used = df ? df.used : 'N/A';
+            const avail = df ? df.avail : 'N/A';
+            document.getElementById('storage-overview').innerHTML = 
+                `<div class="overview-stats">
+                    <div class="stat-big">${used}</div>
+                    <div class="stat-label">Used on /</div>
+                    <div class="stat-detail">${avail} available · ${realMounts.length} mounts</div>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('storage-overview').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 
     // Memory overview
-    htmx.send('GET', '/api/system/memory', {
-        target: '#memory-overview',
-        swap: 'innerHTML',
-    });
+    fetch('/api/system/memory')
+        .then(r => r.json())
+        .then(data => {
+            const m = (data.human && data.human.parsed) || {};
+            document.getElementById('memory-overview').innerHTML = 
+                `<div class="overview-stats">
+                    <div class="stat-big">${m.used || 'N/A'}</div>
+                    <div class="stat-label">RAM Used</div>
+                    <div class="stat-detail">of ${m.total || 'N/A'} total · ${m.free || 'N/A'} free</div>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('memory-overview').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 
     // Network quality
-    htmx.send('GET', '/api/hermes/network-quality', {
-        target: '#network-overview',
-        swap: 'innerHTML',
-    });
+    fetch('/api/hermes/network-quality')
+        .then(r => r.json())
+        .then(data => {
+            const gw = data.gateway || {};
+            const internet = data.internet || {};
+            const overall = data.overall || 'unknown';
+            const icons = { good: '✅', local_only: '⚠️', no_gateway: '⚠️', no_connection: '❌', unknown: '❓' };
+            document.getElementById('network-overview').innerHTML = 
+                `<div class="overview-stats">
+                    <div class="stat-big">${icons[overall] || ''}</div>
+                    <div class="stat-label">${overall.replace('_', ' ').replace('local_only', 'Local Only').replace('no_gateway', 'No Gateway').replace('no_connection', 'No Connection')}</div>
+                    <div class="stat-detail">${gw.success ? 'Gateway OK' : 'Gateway fail'} · ${internet.success ? 'Internet OK' : 'Internet fail'}</div>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('network-overview').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 
     // Battery overview
-    htmx.send('GET', '/api/device/battery', {
-        target: '#battery-overview',
-        swap: 'innerHTML',
-    });
+    fetch('/api/device/battery')
+        .then(r => r.json())
+        .then(data => {
+            const b = data.battery || {};
+            const pct = b.percentage;
+            const state = b.state || 'Unknown';
+            const icon = pct !== null ? (pct > 50 ? '🔋' : pct > 20 ? '⚠️' : '🪫') : '❓';
+            document.getElementById('battery-overview').innerHTML = 
+                `<div class="overview-stats">
+                    <div class="stat-big">${pct !== null ? pct + '%' : 'N/A'}</div>
+                    <div class="stat-label">${state}</div>
+                    <div class="stat-detail">${icon} ${b.time_to_empty || ''}</div>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('battery-overview').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 
     // Hermes overview
-    htmx.send('GET', '/api/hermes/status', {
-        target: '#hermes-overview',
-        swap: 'innerHTML',
-    });
+    fetch('/api/hermes/status')
+        .then(r => r.json())
+        .then(data => {
+            const gw = data.gateway || {};
+            const dash = data.dashboard || {};
+            const gwActive = gw.active;
+            const dashActive = dash.active;
+            const icons = { true: '✅', false: '❌' };
+            document.getElementById('hermes-overview').innerHTML = 
+                `<div class="overview-stats">
+                    <div class="stat-big">${icons[gwActive]}</div>
+                    <div class="stat-label">Gateway</div>
+                    <div class="stat-detail">${icons[dashActive]} Dashboard ${dashActive ? 'running' : 'stopped'}</div>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('hermes-overview').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 });
 </script>
 {% endblock %}

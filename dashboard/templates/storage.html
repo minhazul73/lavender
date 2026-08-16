@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Storage — Hermes Dashboard{% endblock %}
+{% block title %}Storage — RN7 Linux Dashboard{% endblock %}
 {% block page_title %}Storage & Disk{% endblock %}
-
 {% block content %}
 <div class="tabs">
     <button class="tab active" data-tab="disks">Disk Usage</button>
@@ -99,15 +98,16 @@
 
 <script>
 function loadDisks() {
-    htmx.send('GET', '/api/system/storage', {
-        target: '#disks-table',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/system/storage')
+        .then(r => r.json())
+        .then(data => {
             const disks = data.disks || [];
             document.getElementById('disks-table').innerHTML = renderDisks(disks);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('disks-table').innerHTML = 
+                '<tr><td colspan="6" class="text-center text-muted">Failed to load disk info</td></tr>';
+        });
 }
 
 function renderDisks(disks) {
@@ -130,15 +130,16 @@ function renderDisks(disks) {
 }
 
 function loadMounts() {
-    htmx.send('GET', '/api/system/storage', {
-        target: '#mounts-table',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/system/storage')
+        .then(r => r.json())
+        .then(data => {
             const mounts = data.mounts || [];
             document.getElementById('mounts-table').innerHTML = renderMounts(mounts);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('mounts-table').innerHTML = 
+                '<tr><td colspan="5" class="text-center text-muted">Failed to load mounts</td></tr>';
+        });
 }
 
 function renderMounts(mounts) {
@@ -146,7 +147,6 @@ function renderMounts(mounts) {
         return '<tr><td colspan="5" class="text-center">No mounts found</td></tr>';
     }
     return mounts.map(m => {
-        // Skip pseudo filesystems
         if (m.fs.includes('proc') || m.fs.includes('sys') || m.fs.includes('dev')) {
             return '';
         }
@@ -165,17 +165,15 @@ function renderMounts(mounts) {
 }
 
 function loadDirUsage(showAll = false) {
-    const paths = showAll ? ['/', '/home', '/var', '/tmp'] : ['/', '/home', '/var'];
-    // Use HTMX to get dir usage - we'll load via the storage API
-    htmx.send('GET', '/api/system/storage', {
-        target: '#du-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/system/storage')
+        .then(r => r.json())
+        .then(data => {
             const dirUsage = data.dir_usage || [];
             document.getElementById('du-content').innerHTML = renderDirUsage(dirUsage, showAll);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('du-content').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderDirUsage(dirUsage, showAll) {
@@ -210,11 +208,9 @@ document.getElementById('confirm-unmount').addEventListener('click', function() 
     this.disabled = true;
     this.textContent = 'Unmounting...';
     
-    htmx.send('POST', `/api/system/storage/unmount?mount_point=${encodeURIComponent(mountPoint)}`, {
-        target: '#unmount-modal',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch(`/api/system/storage/unmount?mount_point=${encodeURIComponent(mountPoint)}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
             if (data.success) {
                 document.getElementById('unmount-modal').innerHTML = 
                     '<div class="modal-backdrop"></div><div class="modal-content">' +
@@ -230,9 +226,21 @@ document.getElementById('confirm-unmount').addEventListener('click', function() 
                     '<button class="btn btn-secondary" onclick="closeModal(\'unmount-modal\')">Close</button>' +
                     '</div></div>';
             }
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('unmount-modal').innerHTML = 
+                '<div class="modal-backdrop"></div><div class="modal-content">' +
+                '<h3>✗ Failed</h3><p>' + escapeHtml(e.message || 'Unknown error') + '</p>' +
+                '<div class="modal-actions">' +
+                '<button class="btn btn-secondary" onclick="closeModal(\'unmount-modal\')">Close</button>' +
+                '</div></div>';
+        });
 });
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 // Tab switching
 document.querySelectorAll('.tab').forEach(tab => {

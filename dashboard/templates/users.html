@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Users — Hermes Dashboard{% endblock %}
+{% block title %}Users — RN7 Linux Dashboard{% endblock %}
 {% block page_title %}Users & Permissions{% endblock %}
-
 {% block content %}
 <div class="tabs">
     <button class="tab active" data-tab="users">Users</button>
@@ -98,15 +97,16 @@
 
 <script>
 function loadUsers() {
-    htmx.send('GET', '/api/device/users', {
-        target: '#users-table',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/users')
+        .then(r => r.json())
+        .then(data => {
             const users = data.users || [];
             document.getElementById('users-table').innerHTML = renderUsers(users);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('users-table').innerHTML = 
+                '<tr><td colspan="6" class="text-center text-muted">Failed to load users</td></tr>';
+        });
 }
 
 function renderUsers(users) {
@@ -126,15 +126,16 @@ function renderUsers(users) {
 }
 
 function loadGroups() {
-    htmx.send('GET', '/api/device/users', {
-        target: '#groups-table',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/users')
+        .then(r => r.json())
+        .then(data => {
             const groups = data.groups || [];
             document.getElementById('groups-table').innerHTML = renderGroups(groups);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('groups-table').innerHTML = 
+                '<tr><td colspan="3" class="text-center text-muted">Failed to load groups</td></tr>';
+        });
 }
 
 function renderGroups(groups) {
@@ -151,15 +152,15 @@ function renderGroups(groups) {
 }
 
 function loadCurrentUser() {
-    htmx.send('GET', '/api/device/users', {
-        target: '#current-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/users')
+        .then(r => r.json())
+        .then(data => {
             const cu = data.current_user || {};
             document.getElementById('current-content').innerHTML = renderCurrentUser(cu);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('current-content').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderCurrentUser(cu) {
@@ -187,14 +188,14 @@ function renderCurrentUser(cu) {
 }
 
 function loadSudoers() {
-    htmx.send('GET', '/api/device/users', {
-        target: '#sudoers-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/users')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('sudoers-content').innerHTML = renderSudoers(data.sudoers || {});
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('sudoers-content').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderSudoers(sudoers) {
@@ -220,6 +221,11 @@ function renderSudoers(sudoers) {
             </div>` : '<p class="text-muted">Sudoers file not readable (expected on postmarketOS)</p>'}
         </div>
     `;
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 document.getElementById('refresh-users').addEventListener('click', loadUsers);

@@ -95,17 +95,14 @@
 let currentProcesses = [];
 
 function loadProcesses(sortBy = 'mem', limit = 20) {
-    htmx.send('GET', `/api/system/processes?sort_by=${sortBy}&limit=${limit}`, {
-        target: '#processes-table',
-        swap: 'innerHTML',
-        onLoad: function(response) {
+    fetch(`/api/system/processes?sort_by=${sortBy}&limit=${limit}`)
+        .then(r => r.json())
+        .then(data => {
             try {
-                const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
                 currentProcesses = data.processes || [];
                 document.getElementById('proc-count').textContent = currentProcesses.length;
                 document.getElementById('processes-table').innerHTML = renderProcesses(currentProcesses);
                 
-                // Load system info separately
                 if (data.load) {
                     renderLoad(data.load);
                 }
@@ -115,8 +112,11 @@ function loadProcesses(sortBy = 'mem', limit = 20) {
             } catch(e) {
                 console.error('Parse error:', e);
             }
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('processes-table').innerHTML = 
+                '<tr><td colspan="11" class="text-center text-muted">Failed to load processes</td></tr>';
+        });
 }
 
 function renderProcesses(procs) {
@@ -184,11 +184,9 @@ document.getElementById('confirm-kill').addEventListener('click', function() {
     this.disabled = true;
     this.textContent = 'Killing...';
     
-    htmx.send('POST', `/api/system/processes/kill?pid=${pid}`, {
-        target: '#kill-modal',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch(`/api/system/processes/kill?pid=${pid}`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
             if (data.success) {
                 document.getElementById('kill-modal').innerHTML = 
                     '<div class="modal-backdrop"></div><div class="modal-content">' +
@@ -205,8 +203,15 @@ document.getElementById('confirm-kill').addEventListener('click', function() {
                     '<button class="btn btn-secondary" onclick="closeModal(\'kill-modal\')">Close</button>' +
                     '</div></div>';
             }
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('kill-modal').innerHTML = 
+                '<div class="modal-backdrop"></div><div class="modal-content">' +
+                '<h3>✗ Failed</h3><p>' + escapeHtml(e.message || 'Unknown error') + '</p>' +
+                '<div class="modal-actions">' +
+                '<button class="btn btn-secondary" onclick="closeModal(\'kill-modal\')">Close</button>' +
+                '</div></div>';
+        });
 });
 
 document.getElementById('sort-by').addEventListener('change', function() {

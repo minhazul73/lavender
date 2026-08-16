@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Packages — Hermes Dashboard{% endblock %}
+{% block title %}Packages — RN7 Linux Dashboard{% endblock %}
 {% block page_title %}Packages & Updates{% endblock %}
-
 {% block content %}
 <div class="tabs">
     <button class="tab active" data-tab="installed">Installed</button>
@@ -85,26 +84,26 @@
 
 <script>
 function loadInstalled() {
-    htmx.send('GET', '/api/device/packages', {
-        target: '#installed-count',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/packages')
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('installed-count').textContent = data.installed_count || 0;
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('installed-count').textContent = '?';
+        });
 }
 
 function loadUpgradable() {
-    htmx.send('GET', '/api/device/packages', {
-        target: '#upgradable-content',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch('/api/device/packages')
+        .then(r => r.json())
+        .then(data => {
             const upgradable = data.upgradable || [];
             document.getElementById('upgradable-content').innerHTML = renderUpgradable(upgradable);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('upgradable-content').innerHTML = '<p class="text-muted">Failed to load</p>';
+        });
 }
 
 function renderUpgradable(pkgs) {
@@ -136,15 +135,16 @@ function doSearch() {
     document.getElementById('btn-search').disabled = true;
     document.getElementById('search-results').innerHTML = '<div class="loading">Searching...</div>';
     
-    htmx.send('GET', `/api/device/packages/search?query=${encodeURIComponent(query)}`, {
-        target: '#search-results',
-        swap: 'innerHTML',
-        onLoad: function(response) {
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
+    fetch(`/api/device/packages/search?query=${encodeURIComponent(query)}`)
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('btn-search').disabled = false;
             document.getElementById('search-results').innerHTML = renderSearchResults(data.results || []);
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('btn-search').disabled = false;
+            document.getElementById('search-results').innerHTML = '<p class="text-muted">Search failed</p>';
+        });
 }
 
 function renderSearchResults(results) {
@@ -169,18 +169,15 @@ function confirmUpgrade() {
     document.getElementById('confirm-upgrade').disabled = true;
     openModal('upgrade-modal');
     
-    htmx.send('POST', '/api/device/packages/upgrade', {
-        target: '#upgrade-output',
-        swap: 'innerHTML',
-        onLoad: function(response) {
+    fetch('/api/device/packages/upgrade', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
             document.getElementById('upgrade-progress').style.display = 'none';
-            const data = JSON.parse(response.detail()?.response?.body?.text() || '{}');
             if (data.success) {
                 document.getElementById('upgrade-output').innerHTML = 
                     '<div class="alert alert-success">✓ Upgrade completed successfully</div>' +
                     (data.output ? '<details><summary>Output</summary><pre class="logs-output">' + 
                         escapeHtml(data.output) + '</pre></details>' : '');
-                // Refresh the upgradable list
                 loadUpgradable();
             } else {
                 document.getElementById('upgrade-output').innerHTML = 
@@ -188,8 +185,13 @@ function confirmUpgrade() {
                     '<pre class="logs-output">' + escapeHtml(data.error || 'Unknown error') + '</pre>';
             }
             document.getElementById('confirm-upgrade').disabled = false;
-        }
-    });
+        })
+        .catch(e => {
+            document.getElementById('upgrade-progress').style.display = 'none';
+            document.getElementById('upgrade-output').innerHTML = 
+                '<div class="alert alert-error">✗ Failed: ' + escapeHtml(e.message || 'Unknown error') + '</div>';
+            document.getElementById('confirm-upgrade').disabled = false;
+        });
 }
 
 document.getElementById('btn-upgrade-all').addEventListener('click', function() {
