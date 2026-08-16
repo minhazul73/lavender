@@ -6,14 +6,30 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 
 from dashboard.config import PORT, HOST, DEBUG
 
 
+class Templates:
+    """Jinja2 template renderer with autoescape=False so script blocks
+    and JS template literals are emitted as raw HTML."""
+
+    def __init__(self, directory: str):
+        from jinja2 import Environment, FileSystemLoader
+        self._env = Environment(
+            loader=FileSystemLoader(directory),
+            autoescape=False,
+        )
+
+    def TemplateResponse(self, request: Request, name: str, context: dict) -> HTMLResponse:
+        """Render a template. Signature matches Jinja2Templates for drop-in use."""
+        tmpl = self._env.get_template(name)
+        body = tmpl.render(**context)
+        return HTMLResponse(content=body, status_code=200, media_type="text/html")
+
+
 def render_template(request: Request, template_name: str, context: dict) -> HTMLResponse:
     """Render a Jinja2 template with the given context."""
-    from jinja2 import Environment, FileSystemLoader, select_autoescape
     templates_dir = os.path.join(os.path.dirname(__file__), "templates")
     env = Environment(
         loader=FileSystemLoader(templates_dir),
@@ -21,8 +37,8 @@ def render_template(request: Request, template_name: str, context: dict) -> HTML
     )
     tmpl = env.get_template(template_name)
     body = tmpl.render(**context)
-    from fastapi.responses import HTMLResponse
     return HTMLResponse(content=body, status_code=200)
+
 
 app = FastAPI(
     title="RN7 Linux Dashboard",
@@ -38,9 +54,9 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Templates
+# Templates — use autoescape=False so <script> blocks render as raw HTML
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-templates = Jinja2Templates(directory=templates_dir)
+templates = Templates(templates_dir)
 
 
 # Import route modules after app creation to avoid circular imports
@@ -84,34 +100,36 @@ async def network_page(request: Request):
 
 @app.get("/battery")
 async def battery_page(request: Request):
-    """Battery/device stats page."""
+    """Battery & device info page."""
     return templates.TemplateResponse(request=request, name="battery.html", context={"request": request})
 
 
 @app.get("/hermes")
 async def hermes_page(request: Request):
-    """Hermes gateway/dashboard controls."""
+    """Hermes AI integration page."""
     return templates.TemplateResponse(request=request, name="hermes.html", context={"request": request})
 
 
 @app.get("/packages")
 async def packages_page(request: Request):
-    """Packages/updates page."""
+    """Package management page."""
     return templates.TemplateResponse(request=request, name="packages.html", context={"request": request})
 
 
 @app.get("/users")
 async def users_page(request: Request):
-    """Users/permissions page."""
+    """User management page."""
     return templates.TemplateResponse(request=request, name="users.html", context={"request": request})
 
 
 @app.get("/power")
 async def power_page(request: Request):
-    """Power control page."""
+    """Power & network page."""
     return templates.TemplateResponse(request=request, name="power.html", context={"request": request})
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host=HOST, port=PORT, log_level="info" if not DEBUG else "debug")
+def create_start_app_handler(app: FastAPI) -> callable:
+    """Return a startup event handler."""
+    async def start_app() -> None:
+        pass
+    return start_app
