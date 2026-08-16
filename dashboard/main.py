@@ -13,8 +13,16 @@ from dashboard.config import PORT, HOST, DEBUG
 
 def render_template(request: Request, template_name: str, context: dict) -> HTMLResponse:
     """Render a Jinja2 template with the given context."""
-    templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
-    return templates.TemplateResponse(template_name, context)
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    env = Environment(
+        loader=FileSystemLoader(templates_dir),
+        autoescape=False,
+    )
+    tmpl = env.get_template(template_name)
+    body = tmpl.render(**context)
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=body, status_code=200)
 
 app = FastAPI(
     title="RN7 Linux Dashboard",
