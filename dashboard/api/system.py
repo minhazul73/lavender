@@ -20,8 +20,6 @@ from dashboard.services.processes import (
 )
 from dashboard.services.storage import (
     get_disk_usage,
-    get_mounts,
-    get_dir_usage,
 )
 
 router = APIRouter()
@@ -85,8 +83,6 @@ async def api_storage():
     """Get disk usage information."""
     return {
         "disks": get_disk_usage(),
-        "mounts": get_mounts(),
-        "dir_usage": get_dir_usage(),
     }
 
 
