@@ -1,0 +1,192 @@
+/* ===== Live Monitoring Styles ===== */
+/* Shared across overview and other pages — not page-specific */
+
+/* SSE connection status indicator */
+#sse-status { display: flex; align-items: center; gap: 6px; }
+#sse-status .status-indicator { transition: background 0.3s; }
+#sse-status.connected .status-indicator { background: var(--green); box-shadow: 0 0 4px var(--green); }
+#sse-status.connected { color: var(--green); }
+#sse-status.disconnected .status-indicator { background: var(--red); box-shadow: 0 0 4px var(--red); }
+#sse-status.disconnected { color: var(--red); }
+
+/* Health row — status pills at top of overview */
+.health-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+.health-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+.health-pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+}
+.health-pill.good .dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.health-pill.good { color: var(--green); border-color: rgba(63,185,80,0.3); }
+.health-pill.warn .dot { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); }
+.health-pill.warn { color: var(--yellow); border-color: rgba(210,153,34,0.3); }
+.health-pill.crit .dot { background: var(--red); box-shadow: 0 0 4px var(--red); }
+.health-pill.crit { color: var(--red); border-color: rgba(248,81,73,0.3); }
+
+/* Live card grid */
+.live-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+.live-grid .card { margin-bottom: 0; }
+
+/* Sparkline (inline SVG, no library) */
+.sparkline {
+    width: 100%;
+    height: 32px;
+    margin-top: 8px;
+    display: block;
+}
+.sparkline-bg { fill: rgba(88, 166, 255, 0.08); }
+.sparkline-line { fill: none; stroke-width: 1.5; }
+
+/* Metric color themes for sparklines */
+.metric-cpu .sparkline-line { stroke: var(--accent); }
+.metric-cpu .sparkline-bg { fill: rgba(88, 166, 255, 0.08); }
+.metric-ram .sparkline-line { stroke: var(--red); }
+.metric-ram .sparkline-bg { fill: rgba(248, 81, 73, 0.08); }
+.metric-battery .sparkline-line { stroke: var(--green); }
+.metric-battery .sparkline-bg { fill: rgba(63, 185, 80, 0.08); }
+.metric-network .sparkline-line { stroke: var(--yellow); }
+.metric-network .sparkline-bg { fill: rgba(210, 153, 34, 0.08); }
+.metric-thermal .sparkline-line { stroke: var(--orange); }
+.metric-thermal .sparkline-bg { fill: rgba(219, 109, 40, 0.08); }
+
+/* CPU per-core mini cards */
+.cpu-core-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+}
+.cpu-core {
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px;
+    text-align: center;
+    font-size: 10px;
+}
+.cpu-core .core-num { color: var(--text-muted); font-size: 9px; }
+.cpu-core .core-freq { font-size: 13px; font-weight: 600; color: var(--accent); }
+.cpu-core .core-gov { font-size: 8px; color: var(--text-muted); margin-top: 1px; }
+
+/* Network rate bars */
+.net-rate-bars {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+}
+.net-rate-bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+.net-rate-bar .rate-bg { width: 100%; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.net-rate-bar .rate-fill { height: 100%; border-radius: 3px; transition: width 0.2s; }
+.net-rate-bar .rate-fill.up { background: var(--yellow); }
+.net-rate-bar .rate-fill.down { background: var(--green); }
+.net-rate-bar .rate-label { font-size: 9px; color: var(--text-muted); }
+.net-rate-bar .rate-value { font-size: 11px; font-weight: 600; font-family: monospace; }
+
+/* Battery compact gauge */
+.batt-compact { display: flex; align-items: center; gap: 14px; }
+.batt-gauge-svg { width: 44px; height: 22px; }
+.batt-pct-big { font-size: 28px; font-weight: 700; }
+.batt-pct-big.good { color: var(--green); }
+.batt-pct-big.warn { color: var(--yellow); }
+.batt-pct-big.crit { color: var(--red); }
+.batt-detail-row { font-size: 11px; color: var(--text-secondary); padding: 1px 0; }
+.batt-detail-row .batt-label { color: var(--text-muted); }
+.batt-detail-row .batt-val { font-family: monospace; }
+
+/* RAM bar */
+.ram-bar-outer { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.ram-bar-inner { height: 100%; border-radius: 3px; transition: width 0.3s; background: var(--red); }
+.ram-bar-inner.warn { background: var(--yellow); }
+.ram-bar-inner.crit { background: var(--red); }
+
+/* Storage mini mount table */
+.mount-mini { margin-top: 6px; font-size: 10px; }
+.mount-mini .mount-row { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid var(--border); }
+.mount-mini .mount-row:last-child { border-bottom: none; }
+.mount-mini .mount-dev { color: var(--text-muted); font-family: monospace; }
+.mount-mini .mount-size { color: var(--text-secondary); font-family: monospace; }
+.mount-mini .mount-pct { font-family: monospace; font-weight: 500; }
+.mount-mini .mount-pct.warn { color: var(--yellow); }
+.mount-mini .mount-pct.crit { color: var(--red); }
+
+/* Device info block */
+.device-info {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+}
+.device-info .di-item { display: flex; flex-direction: column; gap: 1px; }
+.device-info .di-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.device-info .di-value { font-size: 12px; font-weight: 500; font-family: monospace; }
+
+/* Card icon + color anchor (per-widget) */
+.card-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    margin-right: 6px;
+    font-size: 13px;
+}
+.card-icon.cpu { background: rgba(88,166,255,0.15); color: var(--accent); }
+.card-icon.ram { background: rgba(248,81,73,0.15); color: var(--red); }
+.card-icon.battery { background: rgba(63,185,80,0.15); color: var(--green); }
+.card-icon.network { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.card-icon.storage { background: rgba(163,113,247,0.15); color: var(--purple); }
+.card-icon.services { background: rgba(88,166,255,0.15); color: var(--accent); }
+.card-icon.hermes { background: rgba(219,109,40,0.15); color: var(--orange); }
+
+/* Live card layout (header + body) */
+.live-card-header {
+    display: flex;
+    align-items: center;
+    padding: 9px 13px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    gap: 4px;
+}
+.live-card-header .card-title { font-size: 12px; font-weight: 600; }
+.live-card-header .card-link { margin-left: auto; font-size: 10px; color: var(--text-muted); text-decoration: none; }
+.live-card-header .card-link:hover { color: var(--accent); }
+.live-card-body { padding: 10px 13px; }
+
+/* Stat row inside card */
+.stat-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; }
+.stat-row .stat-val { font-size: 13px; font-weight: 500; font-family: monospace; }
+.stat-row .stat-val.big { font-size: 18px; font-weight: 700; }
+.stat-row .stat-label { font-size: 10px; color: var(--text-muted); }

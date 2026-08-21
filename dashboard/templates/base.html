@@ -6,6 +6,8 @@
     <title>{% block title %}Hermes Device Dashboard{% endblock %}</title>
     <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/live.css">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 <div class="dashboard">
@@ -64,10 +66,9 @@
         <header class="topbar">
             <h2 class="page-title">{% block page_title %}Overview{% endblock %}</h2>
             <div class="topbar-actions">
-                <span class="refresh-hint">
-                    <button class="btn-icon" hx-post="/api/system/services" hx-target="#services-data" hx-swap="innerHTML">
-                        Refresh
-                    </button>
+                <span id="sse-status" class="">
+                    <span class="status-indicator status-inactive"></span>
+                    <span id="sse-status-text">Connecting...</span>
                 </span>
             </div>
         </header>
@@ -89,7 +90,6 @@
         </div>
     </div>
 </div>
-
 <script src="/static/script.js"></script>
 {% block extra_js %}{% endblock %}
 </body>
