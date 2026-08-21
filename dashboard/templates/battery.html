@@ -56,16 +56,34 @@
 </div>
 
 <script>
-function loadBattery() {
+// Single shared data cache — one fetch loads all 3 tabs
+let _deviceData = null;
+
+function loadDeviceInfo() {
+    if (_deviceData) {
+        document.getElementById('battery-content').innerHTML = renderBattery(_deviceData.battery || {});
+        document.getElementById('thermal-grid').innerHTML = renderThermal(_deviceData.thermal || []);
+        document.getElementById('cpu-content').innerHTML = renderCpu(_deviceData.cpu_freq || [], _deviceData.cpu_scaling || {});
+        return;
+    }
     fetch('/api/device/battery')
         .then(r => r.json())
         .then(data => {
+            _deviceData = data;
             document.getElementById('battery-content').innerHTML = renderBattery(data.battery || {});
+            document.getElementById('thermal-grid').innerHTML = renderThermal(data.thermal || []);
+            document.getElementById('cpu-content').innerHTML = renderCpu(data.cpu_freq || [], data.cpu_scaling || {});
         })
         .catch(e => {
             document.getElementById('battery-content').innerHTML = '<div class="alert alert-error">Failed to load battery info</div>';
+            document.getElementById('thermal-grid').innerHTML = '<p class="text-muted">Failed to load thermal info</p>';
+            document.getElementById('cpu-content').innerHTML = '<p class="text-muted">Failed to load CPU info</p>';
         });
 }
+
+function loadBattery() { loadDeviceInfo(); }
+function loadThermal() { loadDeviceInfo(); }
+function loadCpu() { loadDeviceInfo(); }
 
 function renderBattery(battery) {
     if (battery.error) {
@@ -109,17 +127,6 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function loadThermal() {
-    fetch('/api/device/battery')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('thermal-grid').innerHTML = renderThermal(data.thermal || []);
-        })
-        .catch(e => {
-            document.getElementById('thermal-grid').innerHTML = '<p class="text-muted">Failed to load thermal info</p>';
-        });
-}
-
 function renderThermal(zones) {
     if (!zones || zones.length === 0) {
         return '<p class="text-muted">No thermal zones available</p>';
@@ -142,17 +149,6 @@ function renderThermal(zones) {
             </div>
         </div>`;
     }).join('');
-}
-
-function loadCpu() {
-    fetch('/api/device/battery')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('cpu-content').innerHTML = renderCpu(data.cpu_freq || [], data.cpu_scaling || {});
-        })
-        .catch(e => {
-            document.getElementById('cpu-content').innerHTML = '<p class="text-muted">Failed to load CPU info</p>';
-        });
 }
 
 function renderCpu(freqs, scaling) {
@@ -209,9 +205,7 @@ document.getElementById('refresh-battery').addEventListener('click', loadBattery
 document.getElementById('refresh-thermal').addEventListener('click', loadThermal);
 document.getElementById('refresh-cpu').addEventListener('click', loadCpu);
 
-// Initial load
-loadBattery();
-loadThermal();
-loadCpu();
+// Initial load — single fetch populates all 3 tabs
+loadDeviceInfo();
 </script>
 {% endblock %}
