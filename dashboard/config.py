@@ -34,3 +34,18 @@ TOP_PROCESSES = 20
 
 # Top N directories for du
 TOP_DIRS = 10
+
+# ===== SSE Live Monitoring =====
+# Default SSE poll intervals (ms) — each metric has its own
+SSE_CPU_POLL_INTERVAL = 1000      # CPU freq: every 1s
+SSE_RAM_POLL_INTERVAL = 3000      # RAM: every 3s
+SSE_THERMAL_POLL_INTERVAL = 5000  # Thermal: every 5s
+SSE_BATTERY_POLL_INTERVAL = 3000  # Battery: every 3s
+SSE_NETWORK_POLL_INTERVAL = 2000  # Network rate: every 2s
+
+# Rolling buffer sizes (number of datapoints kept per metric)
+SSE_CPU_BUFFER = 30
+SSE_RAM_BUFFER = 20
+SSE_THERMAL_BUFFER = 20
+SSE_BATTERY_BUFFER = 30
+SSE_NETWORK_BUFFER = 30

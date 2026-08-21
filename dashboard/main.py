@@ -60,12 +60,13 @@ templates = Templates(templates_dir)
 
 
 # Import route modules after app creation to avoid circular imports
-from dashboard.api import system, hermes, device  # noqa: E402
+from dashboard.api import system, hermes, device, live  # noqa: E402
 
 # Register API routers
 app.include_router(system.router, prefix="/api")
 app.include_router(hermes.router, prefix="/api")
 app.include_router(device.router, prefix="/api")
+app.include_router(live.router, prefix="/api")
 
 
 @app.get("/")
