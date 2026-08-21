@@ -40,7 +40,7 @@
             <div class="stat-main" id="cpu-load">—</div>
             <div class="stat-sub" id="cpu-cores">8 Cores</div>
             <div class="stat-sub" id="cpu-freq">— GHz</div>
-            <svg class="sparkline" id="sparkline-cpu" viewBox="0 0 100 24" preserveAspectRatio="none">
+            <svg class="sparkline" id="sparkline-cpu" viewBox="0 0 100 24" preserveAspectRatio="none" style="height:20px; margin-top:4px;">
                 <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
                 <path class="sparkline-line" id="sparkpath-cpu" d="" stroke-width="1.5"/>
             </svg>
@@ -59,7 +59,7 @@
             <div class="progress-bar-outer">
                 <div class="progress-bar-inner" id="ram-bar" style="width:0%"></div>
             </div>
-            <div class="stat-sub" id="ram-detail">— of —</div>
+            <div class="stat-sub" id="ram-detail">— / —</div>
         </div>
     </section>
 
@@ -108,7 +108,7 @@
             <div class="progress-bar-outer">
                 <div class="progress-bar-inner" id="store-bar" style="width:0%"></div>
             </div>
-            <div class="stat-sub" id="store-detail">— of —</div>
+            <div class="stat-sub" id="store-detail">— / —</div>
         </div>
     </section>
 
@@ -122,18 +122,8 @@
             <span class="card-icon">📊</span>
             <span class="card-title">System Activity</span>
         </div>
-        <div class="card-body" style="padding:12px;">
-            <div style="position:relative; height:140px;">
-                <canvas id="chart-activity" width="400" height="140" style="width:100%; height:140px;"></canvas>
-                <div style="position:absolute; bottom:0; left:0; right:0; display:flex; justify-content:space-between; font-size:9px; color:var(--text-muted);">
-                    <span id="chart-time-start">—</span>
-                    <span id="chart-time-end">—</span>
-                </div>
-            </div>
-            <div style="display:flex; gap:14px; margin-top:6px; font-size:10px;">
-                <span style="color:var(--accent);"><span style="display:inline-block; width:8px; height:2px; background:var(--accent); margin-right:4px;"></span>CPU Usage (%)</span>
-                <span style="color:#3b82f6;"><span style="display:inline-block; width:8px; height:2px; background:#3b82f6; margin-right:4px;"></span>Memory Usage (%)</span>
-            </div>
+        <div class="card-body" style="padding:8px 10px;">
+            <canvas id="chart-activity" width="400" height="120" style="width:100%; height:120px;"></canvas>
         </div>
     </section>
 
@@ -160,23 +150,23 @@
 <!-- Bottom: 3 equal columns -->
 <div class="bottom-row">
 
-    <section class="card">
+    <section class="card card-services">
         <div class="card-header">
             <span class="card-icon">⚙️</span>
             <span class="card-title">Services</span>
             <a href="/services" class="card-link">→</a>
         </div>
         <div class="card-body" style="padding:10px; text-align:center;">
-            <div style="position:relative; width:80px; height:80px; margin:0 auto 6px;">
+            <div style="position:relative; width:70px; height:70px; margin:0 auto 4px;">
                 <svg viewBox="0 0 42 42" style="width:100%; height:100%;">
                     <path d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="none" stroke="var(--border)" stroke-width="1"/>
                     <path id="svc-donut-active" d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="var(--green)" stroke="none"/>
                     <path id="svc-donut-inactive" d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="var(--yellow)" stroke="none"/>
-                    <path id="svc-donut-failed" d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="var(--red)" stroke="noen"/>
-                    <text x="50%" y="50%" dy=".3em" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-primary)" id="svc-total-donut">—</text>
+                    <path id="svc-donut-failed" d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="var(--red)" stroke="none"/>
+                    <text x="50%" y="50%" dy=".3em" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text-primary)" id="svc-total-donut">—</text>
                 </svg>
             </div>
-            <div style="font-size:11px; display:flex; justify-content:center; gap:10px;">
+            <div style="font-size:10px; display:flex; justify-content:center; gap:8px;">
                 <span style="color:var(--green);">● <span id="svc-active-count">0</span></span>
                 <span style="color:var(--yellow);">● <span id="svc-inactive-count">0</span></span>
                 <span style="color:var(--red);">● <span id="svc-failed-count">0</span></span>
@@ -190,8 +180,8 @@
             <span class="card-title">Network Interfaces</span>
             <a href="/network" class="card-link">→</a>
         </div>
-        <div class="card-body" style="padding:10px;">
-            <div class="stat-row"><span class="stat-label">Interface</span><span class="stat-val mono mono-sm" id="net-iface">—</span></div>
+        <div class="card-body" style="padding:8px 10px;">
+            <div class="stat-row"><span class="stat-label">Interface</span><span class="stat-val mono mono-sm" id="net-iface-detail">—</span></div>
             <div class="stat-row"><span class="stat-label">Upload</span><span class="stat-val mono mono-sm" id="net-up-speed">—</span></div>
             <div class="stat-row"><span class="stat-label">Download</span><span class="stat-val mono mono-sm" id="net-down-speed">—</span></div>
             <div class="stat-row"><span class="stat-label">Public IP</span><span class="stat-val mono mono-sm" id="net-public-ip">—</span></div>

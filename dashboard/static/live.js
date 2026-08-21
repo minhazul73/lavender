@@ -89,11 +89,12 @@
         latest.ram = data;
         var total = data.total || 0;
         var used = data.used || 0;
+        var avail = data.available || 0;
         var pct = data.used_pct || 0;
 
         document.getElementById('ram-used').textContent = fmtMem(used);
-        document.getElementById('ram-total').textContent = 'of ' + fmtMem(total);
         document.getElementById('ram-pct').textContent = pct.toFixed(0) + '%';
+        document.getElementById('ram-detail').textContent = fmtMem(avail) + ' free';
 
         var bar = document.getElementById('ram-bar');
         bar.style.width = Math.min(100, pct) + '%';
@@ -133,12 +134,48 @@
         var rx = data.rx_rate_bps || 0;
         var tx = data.tx_rate_bps || 0;
 
+        // Top card
         document.getElementById('net-iface').textContent = iface;
         document.getElementById('net-up').textContent = '↑ ' + fmtRate(tx);
         document.getElementById('net-down').textContent = '↓ ' + fmtRate(rx);
 
+        // Bottom network card
+        var detEl = document.getElementById('net-iface-detail');
+        var upEl = document.getElementById('net-up-speed');
+        var downEl = document.getElementById('net-down-speed');
+        if (detEl) detEl.textContent = iface;
+        if (upEl) upEl.textContent = fmtRate(tx);
+        if (downEl) downEl.textContent = fmtRate(rx);
+
+        // Network health pill
+        var netEl = document.getElementById('health-network');
+        netEl.className = 'health-pill' + (rx > 0 || tx > 0 ? ' good' : ' warn');
+        netEl.querySelector('span:last-child').textContent = (rx > 0 || tx > 0) ? 'Active' : 'Idle';
+
         pushBuf('net', Math.max(rx, tx));
         updateSpark('sparkpath-net', 'net');
+    }
+
+    /* ---- Network details (IPs, interface) ---- */
+    function updateNetworkDetails(data) {
+        var ifaces = data.interfaces || [];
+        var localIp = '—', primaryIface = '—';
+        ifaces.forEach(function(iface) {
+            if (iface.state === 'UP' && iface.name !== 'lo') {
+                if (iface.name.indexOf('usb') === 0 || iface.name.indexOf('eth') === 0 || iface.name.indexOf('rmnet') === 0) {
+                    if (primaryIface === '—') primaryIface = iface.name;
+                }
+                iface.addresses.forEach(function(addr) {
+                    if (addr.indexOf('127.') === 0) return;
+                    if (addr.indexOf('169.254.') === 0) return;
+                    if (localIp === '—') localIp = addr;
+                });
+            }
+        });
+        var detEl = document.getElementById('net-iface-detail');
+        var locEl = document.getElementById('net-local-ip');
+        if (detEl) detEl.textContent = primaryIface !== '—' ? primaryIface : '—';
+        if (locEl) locEl.textContent = localIp;
     }
 
     function updateThermal(data) {
@@ -188,8 +225,10 @@
 
         var pct = root.use_pct !== null && root.use_pct !== undefined ? root.use_pct : 0;
         document.getElementById('store-used').textContent = root.used || 'N/A';
+        document.getElementById('store-free').textContent = root.avail || 'N/A';
         document.getElementById('store-pct').textContent = pct + '%';
-        document.getElementById('store-total').textContent = 'of ' + (root.size || 'N/A');
+        document.getElementById('store-total').textContent = root.size || 'N/A';
+        document.getElementById('store-detail').textContent = (root.used || '?') + ' / ' + (root.size || '?');
         document.getElementById('store-bar').style.width = pct + '%';
         document.getElementById('store-bar').className = 'progress-bar-inner' + (pct > 90 ? ' crit' : (pct > 80 ? ' warn' : ''));
 
@@ -239,18 +278,87 @@
         }).join('') || '<div style="padding:6px 10px; font-size:11px; color:var(--text-muted);">No logs</div>';
     }
 
-    /* ---- Systems Activity chart (simple SVG-based) ---- */
+    /* ---- System Activity chart (canvas-based) ---- */
     var chartData = { cpu: [], mem: [] };
     function renderChart() {
-        if (latest.cpu && chartData.cpu.length < 60) {
+        if (latest.cpu) {
             chartData.cpu.push(latest.cpu.load5 || 0);
         }
-        if (latest.ram && chartData.mem.length < 60) {
+        if (latest.ram) {
             chartData.mem.push(latest.ram.used_pct || 0);
         }
         if (chartData.cpu.length > 60) chartData.cpu.shift();
         if (chartData.mem.length > 60) chartData.mem.shift();
-        // Simple: we'll use canvas for the activity chart
+
+        var canvas = document.getElementById('chart-activity');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 1;
+        for (var i = 0; i <= 4; i++) {
+            var y = (i / 4) * h;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+
+        // Draw CPU line (purple)
+        if (chartData.cpu.length > 1) {
+            var maxCpu = Math.max.apply(null, chartData.cpu) || 1;
+            var maxV = Math.max(maxCpu, Math.max.apply(null, chartData.mem) || 0, 100);
+            ctx.strokeStyle = '#a855f7';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            chartData.cpu.forEach(function(v, i) {
+                var x = (i / (chartData.cpu.length - 1)) * w;
+                var y = h - (v / maxV) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+
+        // Draw Memory line (blue)
+        if (chartData.mem.length > 1) {
+            var maxMem = Math.max.apply(null, chartData.mem) || 1;
+            var maxV2 = Math.max(maxMem, Math.max.apply(null, chartData.cpu) || 0, 100);
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            chartData.mem.forEach(function(v, i) {
+                var x = (i / (chartData.mem.length - 1)) * w;
+                var y = h - (v / maxV2) * h;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+        }
+    }
+
+    /* ---- Top processes (table) ---- */
+    function updateTopProcesses(data) {
+        var procs = data.processes || [];
+        var tbody = document.getElementById('top-processes');
+        if (!tbody) return;
+        if (procs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No processes</td></tr>';
+            return;
+        }
+        tbody.innerHTML = procs.map(function(p) {
+            var cpuVal = typeof p.cpu === 'number' ? p.cpu.toFixed(1) + 's' : (p.cpu || '?');
+            var memKb = p.mem || 0;
+            var memVal = memKb >= 1024 ? (memKb / 1024).toFixed(0) + ' MB' : memKb + ' kB';
+            return '<tr>' +
+                '<td class="proc-name">' + (p.command || p.name || '?') + '</td>' +
+                '<td class="mono">' + cpuVal + '</td>' +
+                '<td class="mono">' + memVal + '</td>' +
+            '</tr>';
+        }).join('');
     }
 
     /* ---- SSE message handler ---- */
@@ -296,5 +404,7 @@
 
     fetchJson('/api/system/storage').then(function(d) { if (d) updateStorage(d); });
     fetchJson('/api/system/services').then(function(d) { if (d) updateServices(d); });
-    fetchJson('/api/system/logs?limit=5').then(function(d) { if (d) updateLogs(d); });
+    fetchJson('/api/system/logs?limit=10').then(function(d) { if (d) updateLogs(d); });
+    fetchJson('/api/device/network').then(function(d) { if (d) updateNetworkDetails(d); });
+    fetchJson('/api/system/processes?sort_by=mem&limit=5').then(function(d) { if (d) updateTopProcesses(d); });
 })();
