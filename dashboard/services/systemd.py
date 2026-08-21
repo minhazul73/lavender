@@ -177,3 +177,66 @@ def get_all_units() -> list[dict]:
                 })
     
     return units
+
+
+def get_recent_logs(lines: int = 20) -> list[dict]:
+    """Get recent system journal entries as structured data."""
+    code, out, err = run_command(
+        ["journalctl", "-n", str(lines), "--no-pager", "--output=json"],
+        timeout=10,
+    )
+    if code != 0:
+        return []
+
+    logs = []
+    for raw_line in out.strip().split("\n"):
+        if not raw_line:
+            continue
+        import json as _json
+        try:
+            entry = _json.loads(raw_line)
+        except Exception:
+            continue
+        # Extract timestamp
+        ts = entry.get("__REALTIME_TIMESTAMP", "")
+        # Format as HH:MM:SS
+        timestamp = ""
+        if ts and "T" in ts:
+            try:
+                timestamp = ts.split("T")[1][:8]
+            except Exception:
+                timestamp = ts[-8:]
+        elif ts:
+            timestamp = ts[-8:]
+        else:
+            timestamp = "--:--"
+
+        message = entry.get("MESSAGE", "").strip()
+        if isinstance(message, list):
+            message = " ".join(str(m) for m in message)
+        if len(message) > 200:
+            message = message[:200] + "…"
+
+        # Determine severity
+        priority = int(entry.get("PRIORITY", 6))
+        level = "info"
+        if priority <= 2:
+            level = "error"
+        elif priority <= 4:
+            level = "warning"
+        elif priority <= 6:
+            level = "info"
+
+        # Determine service from _SYSTEMD_UNIT
+        service = entry.get("_SYSTEMD_UNIT", entry.get("SYSLOG_IDENTIFIER", ""))
+        if not service:
+            service = entry.get("_COMM", "system")
+
+        logs.append({
+            "timestamp": timestamp,
+            "message": message,
+            "service": service,
+            "level": level,
+        })
+
+    return logs

@@ -9,6 +9,7 @@ from dashboard.services.systemd import (
     service_action,
     service_toggle_enabled,
     get_all_units,
+    get_recent_logs,
 )
 from dashboard.services.processes import (
     get_top_processes,
@@ -117,3 +118,12 @@ async def api_memory():
         "human": get_memory_human(),
         "raw": get_memory_info(),
     }
+
+
+# ---- Recent System Logs ----
+
+@router.get("/system/logs")
+async def api_recent_logs(lines: int = Query(20, ge=1, le=200)):
+    """Get recent system journal logs."""
+    logs = get_recent_logs(lines=lines)
+    return {"logs": logs, "count": len(logs)}

@@ -4,12 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Hermes Device Dashboard{% endblock %}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+    <link rel="preload" href="/static/style.css" as="style">
     <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="/static/live.css">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -70,9 +66,19 @@
             <h2 class="page-title">{% block page_title %}Overview{% endblock %}</h2>
             <div class="topbar-actions">
                 <span id="sse-status" class="">
-                    <span class="status-indicator status-inactive"></span>
+                    <span class="status-indicator"></span>
                     <span id="sse-status-text">Connecting...</span>
                 </span>
+                <button class="topbar-btn" onclick="location.reload()" title="Refresh">↻</button>
+                <select class="topbar-select" title="Time range">
+                    <option>1m</option>
+                    <option>5m</option>
+                    <option>15m</option>
+                    <option>1h</option>
+                </select>
+                <span class="topbar-btn" title="Settings">⚙</span>
+                <span class="topbar-btn" title="Notifications">🔔</span>
+                <span class="topbar-profile" title="User">HD</span>
             </div>
         </header>
         <div class="content">
