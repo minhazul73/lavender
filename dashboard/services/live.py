@@ -3,7 +3,7 @@ Per-metric collector base class and individual collectors.
 
 CPU freq: reads /sys/devices/system/cpu/*/cpufreq/scaling_cur_freq
 RAM: reads /proc/meminfo once followed by /proc/stat for used calculation
-Thermal: reads hwmon/thinkpad-ec-thermal via sysfs
+Thermal: reads hwmonpad-ec-thermal via sysfs
 Battery: reads /sys/class/power_supply/*/capacity + /sys/bus/platform/devices/*/...
 Network: reads sysfs net/dev for interface counters, calculates delta
 Power draw: optional, reads from battery energy_rate if available
@@ -26,6 +26,7 @@ from dashboard.config import (
     SSE_BATTERY_INTERVAL_MS,
 )
 
+
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
@@ -38,6 +39,7 @@ def _read_file(path: str) -> Optional[str]:
     except (FileNotFoundError, PermissionError, OSError):
         return None
 
+
 def _read_int(path: str, default: int = 0) -> int:
     s = _read_file(path)
     if s is None:
@@ -47,6 +49,7 @@ def _read_int(path: str, default: int = 0) -> int:
     except ValueError:
         return default
 
+
 def _read_float(path: str, default: float = 0.0) -> float:
     s = _read_file(path)
     if s is None:
@@ -55,6 +58,7 @@ def _read_float(path: str, default: float = 0.0) -> float:
         return float(s)
     except ValueError:
         return default
+
 
 # ---------------------------------------------------------------------------
 # Ring buffer (memory-efficient, fixed-window history)
@@ -90,6 +94,7 @@ class RingBuffer:
     @property
     def is_empty(self) -> bool:
         return len(self._buf) == 0
+
 
 # ---------------------------------------------------------------------------
 # Collector protocol
@@ -205,39 +210,35 @@ class CPUFreqCollector(MetricCollector):
         self._cpus_last_update = 0.0
 
     async def collect(self) -> dict:
-        """Return CPU info: count, per-core list, first-core freq for sparkline."""
+        """Return CPU info: count, per-core list (as plain dicts for JSON),
+        first-core freq for sparkline."""
         now = time.monotonic()
         if now - self._cpus_last_update > 5.0:
-            # Rescan CPU list occasionally (hotplug unlikely but cheap)
             self._discover_cpus()
 
         cores = self._cpus
         if not cores:
-            return {
-                "cpus": [],
-                "count": 0,
-            }
+            return {"cpus": [], "count": 0}
 
-        # Read current freq for each online core
-        cores_with_freq = []
+        cores_list = []
         for core in cores:
             freq_path = f"{self._cpu_dir}/cpu{core.core}/cpufreq/scaling_cur_freq"
             freq_khz = _read_int(freq_path, 0)
             freq_mhz = freq_khz / 1000.0 if freq_khz > 0 else None
             gov_path = f"{self._cpu_dir}/cpu{core.core}/cpufreq/scaling_governor"
             gov = _read_file(gov_path)
-            cores_with_freq.append(CPUCoreInfo(
-                core=core.core,
-                frequency_mhz=freq_mhz,
-                governor=gov if gov else None,
-            ))
+            cores_list.append({
+                "cpu": core.core,
+                "frequency_mhz": freq_mhz,
+                "frequency_khz": freq_khz if freq_khz > 0 else None,
+                "governor": gov if gov else None,
+            })
 
-        # First core freq for sparkline (or average if available)
-        freqs = [c.frequency_mhz for c in cores_with_freq if c.frequency_mhz is not None]
+        freqs = [c["frequency_mhz"] for c in cores_list if c["frequency_mhz"] is not None]
         primary_freq = freqs[0] if freqs else None
 
         return {
-            "cpus": cores_with_freq,
+            "cpus": cores_list,
             "count": len(cores),
             "primary_frequency_mhz": primary_freq,
         }
@@ -355,8 +356,8 @@ class ThermalCollector(MetricCollector):
         self._sources = self._discover_thermal_sources()
 
     async def collect(self) -> list:
-        """Return list of ThermalZone dicts."""
-        zones: List[ThermalZone] = []
+        """Return list of ThermalZone dicts (JSON-serializable)."""
+        zones: List[dict] = []
         seen_names: set = set()
 
         # 1) hwmon thermal zones
@@ -381,14 +382,14 @@ class ThermalCollector(MetricCollector):
                         seen_names.add(zone_name)
                     else:
                         zone_name = f"{zone_name}-{temp_i}"
-                    zones.append(ThermalZone(
-                        name=zone_name,
-                        type=dev_type,
-                        temp_millicelsius=temp_val,
-                        temp_celsius=tc,
-                        warning=warning,
-                        crit=crit,
-                    ))
+                    zones.append({
+                        "name": zone_name,
+                        "type": dev_type,
+                        "temp_millicelsius": temp_val,
+                        "temp_celsius": tc,
+                        "warning": warning,
+                        "crit": crit,
+                    })
 
         # 2) platform device thermal (qcom, mediatek, etc.)
         platform_path = "/sys/bus/platform/devices"
@@ -403,14 +404,14 @@ class ThermalCollector(MetricCollector):
                     tc = temp_val / 1000.0
                     warning = tc >= 70.0
                     crit = tc >= 90.0
-                    zones.append(ThermalZone(
-                        name=dev_name,
-                        type="platform-thermal",
-                        temp_millicelsius=temp_val,
-                        temp_celsius=tc,
-                        warning=warning,
-                        crit=crit,
-                    ))
+                    zones.append({
+                        "name": dev_name,
+                        "type": "platform-thermal",
+                        "temp_millicelsius": temp_val,
+                        "temp_celsius": tc,
+                        "warning": warning,
+                        "crit": crit,
+                    })
 
         # 3) legacy thermal sysfs (some kernels)
         thermal_path = "/sys/class/thermal"
@@ -425,14 +426,14 @@ class ThermalCollector(MetricCollector):
                     tc = temp_val / 1000.0
                     warning = tc >= 70.0
                     crit = tc >= 90.0
-                    zones.append(ThermalZone(
-                        name=zone_name,
-                        type=dev_type,
-                        temp_millicelsius=temp_val,
-                        temp_celsius=tc,
-                        warning=warning,
-                        crit=crit,
-                    ))
+                    zones.append({
+                        "name": zone_name,
+                        "type": dev_type,
+                        "temp_millicelsius": temp_val,
+                        "temp_celsius": tc,
+                        "warning": warning,
+                        "crit": crit,
+                    })
 
         return zones
 
@@ -598,7 +599,13 @@ class BatteryCollector(MetricCollector):
             temp_file = f"/sys/class/power_supply/{batt}/temp"
             tv = _read_int(temp_file, 0)
             if tv > 0:
-                temp_c = tv / 10.0
+                # qcom-battery reports temp in decidegrees (395 = 39.5°C)
+                # hwmon reports in millidegrees (49300 = 49.3°C)
+                # Detect which: values > 1000 are likely millidegrees
+                if tv > 1000:
+                    temp_c = tv / 1000.0
+                else:
+                    temp_c = tv / 10.0
                 if temp is None or temp_c > temp:
                     temp = temp_c
 
@@ -703,7 +710,9 @@ class BatteryCollector(MetricCollector):
         if not os.path.isdir(ps_path):
             return batteries
         for name in os.listdir(ps_path):
-            if name.startswith("bat"):
+            # Match bat*, qcom-battery, and any device with battery in name
+            if (name.startswith("bat") or "battery" in name.lower()
+                    or name.startswith("qcom-battery")):
                 batteries.append(name)
         return batteries
 
@@ -713,7 +722,6 @@ class BatteryCollector(MetricCollector):
         Lazily checks if upower is available (subprocess once, cached).
         """
         if not self._upower_available:
-            # Quick check
             import subprocess
             try:
                 subprocess.run(["upower", "--version"], capture_output=True, timeout=2)

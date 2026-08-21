@@ -125,17 +125,19 @@ function renderProcesses(procs) {
     }
     return procs.map(p => {
         const cpuClass = p.cpu > 50 ? 'crit' : (p.cpu > 10 ? 'warn' : '');
-        const memClass = p.mem > 20 ? 'crit' : (p.mem > 5 ? 'warn' : '');
+        const memClass = p.mem > 10000 ? 'crit' : (p.mem > 1000 ? 'warn' : '');
+        const vszStr = p.vsz ? `${(p.vsz/1024).toFixed(0)} MB` : '—';
+        const rssStr = p.rss ? `${p.rss} KB` : '—';
         return `
         <tr>
             <td class="mono">${p.pid}</td>
             <td>${p.user}</td>
-            <td><span class="${cpuClass}">${p.cpu.toFixed(1)}</span></td>
-            <td><span class="${memClass}">${p.mem.toFixed(1)}</span></td>
-            <td class="mono small">${p.vsz}</td>
-            <td class="mono small">${p.rss}</td>
-            <td class="mono small">${p.stat}</td>
-            <td class="mono small">${p.start}</td>
+            <td><span class="${cpuClass}">${p.cpu}s</span></td>
+            <td><span class="${memClass}">${p.mem.toFixed(0)} KB</span></td>
+            <td class="mono small">${vszStr}</td>
+            <td class="mono small">${rssStr}</td>
+            <td class="mono small">${p.stat || '—'}</td>
+            <td class="mono small">${p.start || '—'}</td>
             <td class="mono small">${p.time}</td>
             <td class="command-cell" title="${escapeHtml(p.command)}">${truncateCmd(p.command, 40)}</td>
             <td>

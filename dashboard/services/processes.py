@@ -56,6 +56,10 @@ def get_top_processes(sort_by: str = "mem", limit: int = 20) -> list[dict]:
                     "mem": rss_kb,          # RSS in KB from /proc/PID/stat
                     "time": time_str,
                     "command": command,
+                    "vsz": 0,              # Not available from BusyBox ps
+                    "rss": rss_kb,          # RSS in KB
+                    "stat": "?",           # Not available from BusyBox ps
+                    "start": "?",          # Not available from BusyBox ps
                 })
             except (ValueError, IndexError):
                 continue
