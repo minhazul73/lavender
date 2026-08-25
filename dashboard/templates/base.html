@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Hermes Device Dashboard{% endblock %}</title>
-    <link rel="preload" href="/static/style.css" as="style">
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/live.css">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -55,6 +55,10 @@
                 <span class="nav-icon">🔌</span>
                 Power
             </a>
+            <a href="/grafana" class="nav-item {% if request.url.path.startswith('/grafana') %}active{% endif %}">
+                <span class="nav-icon">📈</span>
+                Grafana
+            </a>
         </nav>
         <div class="sidebar-footer">
             <span class="version">v1.0.0</span>
@@ -66,19 +70,9 @@
             <h2 class="page-title">{% block page_title %}Overview{% endblock %}</h2>
             <div class="topbar-actions">
                 <span id="sse-status" class="">
-                    <span class="status-indicator"></span>
+                    <span class="status-indicator status-inactive"></span>
                     <span id="sse-status-text">Connecting...</span>
                 </span>
-                <button class="topbar-btn" onclick="location.reload()" title="Refresh">↻</button>
-                <select class="topbar-select" title="Time range">
-                    <option>1m</option>
-                    <option>5m</option>
-                    <option>15m</option>
-                    <option>1h</option>
-                </select>
-                <span class="topbar-btn" title="Settings">⚙</span>
-                <span class="topbar-btn" title="Notifications">🔔</span>
-                <span class="topbar-profile" title="User">HD</span>
             </div>
         </header>
         <div class="content">
