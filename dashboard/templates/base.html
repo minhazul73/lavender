@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Hermes Device Dashboard{% endblock %}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/live.css">
     {% block extra_head %}{% endblock %}
@@ -58,6 +54,10 @@
             <a href="/power" class="nav-item {% if request.url.path.startswith('/power') %}active{% endif %}">
                 <span class="nav-icon">🔌</span>
                 Power
+            </a>
+            <a href="/grafana" class="nav-item {% if request.url.path.startswith('/grafana') %}active{% endif %}">
+                <span class="nav-icon">📈</span>
+                Grafana
             </a>
         </nav>
         <div class="sidebar-footer">

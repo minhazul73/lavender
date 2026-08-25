@@ -12,9 +12,9 @@
 /* Health row — status pills at top of overview */
 .health-row {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 .health-pill {
     display: flex;
