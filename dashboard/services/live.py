@@ -60,6 +60,20 @@ def _read_float(path: str, default: float = 0.0) -> float:
         return default
 
 
+def _get_loadavg(index: int) -> float:
+    """Read a specific load average from /proc/loadavg (0=1min, 1=5min, 2=15min)."""
+    text = _read_file("/proc/loadavg")
+    if text is None:
+        return 0.0
+    parts = text.strip().split()
+    if len(parts) > index:
+        try:
+            return float(parts[index])
+        except ValueError:
+            return 0.0
+    return 0.0
+
+
 # ---------------------------------------------------------------------------
 # Ring buffer (memory-efficient, fixed-window history)
 # ---------------------------------------------------------------------------
@@ -241,6 +255,9 @@ class CPUFreqCollector(MetricCollector):
             "cpus": cores_list,
             "count": len(cores),
             "primary_frequency_mhz": primary_freq,
+            "load1": _get_loadavg(0),
+            "load5": _get_loadavg(1),
+            "load15": _get_loadavg(2),
         }
 
     def _discover_cpus(self) -> None:
