@@ -44,16 +44,16 @@
 /* Live card grid */
 .live-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px;
 }
 .live-grid .card { margin-bottom: 0; }
 
 /* Sparkline (inline SVG, no library) */
 .sparkline {
     width: 100%;
-    height: 32px;
-    margin-top: 8px;
+    height: 20px;
+    margin-top: 4px;
     display: block;
 }
 .sparkline-bg { fill: rgba(88, 166, 255, 0.08); }
@@ -175,18 +175,18 @@
 .live-card-header {
     display: flex;
     align-items: center;
-    padding: 9px 13px;
+    padding: 6px 10px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     gap: 4px;
 }
-.live-card-header .card-title { font-size: 12px; font-weight: 600; }
+.live-card-header .card-title { font-size: 11px; font-weight: 600; }
 .live-card-header .card-link { margin-left: auto; font-size: 10px; color: var(--text-muted); text-decoration: none; }
 .live-card-header .card-link:hover { color: var(--accent); }
-.live-card-body { padding: 10px 13px; }
+.live-card-body { padding: 8px 10px; }
 
 /* Stat row inside card */
 .stat-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 1px 0; }
-.stat-row .stat-val { font-size: 13px; font-weight: 500; font-family: monospace; }
-.stat-row .stat-val.big { font-size: 18px; font-weight: 700; }
+.stat-row .stat-val { font-size: 11px; font-weight: 500; font-family: monospace; }
+.stat-row .stat-val.big { font-size: 14px; font-weight: 700; }
 .stat-row .stat-label { font-size: 10px; color: var(--text-muted); }
