@@ -55,61 +55,32 @@ app.include_router(device.router, prefix="/api")
 app.include_router(live.router, prefix="/api")
 
 
-@app.get("/")
-async def index(request: Request):
-    """Landing page with overview."""
-    return templates.TemplateResponse(request=request, name="index.html", context={"request": request})
+# Page routes — every page is a static template render, so register them
+# from a table instead of repeating ten identical handler bodies.
+PAGES: dict[str, tuple[str, str]] = {
+    "/": ("index.html", "Landing page with overview"),
+    "/services": ("services.html", "Systemd services"),
+    "/processes": ("processes.html", "Running processes"),
+    "/storage": ("storage.html", "Storage and disks"),
+    "/network": ("network.html", "Network interfaces"),
+    "/battery": ("battery.html", "Battery and device info"),
+    "/hermes": ("hermes.html", "Hermes AI integration"),
+    "/packages": ("packages.html", "Package management"),
+    "/users": ("users.html", "User management"),
+    "/power": ("power.html", "Power controls"),
+}
 
 
-@app.get("/services")
-async def services_page(request: Request):
-    """Systemd services page."""
-    return templates.TemplateResponse(request=request, name="services.html", context={"request": request})
+def _register_page(path: str, template_name: str, summary: str) -> None:
+    async def page(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request=request, name=template_name, context={"request": request}
+        )
+
+    page.__name__ = f"page_{template_name.removesuffix('.html')}"
+    app.get(path, response_class=HTMLResponse, summary=summary)(page)
 
 
-@app.get("/processes")
-async def processes_page(request: Request):
-    """Processes page."""
-    return templates.TemplateResponse(request=request, name="processes.html", context={"request": request})
+for _path, (_template, _summary) in PAGES.items():
+    _register_page(_path, _template, _summary)
 
-
-@app.get("/storage")
-async def storage_page(request: Request):
-    """Storage/disk page."""
-    return templates.TemplateResponse(request=request, name="storage.html", context={"request": request})
-
-
-@app.get("/network")
-async def network_page(request: Request):
-    """Network page."""
-    return templates.TemplateResponse(request=request, name="network.html", context={"request": request})
-
-
-@app.get("/battery")
-async def battery_page(request: Request):
-    """Battery & device info page."""
-    return templates.TemplateResponse(request=request, name="battery.html", context={"request": request})
-
-
-@app.get("/hermes")
-async def hermes_page(request: Request):
-    """Hermes AI integration page."""
-    return templates.TemplateResponse(request=request, name="hermes.html", context={"request": request})
-
-
-@app.get("/packages")
-async def packages_page(request: Request):
-    """Package management page."""
-    return templates.TemplateResponse(request=request, name="packages.html", context={"request": request})
-
-
-@app.get("/users")
-async def users_page(request: Request):
-    """User management page."""
-    return templates.TemplateResponse(request=request, name="users.html", context={"request": request})
-
-
-@app.get("/power")
-async def power_page(request: Request):
-    """Power & network page."""
-    return templates.TemplateResponse(request=request, name="power.html", context={"request": request})
