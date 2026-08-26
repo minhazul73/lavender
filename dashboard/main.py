@@ -2,12 +2,10 @@
 FastAPI application for Hermes Device Dashboard.
 """
 import os
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
-
-from dashboard.config import PORT, HOST, DEBUG
 
 
 class Templates:
@@ -26,18 +24,6 @@ class Templates:
         tmpl = self._env.get_template(name)
         body = tmpl.render(**context)
         return HTMLResponse(content=body, status_code=200, media_type="text/html")
-
-
-def render_template(request: Request, template_name: str, context: dict) -> HTMLResponse:
-    """Render a Jinja2 template with the given context."""
-    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-    env = Environment(
-        loader=FileSystemLoader(templates_dir),
-        autoescape=False,
-    )
-    tmpl = env.get_template(template_name)
-    body = tmpl.render(**context)
-    return HTMLResponse(content=body, status_code=200)
 
 
 app = FastAPI(
@@ -127,10 +113,3 @@ async def users_page(request: Request):
 async def power_page(request: Request):
     """Power & network page."""
     return templates.TemplateResponse(request=request, name="power.html", context={"request": request})
-
-
-def create_start_app_handler(app: FastAPI) -> callable:
-    """Return a startup event handler."""
-    async def start_app() -> None:
-        pass
-    return start_app
