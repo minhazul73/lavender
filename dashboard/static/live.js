@@ -3,7 +3,6 @@
     'use strict';
 
     var SSE_URL = '/api/device/live?metrics=cpu,ram,thermal,battery,network';
-    var evtSource = new EventSource(SSE_URL);
 
     var latest = { cpu: null, ram: null, thermal: null, battery: null, network: null };
     var buffers = { cpu: [], ram: [], batt: [], net: [] };
@@ -362,40 +361,81 @@
     }
 
     /* ---- SSE message handler ---- */
-    evtSource.onmessage = function(e) {
+    function setStatus(cls, text) {
+        var el = document.getElementById('sse-status');
+        var txt = document.getElementById('sse-status-text');
+        if (el) el.className = cls;
+        if (txt) txt.textContent = text;
+    }
+
+    function handleMessage(e) {
         try {
             var msg = JSON.parse(e.data);
-            if (msg.type === 'connect') return;
             var metric = msg.metric;
+            if (msg.error) {
+                console.warn('live: collector failed for', metric, '-', msg.error);
+                return;
+            }
             var data = msg.data;
             if (metric === 'cpu') { updateCpu(data); renderChart(); }
             else if (metric === 'ram') { updateRam(data); renderChart(); }
             else if (metric === 'thermal') updateThermal(data);
             else if (metric === 'battery') { updateBattery(data); updateBatteryPill(); }
             else if (metric === 'network') updateNetwork(data);
-        } catch (err) { /* skip */ }
-    };
+        } catch (err) {
+            console.warn('live: bad SSE payload', err);
+        }
+    }
 
-    evtSource.onopen = function() {
-        var el = document.getElementById('sse-status');
-        var txt = document.getElementById('sse-status-text');
-        el.className = 'connected';
-        txt.textContent = 'Live';
-    };
+    /* Reconnect with exponential backoff, capped at 30s. A single reconnect
+       timer is tracked so a burst of error events cannot stack up timers and
+       open several parallel streams. */
+    var RECONNECT_MIN_MS = 1000;
+    var RECONNECT_MAX_MS = 30000;
+    var reconnectDelay = RECONNECT_MIN_MS;
+    var reconnectTimer = null;
+    var evtSource = null;
 
-    evtSource.onerror = function() {
-        var el = document.getElementById('sse-status');
-        var txt = document.getElementById('sse-status-text');
-        el.className = 'disconnected';
-        txt.textContent = 'Disconnected';
-        evtSource.close();
-        setTimeout(function() {
-            var ns = new EventSource(SSE_URL);
-            ns.onopen = evtSource.onopen;
-            ns.onmessage = evtSource.onmessage;
-            ns.onerror = evtSource.onerror;
-        }, 5000);
-    };
+    function connect() {
+        if (evtSource) evtSource.close();
+        evtSource = new EventSource(SSE_URL);
+
+        evtSource.onopen = function() {
+            reconnectDelay = RECONNECT_MIN_MS;   // reset backoff on success
+            setStatus('connected', 'Live');
+        };
+
+        evtSource.onmessage = handleMessage;
+
+        evtSource.onerror = function() {
+            setStatus('disconnected', 'Reconnecting…');
+            evtSource.close();
+            if (reconnectTimer !== null) return;   // a retry is already queued
+            reconnectTimer = setTimeout(function() {
+                reconnectTimer = null;
+                reconnectDelay = Math.min(reconnectDelay * 2, RECONNECT_MAX_MS);
+                connect();
+            }, reconnectDelay);
+        };
+    }
+
+    connect();
+
+    /* Drop the stream while the tab is hidden — no point burning phone CPU
+       and battery collecting sysfs samples nobody is looking at. */
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            if (reconnectTimer !== null) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+            if (evtSource) { evtSource.close(); evtSource = null; }
+            setStatus('disconnected', 'Paused');
+        } else if (evtSource === null) {
+            reconnectDelay = RECONNECT_MIN_MS;
+            connect();
+        }
+    });
 
     /* ---- REST fetches ---- */
     function fetchJson(url) {
