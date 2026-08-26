@@ -972,42 +972,44 @@ class LiveMonitor:
         return self._network
 
     async def _ensure_started(self) -> None:
+        """Start all collectors. Caller must hold ``_lock``."""
         if self._started:
             return
-        async with self._lock:
-            if self._started:
-                return
-            loop = asyncio.get_running_loop()
-            self._cpu.start(loop)
-            self._ram.start(loop)
-            self._thermal.start(loop)
-            self._battery.start(loop)
-            self._network.start(loop)
-            self._started = True
+        loop = asyncio.get_running_loop()
+        self._cpu.start(loop)
+        self._ram.start(loop)
+        self._thermal.start(loop)
+        self._battery.start(loop)
+        self._network.start(loop)
+        self._started = True
 
     async def _ensure_stopped(self) -> None:
+        """Stop all collectors. Caller must hold ``_lock``."""
         if not self._started:
             return
-        async with self._lock:
-            if not self._started:
-                return
-            self._cpu.stop()
-            self._ram.stop()
-            self._thermal.stop()
-            self._battery.stop()
-            self._network.stop()
-            self._started = False
+        self._cpu.stop()
+        self._ram.stop()
+        self._thermal.stop()
+        self._battery.stop()
+        self._network.stop()
+        self._started = False
 
     async def add_client(self) -> None:
-        self._client_count += 1
-        if self._client_count == 1:
-            await self._ensure_started()
+        # The refcount bump and the start decision must be atomic together,
+        # otherwise a client arriving while the last one is still tearing down
+        # sees _started=True, skips the start, and then the departing client
+        # flips _started=False — leaving a live subscriber with dead collectors.
+        async with self._lock:
+            self._client_count += 1
+            if self._client_count == 1:
+                await self._ensure_started()
 
     async def remove_client(self) -> None:
-        if self._client_count > 0:
-            self._client_count -= 1
-        if self._client_count == 0:
-            await self._ensure_stopped()
+        async with self._lock:
+            if self._client_count > 0:
+                self._client_count -= 1
+            if self._client_count == 0:
+                await self._ensure_stopped()
 
     async def get_cpu(self) -> dict:
         return await self._cpu.collect()
