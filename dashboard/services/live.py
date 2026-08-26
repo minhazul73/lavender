@@ -204,6 +204,7 @@ class CPUCoreInfo:
     core: int
     frequency_mhz: Optional[float] = None   # None if cpufreq not exposed
     governor: Optional[str] = None
+    capacity: Optional[int] = None          # scheduler capacity (big vs little)
 
 
 class CPUFreqCollector(MetricCollector):
@@ -214,7 +215,7 @@ class CPUFreqCollector(MetricCollector):
     """
 
     __slots__ = ("_cpu_dir", "_cpus", "_cpus_last_update", "_interval_ms",
-                 "_buffer", "_stats", "_stop_event", "_task")
+                 "_buffer", "_stats", "_stop_event", "_task", "_has_cpufreq")
 
     def __init__(self, interval_ms: int = SSE_CPU_INTERVAL_MS,
                  history_size: int = 20) -> None:
@@ -222,6 +223,7 @@ class CPUFreqCollector(MetricCollector):
         self._cpu_dir = "/sys/devices/system/cpu"
         self._cpus: List[CPUCoreInfo] = []
         self._cpus_last_update = 0.0
+        self._has_cpufreq = False
 
     async def collect(self) -> dict:
         """Return CPU info: count, per-core list (as plain dicts for JSON),
@@ -246,6 +248,7 @@ class CPUFreqCollector(MetricCollector):
                 "frequency_mhz": freq_mhz,
                 "frequency_khz": freq_khz if freq_khz > 0 else None,
                 "governor": gov if gov else None,
+                "capacity": core.capacity,
             })
 
         freqs = [c["frequency_mhz"] for c in cores_list if c["frequency_mhz"] is not None]
@@ -255,6 +258,9 @@ class CPUFreqCollector(MetricCollector):
             "cpus": cores_list,
             "count": len(cores),
             "primary_frequency_mhz": primary_freq,
+            # Lets the UI say "not supported by this kernel" instead of
+            # rendering a permanently blank frequency readout.
+            "cpufreq_available": self._has_cpufreq,
             "load1": _get_loadavg(0),
             "load5": _get_loadavg(1),
             "load15": _get_loadavg(2),
@@ -264,14 +270,24 @@ class CPUFreqCollector(MetricCollector):
         cpus = []
         if not os.path.isdir(self._cpu_dir):
             return
+        has_cpufreq = False
         for entry in os.listdir(self._cpu_dir):
             if entry.startswith("cpu") and entry[3:].isdigit():
                 core_num = int(entry[3:])
                 online_path = f"{self._cpu_dir}/{entry}/online"
                 online = _read_int(online_path, 1)
                 if online:
-                    cpus.append(CPUCoreInfo(core=core_num))
+                    if os.path.isdir(f"{self._cpu_dir}/{entry}/cpufreq"):
+                        has_cpufreq = True
+                    capacity = _read_int(
+                        f"{self._cpu_dir}/{entry}/cpu_capacity", 0
+                    ) or None
+                    cpus.append(CPUCoreInfo(core=core_num, capacity=capacity))
+        # os.listdir() order is arbitrary, so cpu7 could be reported before
+        # cpu0. Sort numerically so the UI lists cores in a stable order.
+        cpus.sort(key=lambda c: c.core)
         self._cpus = cpus
+        self._has_cpufreq = has_cpufreq
         self._cpus_last_update = time.monotonic()
 
 
