@@ -1,5 +1,5 @@
 /**
- * Hermes Device Dashboard — Minimal JS helpers
+ * Device Dashboard — Minimal JS helpers
  * HTMX is loaded from CDN; this provides modal helpers and utilities
  */
 

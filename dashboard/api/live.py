@@ -7,6 +7,7 @@ Clients subscribe to specific metrics via query params:
 
 import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
@@ -14,10 +15,14 @@ from fastapi.responses import StreamingResponse
 from dashboard.services.live import get_live_monitor
 
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
+ALLOWED_METRICS = ("cpu", "ram", "thermal", "battery", "network")
 
-async def sse_generator(metrics: list[str]):
+
+async def sse_generator(metrics: list[str] | None):
     """Generate SSE events pulling from the live monitor buffers.
 
     The SSE generator itself reads fresh metric values via the live monitor
@@ -25,33 +30,42 @@ async def sse_generator(metrics: list[str]):
     threads also run independently to populate ring buffers for sparkline history.
     """
     monitor = get_live_monitor()
-    allowed = {"cpu", "ram", "thermal", "battery", "network"}
-    requested = [m for m in metrics if m in allowed] if metrics else list(allowed)
+    if metrics:
+        requested = [m for m in ALLOWED_METRICS if m in set(metrics)]
+    else:
+        requested = list(ALLOWED_METRICS)
+
+    getters = {
+        "cpu": monitor.get_cpu,
+        "ram": monitor.get_ram,
+        "thermal": monitor.get_thermal,
+        "battery": monitor.get_battery,
+        "network": monitor.get_network,
+    }
 
     # Start background collectors on first SSE client
     await monitor.add_client()
     try:
         while True:
             for metric in requested:
-                if metric == "cpu":
-                    data = await monitor.get_cpu()
-                elif metric == "ram":
-                    data = await monitor.get_ram()
-                elif metric == "thermal":
-                    data = await monitor.get_thermal()
-                elif metric == "battery":
-                    data = await monitor.get_battery()
-                elif metric == "network":
-                    data = await monitor.get_network()
+                try:
+                    data = await getters[metric]()
+                except Exception:
+                    # One bad sensor read must not kill the whole stream, but
+                    # it should still be visible in the logs and to the client.
+                    logger.exception("SSE collector failed for metric %r", metric)
+                    payload = json.dumps(
+                        {"metric": metric, "error": "collect_failed"},
+                        separators=(",", ":"),
+                    )
                 else:
-                    continue
-                payload = json.dumps({"metric": metric, "data": data}, separators=(",", ":"))
+                    payload = json.dumps(
+                        {"metric": metric, "data": data}, separators=(",", ":")
+                    )
                 yield f"data: {payload}\n\n"
             await asyncio.sleep(1)
     except asyncio.CancelledError:
-        pass
-    except Exception:
-        pass
+        raise
     finally:
         await monitor.remove_client()
 

@@ -1,250 +1,206 @@
 {% extends "base.html" %}
 
-{% block title %}Overview — RN7 Linux Dashboard{% endblock %}
-{% block page_title %}Overview{% endblock %}
+{% block title %}Overview — Device Dashboard{% endblock %}
+{% block page_title %}Live Overview{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="/static/live.css">
 {% endblock %}
 
 {% block content %}
-<!-- Device info bar -->
-<div class="device-info">
-    <div class="di-item">
-        <span class="di-label">Device</span>
-        <span class="di-value">Redmi Note 7 (lavender)</span>
-    </div>
-    <div class="di-item">
-        <span class="di-label">OS</span>
-        <span class="di-value">postmarketOS</span>
-    </div>
-    <div class="di-item">
-        <span class="di-label">Battery</span>
-        <span class="di-value">Li-ion</span>
-    </div>
-    <div class="di-item">
-        <span class="di-label">Arch</span>
-        <span class="di-value">aarch64</span>
-    </div>
-</div>
-
 <!-- Health status row -->
 <div class="health-row" id="health-row">
     <div class="health-pill" id="health-battery">
-        <span class="dot"></span>
-        <span>Battery</span>
+        <span class="dot"></span><span>Battery</span>
+    </div>
+    <div class="health-pill" id="health-thermal">
+        <span class="dot"></span><span>Thermal</span>
     </div>
     <div class="health-pill" id="health-memory">
-        <span class="dot"></span>
-        <span>Memory</span>
+        <span class="dot"></span><span>Memory</span>
     </div>
     <div class="health-pill" id="health-disk">
-        <span class="dot"></span>
-        <span>Storage</span>
-    </div>
-    <div class="health-pill" id="health-cpu">
-        <span class="dot"></span>
-        <span>CPU</span>
-    </div>
-    <div class="health-pill" id="health-services">
-        <span class="dot"></span>
-        <span>Services</span>
+        <span class="dot"></span><span>Disk</span>
     </div>
     <div class="health-pill" id="health-network">
-        <span class="dot"></span>
-        <span>Network</span>
+        <span class="dot"></span><span>Network</span>
     </div>
 </div>
 
-<!-- Live monitoring cards -->
-<div class="live-grid">
+<!-- Top metrics: 5 equal cards -->
+<div class="metrics-row">
 
-    <!-- CPU Card -->
-    <section class="card metric-cpu">
-        <div class="live-card-header">
-            <span class="card-icon cpu">⏲</span>
+    <section class="card card-cpu">
+        <div class="card-header">
+            <span class="card-icon">🖥</span>
             <span class="card-title">CPU</span>
-            <a href="/processes" class="card-link">Processes →</a>
+            <a href="/processes" class="card-link">→</a>
         </div>
-        <div class="live-card-body">
-            <div class="stat-row">
-                <span class="stat-label">Cores</span>
-                <span class="stat-val" id="cpu-core-count">—</span>
-            </div>
-            <div class="stat-row" style="margin-top:4px;">
-                <span class="stat-label">Per-core frequency</span>
-                <span class="stat-val" id="cpu-core-freq">—</span>
-            </div>
-            <div class="cpu-core-list" id="cpu-core-list"></div>
-            <svg class="sparkline" id="sparkline-cpu" viewBox="0 0 100 32" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="32" rx="2"/>
-                <path class="sparkline-line" id="sparkpath-cpu" d=""/>
+        <div class="card-body">
+            <div class="stat-main" id="cpu-load">—</div>
+            <div class="stat-sub" id="cpu-cores">8 Cores</div>
+            <div class="stat-sub" id="cpu-freq">— GHz</div>
+            <svg class="sparkline" id="sparkline-cpu" viewBox="0 0 100 24" preserveAspectRatio="none" style="height:20px; margin-top:4px;">
+                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
+                <path class="sparkline-line" id="sparkpath-cpu" d="" stroke-width="1.5"/>
             </svg>
         </div>
     </section>
 
-    <!-- RAM Card -->
-    <section class="card metric-ram">
-        <div class="live-card-header">
-            <span class="card-icon ram">🧠</span>
+    <section class="card card-ram">
+        <div class="card-header">
+            <span class="card-icon">🧠</span>
             <span class="card-title">Memory</span>
-            <a href="/processes" class="card-link">Processes →</a>
+            <a href="/processes" class="card-link">→</a>
         </div>
-        <div class="live-card-body">
-            <div class="stat-row">
-                <span class="stat-val big" id="ram-used">—</span>
-                <span class="stat-label">Used</span>
+        <div class="card-body">
+            <div class="stat-main" id="ram-used">—</div>
+            <div class="stat-sub" id="ram-pct">—%</div>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="ram-bar" style="width:0%"></div>
             </div>
-            <div class="stat-row">
-                <span class="stat-val" id="ram-total">—</span>
-                <span class="stat-label">Total</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-val" id="ram-avail">—</span>
-                <span class="stat-label">Available</span>
-            </div>
-            <div class="ram-bar-outer">
-                <div class="ram-bar-inner" id="ram-bar" style="width:0%"></div>
-            </div>
-            <div class="stat-row" style="margin-top:4px;">
-                <span class="stat-val" id="ram-pct">—</span>
-                <span class="stat-label">Used %</span>
-            </div>
-            <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 32" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="32" rx="2"/>
-                <path class="sparkline-line" id="sparkpath-ram" d=""/>
-            </svg>
-        </div>
-    </section>
+            <div class="stat-sub" id="ram-detail">— / —</div>
+            <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 20" preserveAspectRatio="none" style="height:16px; margin-top:4px;">
+                        <rect class="sparkline-bg" x="0" y="0" width="100" height="20"/>
+                        <path class="sparkline-line" id="sparkpath-ram" d="" stroke-width="1.5"/>
+                    </svg>
+            </section>
 
-    <!-- Battery Card (folded into overview) -->
-    <section class="card metric-battery">
-        <div class="live-card-header">
-            <span class="card-icon battery">🔋</span>
+    <section class="card card-battery">
+        <div class="card-header">
+            <span class="card-icon">🔋</span>
             <span class="card-title">Battery</span>
-            <a href="/battery" class="card-link">Details →</a>
+            <a href="/battery" class="card-link">→</a>
         </div>
-        <div class="live-card-body">
-            <div class="batt-compact">
-                <svg class="batt-gauge-svg" id="batt-gauge" viewBox="0 0 48 24">
-                    <rect x="1" y="1" width="40" height="22" rx="3" fill="none" stroke="var(--text-muted)" stroke-width="1.5"/>
-                    <rect class="batt-fill" id="batt-fill" x="2" y="2" width="36" height="20" rx="2" fill="var(--green)"/>
-                    <rect x="43" y="6" width="3" height="12" rx="1" fill="var(--text-muted)"/>
-                </svg>
-                <span class="batt-pct-big" id="batt-pct">—</span>
-            </div>
-            <div class="batt-detail-row"><span class="batt-label">State:</span> <span class="batt-val" id="batt-state">—</span></div>
-            <div class="batt-detail-row"><span class="batt-label">Temp:</span> <span class="batt-val" id="batt-temp">—</span></div>
-            <div class="batt-detail-row"><span class="batt-label">Voltage:</span> <span class="batt-val" id="batt-volt">—</span></div>
-            <div class="batt-detail-row"><span class="batt-label">Charge rate:</span> <span class="batt-val" id="batt-rate">—</span></div>
-            <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 32" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="32" rx="2"/>
-                <path class="sparkline-line" id="sparkpath-batt" d=""/>
+        <div class="card-body">
+            <div class="stat-main" id="batt-pct">—</div>
+            <div class="stat-sub" id="batt-state">—</div>
+            <div class="stat-sub" id="batt-temp">—°C</div>
+            <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 20" preserveAspectRatio="none" style="height:16px; margin-top:4px;">
+                <rect class="sparkline-bg" x="0" y="0" width="100" height="20"/>
+                <path class="sparkline-line" id="sparkpath-batt" d="" stroke-width="1.5"/>
             </svg>
         </div>
     </section>
 
-    <!-- Network Card (folded into overview) -->
-    <section class="card metric-network">
-        <div class="live-card-header">
-            <span class="card-icon network">🌐</span>
+    <section class="card card-network">
+        <div class="card-header">
+            <span class="card-icon">🌐</span>
             <span class="card-title">Network</span>
-            <a href="/network" class="card-link">Details →</a>
+            <a href="/network" class="card-link">→</a>
         </div>
-        <div class="live-card-body">
-            <div class="stat-row">
-                <span class="stat-label">Interface</span>
-                <span class="stat-val" id="net-iface">—</span>
-            </div>
-            <div class="net-rate-bars">
-                <div class="net-rate-bar">
-                    <div class="rate-bg"><div class="rate-fill up" id="net-up-bar" style="width:0%"></div></div>
-                    <span class="rate-label">Upload</span>
-                    <span class="rate-value" id="net-up">0</span>
-                </div>
-                <div class="net-rate-bar">
-                    <div class="rate-bg"><div class="rate-fill down" id="net-down-bar" style="width:0%"></div></div>
-                    <span class="rate-label">Download</span>
-                    <span class="rate-value" id="net-down">0</span>
-                </div>
-            </div>
-            <svg class="sparkline" id="sparkline-net" viewBox="0 0 100 32" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="32" rx="2"/>
-                <path class="sparkline-line" id="sparkpath-net" d=""/>
+        <div class="card-body">
+            <div class="stat-main mono" id="net-up">↑ —</div>
+            <div class="stat-main mono" id="net-down">↓ —</div>
+            <svg class="sparkline" id="sparkline-net" viewBox="0 0 100 20" preserveAspectRatio="none" style="height:16px; margin-top:4px;">
+                <rect class="sparkline-bg" x="0" y="0" width="100" height="20"/>
+                <path class="sparkline-line" id="sparkpath-net" d="" stroke-width="1.5"/>
             </svg>
         </div>
     </section>
 
-    <!-- Storage Card (enriched) -->
-    <section class="card metric-storage">
-        <div class="live-card-header">
-            <span class="card-icon storage">💾</span>
+    <section class="card card-storage">
+        <div class="card-header">
+            <span class="card-icon">💾</span>
             <span class="card-title">Storage</span>
-            <a href="/storage" class="card-link">Details →</a>
+            <a href="/storage" class="card-link">→</a>
         </div>
-        <div class="live-card-body">
-            <div class="stat-row">
-                <span class="stat-val big" id="store-total">—</span>
-                <span class="stat-label">Total</span>
+        <div class="card-body">
+            <div class="stat-main" id="store-used">—</div>
+            <div class="stat-sub" id="store-pct">—%</div>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="store-bar" style="width:0%"></div>
             </div>
-            <div class="stat-row">
-                <span class="stat-val" id="store-used">—</span>
-                <span class="stat-label">Used</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-val" id="store-free">—</span>
-                <span class="stat-label">Free</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-val" id="store-pct">—</span>
-                <span class="stat-label">Use %</span>
-            </div>
-            <div class="mount-mini" id="store-mounts"></div>
+            <div class="stat-sub" id="store-detail">— / —</div>
         </div>
     </section>
 
-    <!-- Services Card (enriched) -->
-    <section class="card metric-services">
-        <div class="live-card-header">
-            <span class="card-icon services">⚙️</span>
+</div>
+
+<!-- Middle: 2 columns (65% / 35%) -->
+<div class="middle-row">
+
+    <section class="card card-wide">
+        <div class="card-header">
+            <span class="card-icon">📊</span>
+            <span class="card-title">System Activity</span>
+        </div>
+        <div class="card-body" style="padding:8px 10px;">
+            <canvas id="chart-activity" width="400" height="120" style="width:100%; height:120px;"></canvas>
+        </div>
+    </section>
+
+    <section class="card card-narrow">
+        <div class="card-header">
+            <span class="card-icon">📋</span>
+            <span class="card-title">Top Processes</span>
+            <a href="/processes" class="card-link">View all →</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <table class="proc-table">
+                <thead>
+                    <tr><th>Process</th><th>CPU</th><th>Mem</th></tr>
+                </thead>
+                <tbody id="top-processes">
+                    <tr><td colspan="3" style="text-align:center; color:var(--text-muted);">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<!-- Bottom: 3 equal columns -->
+<div class="bottom-row">
+
+    <section class="card card-services">
+        <div class="card-header">
+            <span class="card-icon">⚙️</span>
             <span class="card-title">Services</span>
-            <a href="/services" class="card-link">All →</a>
+            <a href="/services" class="card-link">→</a>
         </div>
-        <div class="live-card-body">
-            <div class="stat-row">
-                <span class="stat-val big" id="svc-active">—</span>
-                <span class="stat-label">Active</span>
+        <div class="card-body" style="padding:10px; text-align:center;">
+            <div style="position:relative; width:70px; height:70px; margin:0 auto 4px;">
+                <svg viewBox="0 0 42 42" style="width:100%; height:100%;">
+                    <path d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="none" stroke="var(--border)" stroke-width="1"/>
+                    <path id="svc-donut-active" d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="var(--green)" stroke="none"/>
+                    <path id="svc-donut-inactive" d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="var(--yellow)" stroke="none"/>
+                    <path id="svc-donut-failed" d="M21 2 A19 19 0 0 1 40 21 L40 21 A19 19 0 0 1 21 40 L21 21 Z" fill="var(--red)" stroke="none"/>
+                    <text x="50%" y="50%" dy=".3em" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text-primary)" id="svc-total-donut">—</text>
+                </svg>
             </div>
-            <div class="stat-row">
-                <span class="stat-val" id="svc-inactive">—</span>
-                <span class="stat-label">Inactive</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-val" id="svc-failed">—</span>
-                <span class="stat-label">Failed</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-val" id="svc-total">—</span>
-                <span class="stat-label">Total</span>
+            <div style="font-size:10px; display:flex; justify-content:center; gap:8px;">
+                <span style="color:var(--green);">● <span id="svc-active-count">0</span></span>
+                <span style="color:var(--yellow);">● <span id="svc-inactive-count">0</span></span>
+                <span style="color:var(--red);">● <span id="svc-failed-count">0</span></span>
             </div>
         </div>
     </section>
 
-    <!-- Hermes Card (enriched) -->
-    <section class="card metric-hermes">
-        <div class="live-card-header">
-            <span class="card-icon hermes">🤖</span>
-            <span class="card-title">Hermes</span>
-            <a href="/hermes" class="card-link">Details →</a>
+    <section class="card">
+        <div class="card-header">
+            <span class="card-icon">🌐</span>
+            <span class="card-title">Network Interfaces</span>
+            <a href="/network" class="card-link">→</a>
         </div>
-        <div class="live-card-body">
-            <div class="stat-row">
-                <span class="stat-val" id="hermes-gw">—</span>
-                <span class="stat-label">Gateway</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-val" id="hermes-dash">—</span>
-                <span class="stat-label">Dashboard</span>
+        <div class="card-body" style="padding:8px 10px;">
+            <div class="stat-row"><span class="stat-label">Interface</span><span class="stat-val mono mono-sm" id="net-iface-detail">—</span></div>
+            <div class="stat-row"><span class="stat-label">Upload</span><span class="stat-val mono mono-sm" id="net-up-speed">—</span></div>
+            <div class="stat-row"><span class="stat-label">Download</span><span class="stat-val mono mono-sm" id="net-down-speed">—</span></div>
+            <div class="stat-row"><span class="stat-label">Public IP</span><span class="stat-val mono mono-sm" id="net-public-ip">—</span></div>
+            <div class="stat-row"><span class="stat-label">Local IP</span><span class="stat-val mono mono-sm" id="net-local-ip">—</span></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <span class="card-icon">📝</span>
+            <span class="card-title">Recent Logs</span>
+            <a href="/services" class="card-link">View all →</a>
+        </div>
+        <div class="card-body" style="padding:0;">
+            <div id="recent-logs" style="max-height:120px; overflow-y:auto;">
+                <div style="padding:6px 10px; font-size:10px; color:var(--text-muted);">Loading...</div>
             </div>
         </div>
     </section>
@@ -253,383 +209,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// ===== Live monitoring via SSE =====
-(function() {
-    'use strict';
-
-    const SSE_URL = '/api/device/live?metrics=cpu,ram,thermal,battery,network';
-    const evtSource = new EventSource(SSE_URL);
-    let latest = {
-        cpu: null,
-        ram: null,
-        thermal: null,
-        battery: null,
-        network: null,
-    };
-
-    // Sparkline buffers (ring buffers in JS)
-    const buffers = {
-        cpu: [],
-        ram: [],
-        batt: [],
-        net: [],
-    };
-    const MAX_BUF = 30;
-
-    // ----- Helper: push to ring buffer -----
-    function pushBuf(key, val) {
-        const buf = buffers[key];
-        buf.push(val);
-        if (buf.length > MAX_BUF) buf.shift();
-    }
-
-    // ----- Helper: render sparkline SVG path -----
-    function sparkPath(buf, min, max, invert) {
-        if (buf.length < 2) return '';
-        const range = max - min || 1;
-        const w = 100, h = 32;
-        let d = '';
-        buf.forEach((v, i) => {
-            const x = (i / (buf.length - 1)) * w;
-            const ny = invert
-                ? h - ((v - min) / range) * h
-                : ((v - min) / range) * h;
-            const y = Math.max(0, Math.min(h, ny));
-            d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
-        });
-        return d;
-    }
-
-    // ----- Helper: format bytes/sec to human -----
-    function fmtRate(bps) {
-        if (bps < 1024) return bps.toFixed(0) + ' B/s';
-        if (bps < 1024*1024) return (bps/1024).toFixed(1) + ' KB/s';
-        return (bps/(1024*1024)).toFixed(1) + ' MB/s';
-    }
-
-    // ----- Helper: format kB to human -----
-    function fmtBytes(kb) {
-        if (kb < 1024) return kb + ' kB';
-        if (kb < 1024*1024) return (kb/1024).toFixed(1) + ' MB';
-        return (kb/(1024*1024)).toFixed(1) + ' GB';
-    }
-
-    // ----- Update SSE connection status -----
-    function setSseStatus(state) {
-        const el = document.getElementById('sse-status');
-        const txt = document.getElementById('sse-status-text');
-        el.className = '';
-        if (state === 'connected') {
-            el.classList.add('connected');
-            txt.textContent = 'Live';
-        } else if (state === 'disconnected') {
-            el.classList.add('disconnected');
-            txt.textContent = 'Disconnected';
-        } else {
-            txt.textContent = 'Connecting...';
-        }
-    }
-
-    // ----- CPU update -----
-    function updateCpu(data) {
-        latest.cpu = data;
-        const cpus = data.cpus || [];
-        document.getElementById('cpu-core-count').textContent = cpus.length + ' cores';
-        const list = document.getElementById('cpu-core-list');
-        if (cpus.length === 0) {
-            list.innerHTML = '<div class="cpu-core"><div class="core-num">N/A</div></div>';
-            document.getElementById('cpu-core-freq').textContent = 'N/A';
-        } else {
-            let freqs = cpus.map(c => c.frequency_mhz !== null ? c.frequency_mhz.toFixed(0) + ' MHz' : '—');
-            document.getElementById('cpu-core-freq').textContent = freqs.join(', ');
-            list.innerHTML = cpus.map(c =>
-                '<div class="cpu-core">' +
-                    '<div class="core-num">CPU' + c.core + '</div>' +
-                    (c.frequency_mhz !== null
-                        ? '<div class="core-freq">' + c.frequency_mhz.toFixed(0) + '</div>'
-                        : '<div class="core-freq">—</div>') +
-                    (c.governor ? '<div class="core-gov">' + c.governor + '</div>' : '') +
-                '</div>'
-            ).join('');
-        }
-        // Sparkline: CPU freq values (if any cores)
-        if (cpus.length > 0) {
-            const vals = cpus.map(c => c.frequency_mhz || 0);
-            pushBuf('cpu', vals[0]);
-            const buf = buffers.cpu;
-            const min = Math.min(...buf);
-            const max = Math.max(...buf);
-            document.getElementById('sparkpath-cpu').setAttribute('d', sparkPath(buf, min, max, false));
-        }
-    }
-
-    // ----- RAM update -----
-    function updateRam(data) {
-        latest.ram = data;
-        const total = data.total || 0;
-        const used = data.used || 0;
-        const avail = data.available || 0;
-        const pct = data.used_pct || 0;
-        document.getElementById('ram-used').textContent = fmtBytes(used);
-        document.getElementById('ram-total').textContent = fmtBytes(total);
-        document.getElementById('ram-avail').textContent = fmtBytes(avail);
-        document.getElementById('ram-pct').textContent = pct.toFixed(1) + '%';
-        const bar = document.getElementById('ram-bar');
-        bar.style.width = Math.min(100, pct) + '%';
-        bar.className = 'ram-bar-inner' + (pct > 85 ? ' crit' : (pct > 70 ? ' warn' : ''));
-        pushBuf('ram', pct);
-        const buf = buffers.ram;
-        const min = Math.min(...buf);
-        const max = Math.max(...buf);
-        document.getElementById('sparkpath-ram').setAttribute('d', sparkPath(buf, min, max, false));
-    }
-
-    // ----- Battery update -----
-    function updateBattery(data) {
-        latest.battery = data;
-        const pct = data.percentage;
-        const state = data.state || 'Unknown';
-        const temp = data.temperature;
-        const volt = data.voltage;
-        const rate = data.energy_rate;
-
-        const pctEl = document.getElementById('batt-pct');
-        pctEl.textContent = pct !== null ? pct + '%' : 'N/A';
-        pctEl.className = 'batt-pct-big' + (pct !== null
-            ? (pct > 50 ? ' good' : (pct > 20 ? ' warn' : ' crit'))
-            : '');
-
-        const fill = document.getElementById('batt-fill');
-        if (pct !== null) {
-            fill.setAttribute('width', String(pct * 0.36));
-            fill.setAttribute('fill',
-                pct > 50 ? 'var(--green)' : (pct > 20 ? 'var(--yellow)' : 'var(--red)'));
-        }
-
-        document.getElementById('batt-state').textContent = state;
-        document.getElementById('batt-temp').textContent = temp !== null ? temp.toFixed(1) + '°C' : '—';
-        document.getElementById('batt-volt').textContent = volt !== null ? volt.toFixed(3) + ' V' : '—';
-        document.getElementById('batt-rate').textContent = rate !== null ? rate.toFixed(2) + ' W' : '—';
-
-        if (pct !== null) {
-            pushBuf('batt', pct);
-            const buf = buffers.batt;
-            const min = Math.min(...buf);
-            const max = Math.max(...buf);
-            document.getElementById('sparkpath-batt').setAttribute('d', sparkPath(buf, min, max, false));
-        }
-    }
-
-    // ----- Network update -----
-    function updateNetwork(data) {
-        latest.network = data;
-        const iface = data.iface || '—';
-        const rx = data.rx_rate_bps || 0;
-        const tx = data.tx_rate_bps || 0;
-        document.getElementById('net-iface').textContent = iface;
-        document.getElementById('net-up').textContent = fmtRate(tx);
-        document.getElementById('net-down').textContent = fmtRate(rx);
-        // Bar width: scale to a reasonable max (e.g. 100 MB/s = full bar)
-        const maxRate = 100 * 1024 * 1024;
-        document.getElementById('net-up-bar').style.width = Math.min(100, (tx / maxRate) * 100) + '%';
-        document.getElementById('net-down-bar').style.width = Math.min(100, (rx / maxRate) * 100) + '%';
-        pushBuf('net', rx);
-        const buf = buffers.net;
-        const min = Math.min(...buf);
-        const max = Math.max(...buf);
-        document.getElementById('sparkpath-net').setAttribute('d', sparkPath(buf, min, max, false));
-    }
-
-    // ----- Thermal + health row update -----
-    function updateThermal(data) {
-        latest.thermal = data;
-        const zones = data || [];
-        // Update health pills
-        let cpuTemp = null;
-        let batteryTemp = null;
-        for (const z of zones) {
-            if (z.name && z.name.includes('cpu0')) cpuTemp = z.temp_celsius;
-            if (z.name && z.name.includes('qcom-battery')) batteryTemp = z.temp_celsius;
-        }
-        // Battery health
-        const battEl = document.getElementById('health-battery');
-        const battPct = latest.battery && latest.battery.percentage;
-        if (battPct !== null) {
-            battEl.className = 'health-pill' + (battPct < 20 ? ' crit' : (battPct < 50 ? ' warn' : ' good'));
-            battEl.querySelector('span:last-child').textContent = battPct + '%';
-        } else {
-            battEl.className = 'health-pill';
-            battEl.querySelector('span:last-child').textContent = 'Battery';
-        }
-        // Memory health
-        const memEl = document.getElementById('health-memory');
-        const memPct = latest.ram && latest.ram.used_pct;
-        memEl.className = 'health-pill' + (memPct > 85 ? ' crit' : (memPct > 70 ? ' warn' : ' good'));
-        memEl.querySelector('span:last-child').textContent = (memPct || 0).toFixed(1) + '%';
-        // Disk health (from storage fetch, updated separately)
-        // CPU health
-        const cpuEl = document.getElementById('health-cpu');
-        if (cpuTemp !== null) {
-            cpuEl.className = 'health-pill' + (cpuTemp > 70 ? ' crit' : (cpuTemp > 50 ? ' warn' : ' good'));
-            cpuEl.querySelector('span:last-child').textContent = cpuTemp.toFixed(1) + '°C';
-        } else {
-            cpuEl.className = 'health-pill';
-            cpuEl.querySelector('span:last-child').textContent = 'CPU';
-        }
-        // Services health
-        const svcEl = document.getElementById('health-services');
-        const failed = document.getElementById('svc-failed').textContent;
-        svcEl.className = 'health-pill' + (failed && failed !== '0' && failed !== '—' ? ' crit' : ' good');
-        svcEl.querySelector('span:last-child').textContent = failed && failed !== '0' && failed !== '—'
-            ? failed + ' failed' : 'OK';
-        // Network health
-        const netEl = document.getElementById('health-network');
-        const rx = latest.network && latest.network.rx_rate_bps;
-        netEl.className = 'health-pill' + (rx && rx > 0 ? ' good' : ' warn');
-        netEl.querySelector('span:last-child').textContent = rx && rx > 0 ? 'Active' : 'No traffic';
-    }
-
-    // ----- Storage update (from REST, not SSE) -----
-    function updateStorage(data) {
-        const disks = data.disks || [];
-        const root = disks.find(d => d.mount === '/') || disks[0];
-        if (!root) {
-            document.getElementById('store-total').textContent = 'N/A';
-            document.getElementById('store-used').textContent = 'N/A';
-            document.getElementById('store-free').textContent = 'N/A';
-            document.getElementById('store-pct').textContent = 'N/A';
-            document.getElementById('store-mounts').innerHTML = '';
-            return;
-        }
-        document.getElementById('store-total').textContent = root.size || 'N/A';
-        document.getElementById('store-used').textContent = root.used || 'N/A';
-        document.getElementById('store-free').textContent = root.avail || 'N/A';
-        const pct = root.use_pct !== null ? root.use_pct : (root.total && root.used
-            ? Math.round(root.used / root.total * 100) : null);
-        document.getElementById('store-pct').textContent = pct !== null ? pct + '%' : 'N/A';
-        document.getElementById('store-pct').className = '';
-        if (pct !== null) {
-            document.getElementById('store-pct').className = pct > 90 ? 'crit' : (pct > 80 ? 'warn' : '');
-        }
-        // Mini mount table — top 3 mounts
-        const topMounts = disks.slice(0, 3);
-        const mountsEl = document.getElementById('store-mounts');
-        mountsEl.innerHTML = topMounts.map(d =>
-            '<div class="mount-row">' +
-                '<span class="mount-dev">' + (d.device || '—') + '</span>' +
-                '<span class="mount-size">' + (d.size || '—') + '</span>' +
-                '<span class="mount-pct' + (d.use_pct > 90 ? ' crit' : (d.use_pct > 80 ? ' warn' : '')) + '">' +
-                (d.use_pct !== null ? d.use_pct + '%' : '—') + '</span>' +
-            '</div>'
-        ).join('');
-        // Update disk health pill
-        const diskEl = document.getElementById('health-disk');
-        diskEl.className = 'health-pill' + (pct > 90 ? ' crit' : (pct > 80 ? ' warn' : ' good'));
-        diskEl.querySelector('span:last-child').textContent = (pct !== null ? pct + '%' : '—') + ' used';
-    }
-
-    // ----- Services update (from REST, not SSE) -----
-    function updateServices(data) {
-        const services = data.services || [];
-        const active = services.filter(s => s.active_state === 'active').length;
-        const failed = services.filter(s => s.active_state === 'failed').length;
-        const inactive = services.filter(s => s.active_state === 'inactive').length;
-        document.getElementById('svc-active').textContent = active;
-        document.getElementById('svc-inactive').textContent = inactive;
-        document.getElementById('svc-failed').textContent = failed;
-        document.getElementById('svc-total').textContent = services.length;
-    }
-
-    // ----- Hermes update (from REST, not SSE) -----
-    function updateHermes(data) {
-        const gw = data.gateway || {};
-        const dash = data.dashboard || {};
-        document.getElementById('hermes-gw').textContent = gw.active ? '✅' : '❌';
-        document.getElementById('hermes-gw').className = 'stat-val' + (gw.active ? ' good' : ' crit');
-        document.getElementById('hermes-dash').textContent = dash.active ? '✅' : '❌';
-        document.getElementById('hermes-dash').className = 'stat-val' + (dash.active ? ' good' : ' crit');
-    }
-
-    // ----- SSE message handler -----
-    evtSource.onmessage = function(e) {
-        try {
-            const msg = JSON.parse(e.data);
-            if (msg.type === 'connect') return;
-            const metric = msg.metric;
-            const data = msg.data;
-            if (metric === 'cpu') updateCpu(data);
-            else if (metric === 'ram') updateRam(data);
-            else if (metric === 'thermal') updateThermal(data);
-            else if (metric === 'battery') updateBattery(data);
-            else if (metric === 'network') updateNetwork(data);
-        } catch (err) {
-            // Skip malformed messages
-        }
-    };
-
-    evtSource.onopen = function() {
-        setSseStatus('connected');
-    };
-
-    evtSource.onerror = function() {
-        setSseStatus('disconnected');
-        evtSource.close();
-        // Reconnect after 5s
-        setTimeout(function() {
-            const newSource = new EventSource(SSE_URL);
-            // Copy handlers
-            newSource.onopen = evtSource.onopen;
-            newSource.onmessage = evtSource.onmessage;
-            newSource.onerror = evtSource.onerror;
-            // Replace
-            Object.assign(evtSource, newSource);
-        }, 5000);
-    };
-
-    // ----- REST fetches for non-SSE data -----
-    fetch('/api/system/storage')
-        .then(r => r.json())
-        .then(updateStorage)
-        .catch(() => {});
-
-    fetch('/api/system/services')
-        .then(r => r.json())
-        .then(updateServices)
-        .catch(() => {});
-
-    fetch('/api/hermes/status')
-        .then(r => r.json())
-        .then(updateHermes)
-        .catch(() => {});
-
-    // Initial sparkline render (if buffers already have data from a previous connection)
-    setTimeout(function() {
-        if (buffers.cpu.length > 0) {
-            const buf = buffers.cpu;
-            const min = Math.min(...buf);
-            const max = Math.max(...buf);
-            document.getElementById('sparkpath-cpu').setAttribute('d', sparkPath(buf, min, max, false));
-        }
-        if (buffers.ram.length > 0) {
-            const buf = buffers.ram;
-            const min = Math.min(...buf);
-            const max = Math.max(...buf);
-            document.getElementById('sparkpath-ram').setAttribute('d', sparkPath(buf, min, max, false));
-        }
-        if (buffers.batt.length > 0) {
-            const buf = buffers.batt;
-            const min = Math.min(...buf);
-            const max = Math.max(...buf);
-            document.getElementById('sparkpath-batt').setAttribute('d', sparkPath(buf, min, max, false));
-        }
-        if (buffers.net.length > 0) {
-            const buf = buffers.net;
-            const min = Math.min(...buf);
-            const max = Math.max(...buf);
-            document.getElementById('sparkpath-net').setAttribute('d', sparkPath(buf, min, max, false));
-        }
-    }, 100);
-})();
-</script>
+<script src="/static/live.js"></script>
 {% endblock %}

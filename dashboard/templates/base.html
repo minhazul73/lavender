@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Hermes Device Dashboard{% endblock %}</title>
-    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+    <title>{% block title %}Device Dashboard{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="/static/live.css">
     {% block extra_head %}{% endblock %}
@@ -15,7 +14,7 @@
         <div class="sidebar-header">
             <div class="logo">HD</div>
             <div class="brand">
-                <h1>Hermes Dashboard</h1>
+                <h1>Device Dashboard</h1>
                 <span class="subtitle">Redmi Note 7</span>
             </div>
         </div>
@@ -55,6 +54,10 @@
             <a href="/power" class="nav-item {% if request.url.path.startswith('/power') %}active{% endif %}">
                 <span class="nav-icon">🔌</span>
                 Power
+            </a>
+            <a href="/grafana" class="nav-item {% if request.url.path.startswith('/grafana') %}active{% endif %}">
+                <span class="nav-icon">📈</span>
+                Grafana
             </a>
         </nav>
         <div class="sidebar-footer">
