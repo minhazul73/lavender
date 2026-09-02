@@ -1,5 +1,5 @@
 """
-Shared dependencies and utility functions for the Hermes Device Dashboard.
+Shared dependencies and utility functions for the Device Dashboard.
 """
 import subprocess
 import shutil

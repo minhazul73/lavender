@@ -1,5 +1,5 @@
 """
-FastAPI application for Hermes Device Dashboard.
+FastAPI application for Device Dashboard.
 """
 import os
 from fastapi import FastAPI, Request
@@ -27,7 +27,7 @@ class Templates:
 
 
 app = FastAPI(
-    title="RN7 Linux Dashboard",
+    title="Device Dashboard",
     description="Web UI for managing postmarketOS on Redmi Note 7",
     version="1.0.0",
 )
