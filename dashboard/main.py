@@ -46,11 +46,10 @@ templates = Templates(templates_dir)
 
 
 # Import route modules after app creation to avoid circular imports
-from dashboard.api import system, hermes, device, live  # noqa: E402
+from dashboard.api import system, device, live  # noqa: E402
 
 # Register API routers
 app.include_router(system.router, prefix="/api")
-app.include_router(hermes.router, prefix="/api")
 app.include_router(device.router, prefix="/api")
 app.include_router(live.router, prefix="/api")
 
@@ -64,7 +63,6 @@ PAGES: dict[str, tuple[str, str]] = {
     "/storage": ("storage.html", "Storage and disks"),
     "/network": ("network.html", "Network interfaces"),
     "/battery": ("battery.html", "Battery and device info"),
-    "/hermes": ("hermes.html", "Hermes AI integration"),
     "/packages": ("packages.html", "Package management"),
     "/users": ("users.html", "User management"),
     "/power": ("power.html", "Power controls"),
