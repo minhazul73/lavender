@@ -298,14 +298,35 @@
         document.getElementById('svc-failed-count').textContent = failed;
         document.getElementById('svc-total-donut').textContent = services.length;
 
-        // Update donut chart angles
+        // Circle donut: circumference = 2π×15.5 ≈ 97.39
+        var CIRC = 97.39;
         var total = services.length;
         if (total > 0) {
-            var activePct = active / total;
+            var activePct   = active   / total;
             var inactivePct = inactive / total;
-            // Simple donut: active arc
-            var activeDash = activePct * 100;
-            document.getElementById('svc-donut-active').style.strokeDasharray = activeDash + ' 100';
+            var failedPct   = failed   / total;
+
+            var activeDash   = activePct   * CIRC;
+            var inactiveDash = inactivePct * CIRC;
+            var failedDash   = failedPct   * CIRC;
+
+            // Stacked arcs using stroke-dashoffset
+            var activeEl   = document.getElementById('svc-donut-active');
+            var inactiveEl = document.getElementById('svc-donut-inactive');
+            var failedEl   = document.getElementById('svc-donut-failed');
+
+            if (activeEl) {
+                activeEl.style.strokeDasharray  = activeDash + ' ' + (CIRC - activeDash);
+                activeEl.style.strokeDashoffset = '0';
+            }
+            if (inactiveEl) {
+                inactiveEl.style.strokeDasharray  = inactiveDash + ' ' + (CIRC - inactiveDash);
+                inactiveEl.style.strokeDashoffset = -activeDash;
+            }
+            if (failedEl) {
+                failedEl.style.strokeDasharray  = failedDash + ' ' + (CIRC - failedDash);
+                failedEl.style.strokeDashoffset = -(activeDash + inactiveDash);
+            }
         }
     }
 
@@ -314,25 +335,26 @@
         var logs = data.logs || [];
         var el = document.getElementById('recent-logs');
         if (!el) return;
+        if (logs.length === 0) {
+            el.innerHTML = '<div class="log-entry"><span class="log-msg" style="color:var(--text-muted);">No logs available</span></div>';
+            return;
+        }
         el.innerHTML = logs.map(function(l) {
-            var color = l.level === 'error' ? '#ef4444' : (l.level === 'warning' ? '#f59e0b' : '#10b981');
-            return '<div style="padding:5px 10px; font-size:11px; display:flex; gap:6px; border-bottom:1px solid var(--border);">\
-                <span style="color:var(--text-muted); min-width:60px;">' + (l.timestamp || '--:--:--') + '</span>\
-                <span style="width:6px; height:6px; border-radius:50%; background:' + color + '; flex-shrink:0;"></span>\
-                <span>' + (l.message || '') + '</span>\
-            </div>';
-        }).join('') || '<div style="padding:6px 10px; font-size:11px; color:var(--text-muted);">No logs</div>';
+            var dotColor = l.level === 'error' ? 'var(--red)' : (l.level === 'warning' ? 'var(--yellow)' : 'var(--green)');
+            var ts = (l.timestamp || '--:--').toString().slice(0, 8);
+            return '<div class="log-entry">'
+                + '<span class="log-time">' + ts + '</span>'
+                + '<span class="log-dot" style="background:' + dotColor + ';"></span>'
+                + '<span class="log-msg">' + (l.message || '') + '</span>'
+                + '</div>';
+        }).join('');
     }
 
-    /* ---- System Activity chart (canvas-based) ---- */
+    /* ---- System Activity chart (canvas-based, premium) ---- */
     var chartData = { cpu: [], mem: [] };
     function renderChart() {
-        if (latest.cpu) {
-            chartData.cpu.push(latest.cpu.load5 || 0);
-        }
-        if (latest.ram) {
-            chartData.mem.push(latest.ram.used_pct || 0);
-        }
+        if (latest.cpu) chartData.cpu.push(latest.cpu.load5 || 0);
+        if (latest.ram) chartData.mem.push(latest.ram.used_pct || 0);
         if (chartData.cpu.length > 60) chartData.cpu.shift();
         if (chartData.mem.length > 60) chartData.mem.shift();
 
@@ -342,48 +364,45 @@
         var w = canvas.width, h = canvas.height;
         ctx.clearRect(0, 0, w, h);
 
-        // Grid lines
-        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        // Subtle horizontal grid lines
+        ctx.strokeStyle = 'rgba(99,179,237,0.05)';
         ctx.lineWidth = 1;
-        for (var i = 0; i <= 4; i++) {
-            var y = (i / 4) * h;
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(w, y);
-            ctx.stroke();
+        for (var gi = 0; gi <= 4; gi++) {
+            var gy = Math.round((gi / 4) * h) + 0.5;
+            ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
         }
 
-        // Draw CPU line (purple)
-        if (chartData.cpu.length > 1) {
-            var maxCpu = Math.max.apply(null, chartData.cpu) || 1;
-            var maxV = Math.max(maxCpu, Math.max.apply(null, chartData.mem) || 0, 100);
-            ctx.strokeStyle = '#a855f7';
-            ctx.lineWidth = 1.5;
+        var maxV = 100;
+
+        function drawGradientLine(data, lineColor, gradTop, gradBot) {
+            if (data.length < 2) return;
+            var len = data.length;
+            // Filled area
             ctx.beginPath();
-            chartData.cpu.forEach(function(v, i) {
-                var x = (i / (chartData.cpu.length - 1)) * w;
-                var y = h - (v / maxV) * h;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+            data.forEach(function(v, i) {
+                var x = (i / (len - 1)) * w;
+                var y = h - Math.min(100, Math.max(0, v)) / maxV * h;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             });
-            ctx.stroke();
+            ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+            var grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, gradTop); grad.addColorStop(1, gradBot);
+            ctx.fillStyle = grad; ctx.fill();
+            // Stroke line with glow
+            ctx.beginPath();
+            data.forEach(function(v, i) {
+                var x = (i / (len - 1)) * w;
+                var y = h - Math.min(100, Math.max(0, v)) / maxV * h;
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = lineColor; ctx.lineWidth = 2;
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+            ctx.shadowColor = lineColor; ctx.shadowBlur = 8;
+            ctx.stroke(); ctx.shadowBlur = 0;
         }
 
-        // Draw Memory line (blue)
-        if (chartData.mem.length > 1) {
-            var maxMem = Math.max.apply(null, chartData.mem) || 1;
-            var maxV2 = Math.max(maxMem, Math.max.apply(null, chartData.cpu) || 0, 100);
-            ctx.strokeStyle = '#3b82f6';
-            ctx.lineWidth = 1.5;
-            ctx.beginPath();
-            chartData.mem.forEach(function(v, i) {
-                var x = (i / (chartData.mem.length - 1)) * w;
-                var y = h - (v / maxV2) * h;
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            });
-            ctx.stroke();
-        }
+        drawGradientLine(chartData.mem, '#3b82f6', 'rgba(59,130,246,0.2)', 'rgba(59,130,246,0.01)');
+        drawGradientLine(chartData.cpu, '#a855f7', 'rgba(168,85,247,0.25)', 'rgba(168,85,247,0.01)');
     }
 
     /* ---- Top processes (table) ---- */
