@@ -53,35 +53,82 @@
 
     function updateCpu(data) {
         latest.cpu = data;
-        var cpus = data.cpus || [];
         var load5 = data.load5 || 0;
-        var tempC = null;
-        var zones = (latest.thermal || []);
-        for (var i = 0; i < zones.length; i++) {
-            if (zones[i].name && zones[i].name.indexOf('cpu') === 0) {
-                tempC = zones[i].temp_celsius;
-                break;
-            }
-        }
 
+        // Main header: load average
         var el = document.getElementById('cpu-load');
         el.textContent = load5.toFixed(2);
-        el.className = 'stat-main';
         if (load5 > 7) el.style.color = '#ef4444';
         else if (load5 > 3) el.style.color = '#f59e0b';
         else el.style.color = 'inherit';
 
-        document.getElementById('cpu-cores').textContent = cpus.length + ' Cores';
-        if (cpus.length > 0 && cpus[0].frequency_mhz !== null) {
-            var freqs = cpus.map(function(c) {
+        document.getElementById('cpu-cores').textContent = data.count + ' Cores';
+        if (data.cpus.length > 0 && data.cpus[0].frequency_mhz !== null) {
+            var freqs = data.cpus.map(function(c) {
                 return c.frequency_mhz !== null ? c.frequency_mhz.toFixed(0) + ' MHz' : '—';
             });
             document.getElementById('cpu-freq').textContent = freqs.join(', ');
         } else {
             document.getElementById('cpu-freq').textContent = 'N/A';
         }
+
+        // Per-core usage bars
+        renderCpuCores(data);
+
         pushBuf('cpu', load5);
         updateSpark('sparkpath-cpu', 'cpu');
+    }
+
+    function renderCpuCores(data) {
+        var grid = document.getElementById('cpu-cores-grid');
+        if (!grid) return;
+
+        var cores = data.per_core_usage || [];
+        if (!cores.length) {
+            grid.innerHTML = '<p class="text-muted">No core data</p>';
+            return;
+        }
+
+        // Initialize per-core buffers on first call
+        if (!window._coreBuffers) {
+            window._coreBuffers = cores.map(() => []);
+        }
+
+        // Update buffers
+        cores.forEach(function(core, i) {
+            var buf = window._coreBuffers[i];
+            if (core.usage !== null) buf.push(core.usage);
+            if (buf.length > 30) buf.shift();
+        });
+
+        var html = '';
+        for (var i = 0; i < cores.length; i++) {
+            var core = cores[i];
+            var buf = window._coreBuffers[i] || [];
+            var usage = core.usage !== null ? core.usage.toFixed(1) + '%' : '—';
+            var cls = core.usage > 85 ? ' crit' : (core.usage > 70 ? ' warn' : '');
+
+            // Build SVG path for mini sparkline
+            var svgPoints = '';
+            if (buf.length > 1) {
+                var w = 80, h = 24;
+                var maxV = Math.max.apply(null, buf) || 100;
+                buf.forEach(function(v, idx) {
+                    var x = (idx / (buf.length - 1)) * w;
+                    var y = h - (v / maxV) * h;
+                    svgPoints += (idx === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+                });
+            }
+
+            html += '<div class="cpu-core">' +
+                '<div class="cpu-core-label">CPU' + core.core + '</div>' +
+                '<svg class="cpu-core-spark" viewBox="0 0 80 24" preserveAspectRatio="none">' +
+                '<path d="' + svgPoints + '" stroke-width="1.5" fill="none"/>' +
+                '</svg>' +
+                '<div class="cpu-core-value' + cls + '">' + usage + '</div>' +
+                '</div>';
+        }
+        grid.innerHTML = html;
     }
 
     function updateRam(data) {

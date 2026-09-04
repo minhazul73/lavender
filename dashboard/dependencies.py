@@ -6,7 +6,7 @@ import shutil
 import os
 from typing import Optional
 
-from dashboard.config import SUDO_COMMANDS, HERMES_BIN, HERMES_HOME, HERMES_CRON_DIR, HERMES_STATE_DB
+from dashboard.config import SUDO_COMMANDS
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
@@ -99,25 +99,6 @@ def get_current_user_info() -> dict:
     except Exception:
         info["groups"] = []
     return info
-
-
-def get_hermes_version() -> str:
-    """Get Hermes version string."""
-    code, out, err = run_command([HERMES_BIN, "--version"], timeout=10)
-    if code == 0:
-        return out
-    return f"Error: {err}"
-
-
-def get_hermes_skills() -> list[str]:
-    """List available Hermes skills."""
-    skills_dir = os.path.join(HERMES_HOME, "skills")
-    if os.path.isdir(skills_dir):
-        try:
-            return sorted([d for d in os.listdir(skills_dir) if os.path.isdir(os.path.join(skills_dir, d))])
-        except Exception:
-            pass
-    return []
 
 
 def read_sudoers() -> str:

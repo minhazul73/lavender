@@ -2,12 +2,6 @@ PORT = 8080
 HOST = "0.0.0.0"
 DEBUG = False
 
-# Hermes paths
-HERMES_BIN = "/home/rahat/.local/bin/hermes"
-HERMES_HOME = "/home/rahat/.hermes"
-HERMES_CRON_DIR = f"{HERMES_HOME}/cron"
-HERMES_STATE_DB = f"{HERMES_HOME}/state.db"
-
 # Sudo commands that need elevation (documented limitation)
 SUDO_COMMANDS = {
     "systemctl_system": ["sudo", "systemctl"],
