@@ -795,7 +795,62 @@ label {
     font-family: monospace;
 }
 
-/* ===== CPU ===== */
+/* ===== CPU Per-Core Usage ===== */
+.card-wide {
+    grid-column: span 2;
+}
+
+.cpu-cores-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.cpu-core {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    text-align: center;
+}
+
+.cpu-core-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.cpu-core-bar-outer {
+    height: 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.cpu-core-bar-inner {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.cpu-core-bar-inner.warn {
+    background: var(--yellow);
+}
+
+.cpu-core-bar-inner.crit {
+    background: var(--red);
+}
+
+.cpu-core-value {
+    font-size: 11px;
+    font-weight: 600;
+    font-family: monospace;
+}
+
+/* ===== CPU Frequency (Battery page) ===== */
 .cpu-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));

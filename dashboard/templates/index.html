@@ -30,20 +30,17 @@
 <!-- Top metrics: 5 equal cards -->
 <div class="metrics-row">
 
-    <section class="card card-cpu">
+    <section class="card card-cpu card-wide">
         <div class="card-header">
             <span class="card-icon">🖥</span>
             <span class="card-title">CPU</span>
+            <span class="card-subtitle" id="cpu-load">—</span>
             <a href="/processes" class="card-link">→</a>
         </div>
         <div class="card-body">
-            <div class="stat-main" id="cpu-load">—</div>
+            <div class="cpu-cores-grid" id="cpu-cores-grid"></div>
             <div class="stat-sub" id="cpu-cores">8 Cores</div>
-            <div class="stat-sub" id="cpu-freq">— GHz</div>
-            <svg class="sparkline" id="sparkline-cpu" viewBox="0 0 100 24" preserveAspectRatio="none" style="height:20px; margin-top:4px;">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
-                <path class="sparkline-line" id="sparkpath-cpu" d="" stroke-width="1.5"/>
-            </svg>
+            <div class="stat-sub" id="cpu-freq">—</div>
         </div>
     </section>
 

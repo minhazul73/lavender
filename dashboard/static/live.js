@@ -53,35 +53,57 @@
 
     function updateCpu(data) {
         latest.cpu = data;
-        var cpus = data.cpus || [];
         var load5 = data.load5 || 0;
-        var tempC = null;
-        var zones = (latest.thermal || []);
-        for (var i = 0; i < zones.length; i++) {
-            if (zones[i].name && zones[i].name.indexOf('cpu') === 0) {
-                tempC = zones[i].temp_celsius;
-                break;
-            }
-        }
 
+        // Main header: load average
         var el = document.getElementById('cpu-load');
         el.textContent = load5.toFixed(2);
-        el.className = 'stat-main';
         if (load5 > 7) el.style.color = '#ef4444';
         else if (load5 > 3) el.style.color = '#f59e0b';
         else el.style.color = 'inherit';
 
-        document.getElementById('cpu-cores').textContent = cpus.length + ' Cores';
-        if (cpus.length > 0 && cpus[0].frequency_mhz !== null) {
-            var freqs = cpus.map(function(c) {
+        document.getElementById('cpu-cores').textContent = data.count + ' Cores';
+        if (data.cpus.length > 0 && data.cpus[0].frequency_mhz !== null) {
+            var freqs = data.cpus.map(function(c) {
                 return c.frequency_mhz !== null ? c.frequency_mhz.toFixed(0) + ' MHz' : '—';
             });
             document.getElementById('cpu-freq').textContent = freqs.join(', ');
         } else {
             document.getElementById('cpu-freq').textContent = 'N/A';
         }
+
+        // Per-core usage bars
+        renderCpuCores(data);
+
         pushBuf('cpu', load5);
         updateSpark('sparkpath-cpu', 'cpu');
+    }
+
+    function renderCpuCores(data) {
+        var grid = document.getElementById('cpu-cores-grid');
+        if (!grid) return;
+
+        var cores = data.per_core_usage || [];
+        if (!cores.length) {
+            grid.innerHTML = '<p class="text-muted">No core data</p>';
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < cores.length; i++) {
+            var core = cores[i];
+            var usage = core.usage !== null ? core.usage : 0;
+            var capped = Math.min(100, Math.max(0, usage));
+            var cls = capped > 85 ? ' crit' : (capped > 70 ? ' warn' : '');
+            html += '<div class="cpu-core">' +
+                '<div class="cpu-core-label">CPU' + core.core + '</div>' +
+                '<div class="cpu-core-bar-outer">' +
+                '<div class="cpu-core-bar-inner' + cls + '" style="width:' + capped + '%"></div>' +
+                '</div>' +
+                '<div class="cpu-core-value">' + (core.usage !== null ? usage.toFixed(1) + '%' : '—') + '</div>' +
+                '</div>';
+        }
+        grid.innerHTML = html;
     }
 
     function updateRam(data) {
