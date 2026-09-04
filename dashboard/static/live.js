@@ -89,18 +89,43 @@
             return;
         }
 
+        // Initialize per-core buffers on first call
+        if (!window._coreBuffers) {
+            window._coreBuffers = cores.map(() => []);
+        }
+
+        // Update buffers
+        cores.forEach(function(core, i) {
+            var buf = window._coreBuffers[i];
+            if (core.usage !== null) buf.push(core.usage);
+            if (buf.length > 30) buf.shift();
+        });
+
         var html = '';
         for (var i = 0; i < cores.length; i++) {
             var core = cores[i];
-            var usage = core.usage !== null ? core.usage : 0;
-            var capped = Math.min(100, Math.max(0, usage));
-            var cls = capped > 85 ? ' crit' : (capped > 70 ? ' warn' : '');
+            var buf = window._coreBuffers[i] || [];
+            var usage = core.usage !== null ? core.usage.toFixed(1) + '%' : '—';
+            var cls = core.usage > 85 ? ' crit' : (core.usage > 70 ? ' warn' : '');
+
+            // Build SVG path for mini sparkline
+            var svgPoints = '';
+            if (buf.length > 1) {
+                var w = 80, h = 24;
+                var maxV = Math.max.apply(null, buf) || 100;
+                buf.forEach(function(v, idx) {
+                    var x = (idx / (buf.length - 1)) * w;
+                    var y = h - (v / maxV) * h;
+                    svgPoints += (idx === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+                });
+            }
+
             html += '<div class="cpu-core">' +
                 '<div class="cpu-core-label">CPU' + core.core + '</div>' +
-                '<div class="cpu-core-bar-outer">' +
-                '<div class="cpu-core-bar-inner' + cls + '" style="width:' + capped + '%"></div>' +
-                '</div>' +
-                '<div class="cpu-core-value">' + (core.usage !== null ? usage.toFixed(1) + '%' : '—') + '</div>' +
+                '<svg class="cpu-core-spark" viewBox="0 0 80 24" preserveAspectRatio="none">' +
+                '<path d="' + svgPoints + '" stroke-width="1.5" fill="none"/>' +
+                '</svg>' +
+                '<div class="cpu-core-value' + cls + '">' + usage + '</div>' +
                 '</div>';
         }
         grid.innerHTML = html;
