@@ -1,228 +1,623 @@
-/* ===== Live Monitoring Styles — Compact Layout ===== */
-/* Matches the reference dashboard: 5-card metrics row, 65/35 middle, 33/33/33 bottom */
+/* ===== Live Monitoring — Premium Dashboard Styles ===== */
 
-/* SSE connection status indicator */
-#sse-status { display: flex; align-items: center; gap: 6px; font-size: 11px; }
-#sse-status .status-indicator { transition: background 0.3s; }
-#sse-status.connected .status-indicator { background: var(--green); box-shadow: 0 0 4px var(--green); }
-#sse-status.connected { color: var(--green); }
-#sse-status.disconnected .status-indicator { background: var(--red); box-shadow: 0 0 4px var(--red); }
-#sse-status.disconnected { color: var(--red); }
+/* SSE status badge */
+#sse-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+    letter-spacing: 0.03em;
+    transition: var(--transition);
+}
 
-/* ---- Health pills (compact) ---- */
+#sse-status .status-indicator {
+    transition: background 0.3s, box-shadow 0.3s;
+}
+
+#sse-status.connected {
+    color: var(--green);
+    border-color: rgba(16,185,129,0.3);
+    background: var(--green-dim);
+}
+
+#sse-status.connected .status-indicator {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+}
+
+#sse-status.disconnected {
+    color: var(--red);
+    border-color: rgba(239,68,68,0.3);
+    background: var(--red-dim);
+}
+
+#sse-status.disconnected .status-indicator {
+    background: var(--red);
+    box-shadow: 0 0 6px var(--red);
+}
+
+/* ---- Health Pills ---- */
 .health-row {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
+    margin-bottom: 18px;
+    align-items: center;
 }
+
 .health-pill {
     display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 12px;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 99px;
     font-size: 11px;
-    font-weight: 500;
-    background: var(--bg-card);
+    font-weight: 600;
+    background: rgba(12, 26, 46, 0.8);
     border: 1px solid var(--border);
-    color: var(--text-secondary);
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+    transition: var(--transition);
+    backdrop-filter: blur(8px);
 }
-.health-pill .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--text-muted);
-}
-.health-pill.good .dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
-.health-pill.good { color: var(--green); border-color: rgba(16,185,129,0.3); }
-.health-pill.warn .dot { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); }
-.health-pill.warn { color: var(--yellow); border-color: rgba(245,158,11,0.3); }
-.health-pill.crit .dot { background: var(--red); box-shadow: 0 0 4px var(--red); }
-.health-pill.crit { color: var(--red); border-color: rgba(239,68,68,0.3); }
 
-/* ---- Top metrics row: 5 equal cards ---- */
+.health-pill .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.health-pill.good {
+    color: var(--green);
+    border-color: rgba(16,185,129,0.3);
+    background: var(--green-dim);
+}
+
+.health-pill.good .dot {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green-glow);
+}
+
+.health-pill.warn {
+    color: var(--yellow);
+    border-color: rgba(245,158,11,0.3);
+    background: var(--yellow-dim);
+}
+
+.health-pill.warn .dot {
+    background: var(--yellow);
+    box-shadow: 0 0 6px var(--yellow-glow);
+}
+
+.health-pill.crit {
+    color: var(--red);
+    border-color: rgba(239,68,68,0.3);
+    background: var(--red-dim);
+}
+
+.health-pill.crit .dot {
+    background: var(--red);
+    box-shadow: 0 0 6px var(--red-glow);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+}
+
+/* ---- Metrics Row (5 cards) ---- */
 .metrics-row {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 12px;
     margin-bottom: 14px;
 }
-@media (max-width: 900px) {
+
+@media (max-width: 1100px) {
+    .metrics-row { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 700px) {
     .metrics-row { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ---- Middle row: 65% / 35% ---- */
+/* CPU card spans 2 columns in full layout handled by card-cpu-overview */
+.card-cpu-overview {
+    grid-column: 1;
+}
+
+/* ---- Middle row: chart (65%) + processes (35%) ---- */
 .middle-row {
     display: grid;
     grid-template-columns: 0.65fr 0.35fr;
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 14px;
 }
+
 @media (max-width: 900px) {
     .middle-row { grid-template-columns: 1fr; }
 }
 
-/* ---- Bottom row: 3 equal columns ---- */
+/* ---- Bottom row: 3 equal ---- */
 .bottom-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+    gap: 12px;
 }
+
 @media (max-width: 900px) {
     .bottom-row { grid-template-columns: 1fr; }
 }
 
-/* ---- Card base ---- */
-.card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-    overflow: hidden;
-    transition: box-shadow 0.15s;
-}
-.card:hover {
-    box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
-}
+/* ---- Card Icon Accents ---- */
+.card-icon-cpu  { background: rgba(6,182,212,0.12); color: var(--accent); }
+.card-icon-ram  { background: rgba(59,130,246,0.12); color: var(--blue); }
+.card-icon-batt { background: rgba(16,185,129,0.12); color: var(--green); }
+.card-icon-net  { background: rgba(168,85,247,0.12); color: var(--purple); }
+.card-icon-disk { background: rgba(249,115,22,0.12); color: var(--orange); }
 
-/* ---- Card header ---- */
-.card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    background: var(--bg-secondary);
-    font-size: 12px;
-    font-weight: 600;
-}
-.card-header .card-title { font-weight: 600; }
-.card-header .card-link {
-    margin-left: auto;
-    font-size: 11px;
-    color: var(--text-muted);
-    text-decoration: none;
-}
-.card-header .card-link:hover { color: var(--accent); }
-
-/* ---- Card body ---- */
-.card-body {
-    padding: 12px;
-}
-
-/* ---- Card icons ---- */
-.card-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 5px;
-    margin-right: 6px;
-    font-size: 12px;
-}
-.card-icon.cpu { background: rgba(88,166,255,0.15); color: var(--accent); }
-.card-icon.ram { background: rgba(59,130,246,0.15); color: #3b82f6; }
-.card-icon.battery { background: rgba(16,185,129,0.15); color: var(--green); }
-.card-icon.network { background: rgba(16,185,129,0.15); color: var(--green); }
-.card-icon.storage { background: rgba(163,113,247,0.15); color: var(--purple); }
-
-/* ---- Stat display ---- */
+/* ---- Stat Display ---- */
 .stat-main {
-    font-size: 22px;
-    font-weight: 700;
-    font-family: ui-monospace, 'Fira Code', 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
-    margin-bottom: 2px;
+    font-size: 26px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 4px;
 }
+
 .stat-sub {
     font-size: 11px;
     color: var(--text-muted);
-    margin-bottom: 1px;
+    margin-bottom: 2px;
+    font-weight: 500;
 }
+
 .stat-row {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 6px;
-    padding: 1px 0;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-subtle);
 }
-.stat-row .stat-val {
-    font-size: 12px;
-    font-weight: 500;
-    font-family: ui-monospace, 'Fira Code', 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
-}
-.stat-row .stat-label { font-size: 10px; color: var(--text-muted); }
 
-/* Mono small variant */
-.mono-sm { font-size: 11px; }
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-row .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.stat-row .stat-val {
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+}
 
 /* ---- Sparklines ---- */
 .sparkline {
     width: 100%;
-    height: 18px;
-    margin-top: 4px;
+    height: 20px;
+    margin-top: 6px;
     display: block;
+    border-radius: 2px;
+    overflow: visible;
 }
-.sparkline-bg { fill: rgba(255, 255, 255, 0.03); }
-.sparkline-line { fill: none; stroke-width: 1.5; }
 
-/* Metric-colored sparklines */
-.card-cpu .sparkline-line { stroke: var(--accent); }
-.card-ram .sparkline-line { stroke: #3b82f6; }
-.card-battery .sparkline-line { stroke: var(--green); }
-.card-network .sparkline-line { stroke: var(--green); }
+.sparkline-bg {
+    fill: rgba(255, 255, 255, 0.02);
+}
 
-/* ---- Progress bars ---- */
+.sparkline-line {
+    fill: none;
+    stroke-width: 1.8;
+    filter: drop-shadow(0 0 3px currentColor);
+}
+
+.card-ram .sparkline-line      { stroke: var(--blue); }
+.card-battery .sparkline-line  { stroke: var(--green); }
+.card-network .sparkline-line  { stroke: var(--purple); }
+
+/* ---- Progress Bars ---- */
 .progress-bar-outer {
     width: 100%;
     height: 5px;
-    background: var(--border);
-    border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 99px;
     overflow: hidden;
-    margin: 4px 0;
+    margin: 6px 0;
+    position: relative;
 }
+
 .progress-bar-inner {
     height: 100%;
-    border-radius: 3px;
-    transition: width 0.2s;
-    background: var(--accent);
+    border-radius: 99px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background: var(--grad-accent);
+    position: relative;
 }
-.progress-bar-inner.warn { background: var(--yellow); }
-.progress-bar-inner.crit { background: var(--red); }
 
-/* ---- Process table ---- */
+.progress-bar-inner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    border-radius: 99px;
+}
+
+.progress-bar-inner.warn {
+    background: linear-gradient(90deg, var(--yellow), #fb923c);
+}
+
+.progress-bar-inner.crit {
+    background: linear-gradient(90deg, var(--red), #f97316);
+}
+
+/* ---- CPU Cores Grid ---- */
+.cpu-cores-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.cpu-core {
+    background: rgba(6, 182, 212, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 8px;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.cpu-core:hover {
+    background: rgba(6, 182, 212, 0.08);
+    border-color: var(--border-accent);
+}
+
+.cpu-core-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3px;
+}
+
+.cpu-core-spark {
+    width: 100%;
+    height: 22px;
+    margin: 2px 0;
+}
+
+.cpu-core-spark path {
+    stroke: var(--accent);
+    filter: drop-shadow(0 0 2px rgba(6,182,212,0.5));
+}
+
+.cpu-core-value {
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+}
+
+.cpu-core-value.crit { color: var(--red); }
+.cpu-core-value.warn { color: var(--yellow); }
+
+/* ---- Process Table ---- */
 .proc-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 12px;
 }
+
 .proc-table th {
     font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.1);
+}
+
+.proc-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    transition: background 0.15s;
+}
+
+.proc-table tr:last-child td {
+    border-bottom: none;
+}
+
+.proc-table tr:hover td {
+    background: rgba(6,182,212,0.04);
+    color: var(--text-primary);
+}
+
+.proc-table .proc-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---- Services Donut ---- */
+.svc-donut-wrap {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    margin: 8px auto 10px;
+}
+
+.svc-donut-wrap svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.svc-donut-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.05);
+    stroke-width: 6;
+}
+
+.svc-donut-track {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.svc-donut-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.svc-donut-label .total {
+    font-size: 20px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+    letter-spacing: -1px;
+}
+
+.svc-donut-label .label {
+    font-size: 9px;
     font-weight: 600;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 5px 10px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.05em;
 }
-.proc-table td {
-    padding: 5px 10px;
-    border-bottom: 1px solid var(--border);
-}
-.proc-table tr:hover td { background: var(--bg-hover); }
-.proc-table .proc-name { font-family: ui-monospace, 'Fira Code', Consolas, monospace; }
 
-/* ---- Device info (if present) ---- */
+.svc-legend {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.svc-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.svc-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ---- Recent Logs ---- */
+.log-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 7px 14px;
+    font-size: 11px;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background 0.15s;
+    line-height: 1.4;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-entry:hover {
+    background: rgba(255,255,255,0.02);
+}
+
+.log-time {
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    flex-shrink: 0;
+    padding-top: 1px;
+}
+
+.log-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.log-msg {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+/* ---- System Activity Chart ---- */
+.chart-wrap {
+    position: relative;
+    padding-bottom: 4px;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 14px;
+    font-size: 11px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-muted);
+}
+
+.chart-legend-line {
+    width: 16px;
+    height: 2px;
+    border-radius: 99px;
+}
+
+/* ---- Network card ---- */
+.net-speed-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 4px;
+    align-items: baseline;
+}
+
+.net-arrow {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.net-arrow.up   { color: var(--purple); }
+.net-arrow.down { color: var(--green); }
+
+.net-val {
+    font-size: 18px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.5px;
+}
+
+/* ---- Device Info Bar ---- */
 .device-info {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
-    padding: 10px 14px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
+    padding: 10px 16px;
+    background: rgba(6,15,30,0.5);
+    border-radius: var(--radius-md);
     border: 1px solid var(--border);
     margin-bottom: 14px;
 }
-.device-info .di-item { display: flex; flex-direction: column; gap: 1px; }
-.device-info .di-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-.device-info .di-value { font-size: 12px; font-weight: 500; font-family: monospace; }
+
+.device-info .di-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.device-info .di-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+}
+
+.device-info .di-value {
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-secondary);
+}
+
+/* ---- Card accent top borders ---- */
+.card-cpu    { --card-accent: var(--accent); }
+.card-ram    { --card-accent: var(--blue); }
+.card-battery { --card-accent: var(--green); }
+.card-network { --card-accent: var(--purple); }
+.card-storage { --card-accent: var(--orange); }
+
+.card-cpu::after,
+.card-ram::after,
+.card-battery::after,
+.card-network::after,
+.card-storage::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--card-accent), transparent);
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Card hover glow by type */
+.card-cpu:hover    { box-shadow: var(--shadow-lg), 0 0 20px rgba(6,182,212,0.15); }
+.card-ram:hover    { box-shadow: var(--shadow-lg), 0 0 20px rgba(59,130,246,0.15); }
+.card-battery:hover { box-shadow: var(--shadow-lg), 0 0 20px rgba(16,185,129,0.15); }
+.card-network:hover { box-shadow: var(--shadow-lg), 0 0 20px rgba(168,85,247,0.15); }
+.card-storage:hover { box-shadow: var(--shadow-lg), 0 0 20px rgba(249,115,22,0.15); }
+
+/* ---- Section entry animations ---- */
+.metrics-row > *,
+.middle-row > *,
+.bottom-row > * {
+    animation: slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.metrics-row > *:nth-child(1) { animation-delay: 0.05s; }
+.metrics-row > *:nth-child(2) { animation-delay: 0.10s; }
+.metrics-row > *:nth-child(3) { animation-delay: 0.15s; }
+.metrics-row > *:nth-child(4) { animation-delay: 0.20s; }
+.metrics-row > *:nth-child(5) { animation-delay: 0.25s; }
+
+.middle-row > *:nth-child(1) { animation-delay: 0.30s; }
+.middle-row > *:nth-child(2) { animation-delay: 0.35s; }
+
+.bottom-row > *:nth-child(1) { animation-delay: 0.40s; }
+.bottom-row > *:nth-child(2) { animation-delay: 0.45s; }
+.bottom-row > *:nth-child(3) { animation-delay: 0.50s; }
+
+@keyframes slide-in {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
