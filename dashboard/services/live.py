@@ -196,6 +196,88 @@ class MetricCollector:
 
 
 # ---------------------------------------------------------------------------
+# Per-core CPU usage from /proc/stat
+# ---------------------------------------------------------------------------
+
+def _parse_proc_stat() -> List[Optional[dict]]:
+    """Parse /proc/stat and return per-core CPU time dicts.
+
+    Each dict contains: user, nice, system, idle, iowait, irq, softirq,
+    steal, guest, guestnice, total.
+
+    Returns a list indexed by cpu number; None for offline/missing cores.
+    """
+    text = _read_file("/proc/stat")
+    if text is None:
+        return []
+
+    # Find max core number to size the list
+    max_core = -1
+    for line in text.splitlines():
+        if line.startswith("cpu") and not line.startswith("cpu "):
+            try:
+                num = int(line.split()[0][3:])
+                max_core = max(max_core, num)
+            except (ValueError, IndexError):
+                pass
+
+    if max_core < 0:
+        return []
+
+    cpus: List[Optional[dict]] = [None] * (max_core + 1)
+
+    for line in text.splitlines():
+        if line.startswith("cpu") and not line.startswith("cpu "):
+            parts = line.split()
+            try:
+                core_num = int(parts[0][3:])
+            except (ValueError, IndexError):
+                continue
+            values = []
+            for p in parts[1:]:
+                try:
+                    values.append(int(p))
+                except ValueError:
+                    values.append(0)
+            # Pad to 10 fields (user, nice, system, idle, iowait, irq,
+            # softirq, steal, guest, guestnice)
+            while len(values) < 10:
+                values.append(0)
+
+            user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = values[:10]
+            # Guest time is already in usertime, subtract to avoid double-counting
+            user -= guest
+            nice -= guestnice
+
+            total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guestnice
+            idle_total = idle + iowait
+
+            cpus[core_num] = {
+                "user": user, "nice": nice, "system": system,
+                "idle": idle, "iowait": iowait, "irq": irq,
+                "softirq": softirq, "steal": steal, "guest": guest,
+                "guestnice": guestnice, "total": total,
+                "idle_total": idle_total,
+            }
+
+    return cpus
+
+
+def _calc_cpu_usage(prev: Optional[dict], curr: Optional[dict]) -> Optional[float]:
+    """Calculate CPU usage percentage between two samples.
+
+    Returns None if either sample is missing.
+    """
+    if prev is None or curr is None:
+        return None
+    total_delta = curr["total"] - prev["total"]
+    if total_delta <= 0:
+        return 0.0
+    idle_delta = curr["idle_total"] - prev["idle_total"]
+    return (total_delta - idle_delta) / total_delta * 100.0
+
+
+# ---------------------------------------------------------------------------
 # CPU Frequency Collector
 # ---------------------------------------------------------------------------
 
@@ -208,14 +290,15 @@ class CPUCoreInfo:
 
 
 class CPUFreqCollector(MetricCollector):
-    """Collects per-core CPU frequency from sysfs.
+    """Collects per-core CPU frequency from sysfs and per-core usage from /proc/stat.
 
     Falls back to count-only if cpufreq sysfs is unavailable (e.g. some
     ARM SoCs without dynamic frequency scaling).
     """
 
     __slots__ = ("_cpu_dir", "_cpus", "_cpus_last_update", "_interval_ms",
-                 "_buffer", "_stats", "_stop_event", "_task", "_has_cpufreq")
+                 "_buffer", "_stats", "_stop_event", "_task", "_has_cpufreq",
+                 "_prev_stat", "_curr_stat")
 
     def __init__(self, interval_ms: int = SSE_CPU_INTERVAL_MS,
                  history_size: int = 20) -> None:
@@ -224,10 +307,12 @@ class CPUFreqCollector(MetricCollector):
         self._cpus: List[CPUCoreInfo] = []
         self._cpus_last_update = 0.0
         self._has_cpufreq = False
+        self._prev_stat: List[Optional[dict]] = []
+        self._curr_stat: List[Optional[dict]] = []
 
     async def collect(self) -> dict:
         """Return CPU info: count, per-core list (as plain dicts for JSON),
-        first-core freq for sparkline."""
+        first-core freq for sparkline, and per-core usage percentages."""
         now = time.monotonic()
         if now - self._cpus_last_update > 5.0:
             self._discover_cpus()
@@ -254,6 +339,22 @@ class CPUFreqCollector(MetricCollector):
         freqs = [c["frequency_mhz"] for c in cores_list if c["frequency_mhz"] is not None]
         primary_freq = freqs[0] if freqs else None
 
+        # Per-core CPU usage from /proc/stat
+        self._prev_stat = self._curr_stat
+        self._curr_stat = _parse_proc_stat()
+
+        # First sample: no previous data, report 0%
+        if not self._prev_stat:
+            self._prev_stat = self._curr_stat
+
+        per_core_usage = []
+        for i, (prev, curr) in enumerate(zip(self._prev_stat, self._curr_stat)):
+            usage = _calc_cpu_usage(prev, curr)
+            per_core_usage.append({
+                "core": i,
+                "usage": round(usage, 1) if usage is not None else None,
+            })
+
         return {
             "cpus": cores_list,
             "count": len(cores),
@@ -264,6 +365,7 @@ class CPUFreqCollector(MetricCollector):
             "load1": _get_loadavg(0),
             "load5": _get_loadavg(1),
             "load15": _get_loadavg(2),
+            "per_core_usage": per_core_usage,
         }
 
     def _discover_cpus(self) -> None:
