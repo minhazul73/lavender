@@ -427,20 +427,19 @@ class RAMCollector(MetricCollector):
         swap_free_kb = meminfo.get("SwapFree", swap_total_kb)
         swap_used_kb = max(swap_total_kb - swap_free_kb, 0)
 
-        total_mb = total_kb / 1024.0
         used_pct = (used_kb / total_kb * 100.0) if total_kb > 0 else 0.0
 
         return {
-            "total": total_mb,
-            "free": free_kb / 1024.0,
-            "available": avail_kb / 1024.0,
-            "used": used_kb / 1024.0,
+            "total": total_kb,
+            "free": free_kb,
+            "available": avail_kb,
+            "used": used_kb,
             "used_pct": used_pct,
-            "buffers": buffers_kb / 1024.0,
-            "cached": cached_kb / 1024.0,
-            "swap_total": swap_total_kb / 1024.0,
-            "swap_free": swap_free_kb / 1024.0,
-            "swap_used": swap_used_kb / 1024.0,
+            "buffers": buffers_kb,
+            "cached": cached_kb,
+            "swap_total": swap_total_kb,
+            "swap_free": swap_free_kb,
+            "swap_used": swap_used_kb,
         }
 
     def _parse_meminfo(self) -> Dict[str, int]:
