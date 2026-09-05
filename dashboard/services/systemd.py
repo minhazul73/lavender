@@ -64,7 +64,7 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
     cmd = ["systemctl", "--user", "status", service_name, "--no-pager"] if user else ["systemctl", "status", service_name, "--no-pager"]
     code, out, err = run_command(cmd, timeout=15)
     
-    # Try with sudo for system services
+    # Try with sudo for system services only if direct failed
     if code != 0 and not user:
         code, out, err = run_sudo_command(cmd, timeout=15)
     
@@ -122,7 +122,11 @@ def service_action(service_name: str, action: str, user: bool = False) -> dict:
         code, out, err = run_command(cmd, timeout=15)
     else:
         cmd = ["systemctl", action, service_name]
-        code, out, err = run_sudo_command(cmd, timeout=15)
+        # Try direct first (some operations work without sudo)
+        code, out, err = run_command(cmd, timeout=15)
+        # If direct failed, try with sudo
+        if code != 0:
+            code, out, err = run_sudo_command(cmd, timeout=15)
     
     return {
         "action": action,
