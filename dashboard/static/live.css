@@ -209,9 +209,9 @@
 /* ---- Sparklines ---- */
 .sparkline {
     width: 100%;
-    height: 30px;
+    height: 24px;
     flex: 1;
-    margin-top: 8px;
+    margin-top: 6px;
     display: block;
     border-radius: 2px;
     overflow: visible;
@@ -223,8 +223,8 @@
 
 .sparkline-line {
     fill: none;
-    stroke-width: 1.8;
-    filter: drop-shadow(0 0 3px currentColor);
+    stroke-width: 1.2;
+    filter: drop-shadow(0 0 2px currentColor);
 }
 
 .card-ram .sparkline-line      { stroke: var(--blue); }
