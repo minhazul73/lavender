@@ -57,6 +57,16 @@ static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+
+# Add Cache-Control: no-cache to static file responses so browsers always
+# revalidate CSS/JS — prevents stale caching issues after deploys.
+@app.middleware("http")
+async def _no_cache_static(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
 # Templates — use autoescape=False so <script> blocks render as raw HTML
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Templates(templates_dir)
