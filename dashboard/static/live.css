@@ -113,47 +113,87 @@
     50% { transform: scale(1.3); }
 }
 
-/* ---- Metrics Row (5 cards) ---- */
+/* ---- Metrics Row ---- */
+/* CPU needs more room for 8 mini-graphs; Battery is content-light so it's narrower */
 .metrics-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 2.6fr 1.3fr 0.85fr 1.25fr;
     gap: 12px;
     margin-bottom: 14px;
+    align-items: stretch;
 }
 
-@media (max-width: 1100px) {
-    .metrics-row { grid-template-columns: repeat(3, 1fr); }
-}
-@media (max-width: 700px) {
-    .metrics-row { grid-template-columns: repeat(2, 1fr); }
-}
-
-/* CPU card spans 2 columns in full layout handled by card-cpu-overview */
-.card-cpu-overview {
-    grid-column: 1;
+/* Tablet: 2+2 grid, CPU full-width on top */
+@media (max-width: 1200px) {
+    .metrics-row {
+        grid-template-columns: 2fr 1fr 1fr;
+    }
+    .card-cpu {
+        grid-column: 1 / -1; /* CPU spans full width */
+    }
 }
 
-/* ---- Middle row: network (60%) + processes (40%) ---- */
+/* Phablet: 2 columns */
+@media (max-width: 768px) {
+    .metrics-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .card-cpu {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Mobile: single column */
+@media (max-width: 480px) {
+    .metrics-row {
+        grid-template-columns: 1fr;
+    }
+    .card-cpu {
+        grid-column: 1;
+    }
+}
+
+/* ---- Middle row: network (58%) + processes (42%) ---- */
+/* Processes table only needs so much — give the visual network graph more breathing room */
 .middle-row {
     display: grid;
-    grid-template-columns: 0.6fr 0.4fr;
+    grid-template-columns: 1.4fr 1fr;
     gap: 12px;
     margin-bottom: 14px;
+    align-items: stretch;
 }
 
 @media (max-width: 900px) {
     .middle-row { grid-template-columns: 1fr; }
 }
 
-/* ---- Bottom row: 3 equal ---- */
+/* ---- Bottom row: Services (compact) | Network Info (medium) | Recent Logs (wide) ---- */
+/* Logs contain long text lines — give them the most space */
 .bottom-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 0.7fr 1fr 1.8fr;
     gap: 12px;
+    align-items: stretch;
 }
 
-@media (max-width: 900px) {
-    .bottom-row { grid-template-columns: 1fr; }
+/* Tablet: stack to 2 cols — logs alone on bottom */
+@media (max-width: 1100px) {
+    .bottom-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    .bottom-row > *:last-child {
+        grid-column: 1 / -1; /* Logs span full width */
+    }
+}
+
+/* Mobile: single column */
+@media (max-width: 600px) {
+    .bottom-row {
+        grid-template-columns: 1fr;
+    }
+    .bottom-row > *:last-child {
+        grid-column: 1;
+    }
 }
 
 /* ---- Card Icon Accents ---- */
@@ -631,4 +671,83 @@
 @keyframes slide-in {
     from { opacity: 0; transform: translateY(14px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Battery card — narrow column tweaks ---- */
+/* Battery has little content; make it feel intentional, not empty */
+.card-battery .card-body {
+    justify-content: center;
+    gap: 4px;
+    padding: 12px 14px;
+}
+
+.card-battery .stat-main {
+    font-size: 22px;
+}
+
+/* ---- Services card — compact donut column ---- */
+.card-services .card-body {
+    justify-content: center;
+    align-items: center;
+    padding: 10px 12px;
+}
+
+.card-services .svc-donut-wrap {
+    width: 80px;
+    height: 80px;
+    margin: 6px auto 8px;
+}
+
+/* ---- Recent Logs — wide column, let text wrap instead of clipping ---- */
+/* The logs card gets 1.8fr so we can show more text per line */
+.log-msg {
+    white-space: normal;        /* allow wrap in wide mode */
+    word-break: break-word;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* On narrow (tablet stacked full-width), single line is fine */
+@media (max-width: 1100px) {
+    .log-msg {
+        -webkit-line-clamp: 1;
+        white-space: nowrap;
+    }
+}
+
+/* ---- CPU cores grid — adapt columns based on available width ---- */
+/* Full layout (2.6fr ~= wide): 4 cols of mini-graphs look great */
+.cpu-cores-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* When CPU card goes full-width (tablet breakpoint), use 8 cols to fill the row */
+@media (max-width: 1200px) {
+    .card-cpu .cpu-cores-grid {
+        grid-template-columns: repeat(8, 1fr);
+    }
+}
+
+/* Phablet: CPU still full-width, 4 cols is back */
+@media (max-width: 768px) {
+    .card-cpu .cpu-cores-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Mobile: 2 cols of core mini-graphs */
+@media (max-width: 480px) {
+    .card-cpu .cpu-cores-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* ---- General mobile polish ---- */
+@media (max-width: 480px) {
+    .stat-main { font-size: 22px; }
+    .card-body  { padding: 12px; }
+    .health-row { gap: 6px; }
+    .health-pill { padding: 4px 10px; font-size: 10px; }
 }
