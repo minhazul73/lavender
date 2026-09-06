@@ -81,8 +81,8 @@
                 <div class="progress-bar-inner" id="ram-bar" style="width:0%"></div>
             </div>
             <div class="stat-sub" id="ram-detail">— free</div>
-            <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 20" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="20"/>
+            <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 24" preserveAspectRatio="none">
+                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
                 <path class="sparkline-line" id="sparkpath-ram" d="" stroke-width="0.8"/>
             </svg>
         </div>
@@ -104,8 +104,8 @@
             <div class="stat-sub" id="batt-state">—</div>
             <div class="stat-sub" id="batt-temp">—°C</div>
             <div class="stat-sub" id="batt-volt" style="display:none;">—</div>
-            <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 20" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="20"/>
+            <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 24" preserveAspectRatio="none">
+                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
                 <path class="sparkline-line" id="sparkpath-batt" d="" stroke-width="0.8"/>
             </svg>
         </div>
@@ -125,12 +125,26 @@
         </div>
         <div class="card-body">
             <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;" id="net-iface">—</div>
-            <div class="stat-main" id="net-up" style="font-size:16px; color:var(--purple);">↑ —</div>
-            <div class="stat-main" id="net-down" style="font-size:16px; color:var(--green);">↓ —</div>
-            <svg class="sparkline" id="sparkline-net" viewBox="0 0 100 20" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="20"/>
-                <path class="sparkline-line" id="sparkpath-net" d="" stroke-width="0.8"/>
-            </svg>
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:4px;">
+                <div style="font-size:16px; color:var(--purple);" id="net-up">↑ —</div>
+                <div style="font-size:16px; color:var(--green);" id="net-down">↓ —</div>
+            </div>
+            <div class="net-spark-container" style="display:flex; gap:8px; flex:1; min-height:40px;">
+                <div class="net-spark-col" style="flex:1; min-width:0;">
+                    <div style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Upload</div>
+                    <svg class="sparkline" id="sparkline-net-up" viewBox="0 0 100 24" preserveAspectRatio="none">
+                        <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
+                        <path class="sparkline-line" id="sparkpath-net-up" d="" stroke-width="0.8" style="stroke:var(--purple);"/>
+                    </svg>
+                </div>
+                <div class="net-spark-col" style="flex:1; min-width:0;">
+                    <div style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Download</div>
+                    <svg class="sparkline" id="sparkline-net-down" viewBox="0 0 100 24" preserveAspectRatio="none">
+                        <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
+                        <path class="sparkline-line" id="sparkpath-net-down" d="" stroke-width="0.8" style="stroke:var(--green);"/>
+                    </svg>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -155,71 +169,14 @@
             <div class="stat-sub" id="store-detail">— / —</div>
             <div class="stat-sub" id="store-free" style="display:none;">—</div>
             <div class="stat-sub" id="store-total" style="display:none;">—</div>
-            <svg class="sparkline" id="sparkline-stor" viewBox="0 0 100 20" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="20"/>
+            <svg class="sparkline" id="sparkline-stor" viewBox="0 0 100 24" preserveAspectRatio="none">
+                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
                 <path class="sparkline-line" id="sparkpath-stor" d="" stroke-width="0.8" style="stroke: var(--orange);"/>
             </svg>
         </div>
     </section>
 
 </div><!-- /metrics-row -->
-
-<!-- Middle: System Activity chart + Top Processes -->
-<div class="middle-row">
-
-    <section class="card">
-        <div class="card-header">
-            <span class="card-icon" style="background:rgba(168,85,247,0.12); color:var(--purple);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                </svg>
-            </span>
-            <span class="card-title">System Activity</span>
-            <div class="chart-legend">
-                <span class="chart-legend-item">
-                    <span class="chart-legend-line" style="background:var(--purple);"></span>
-                    CPU Load
-                </span>
-                <span class="chart-legend-item">
-                    <span class="chart-legend-line" style="background:var(--blue);"></span>
-                    Memory %
-                </span>
-            </div>
-        </div>
-        <div class="card-body" style="padding: 10px 14px;">
-            <canvas id="chart-activity" style="width:100%; height:110px; display:block;"></canvas>
-        </div>
-    </section>
-
-    <section class="card">
-        <div class="card-header">
-            <span class="card-icon" style="background:rgba(249,115,22,0.12); color:var(--orange);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-                    <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-                    <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                </svg>
-            </span>
-            <span class="card-title">Top Processes</span>
-            <a href="/processes" class="card-link">All →</a>
-        </div>
-        <div class="card-body" style="padding: 0;">
-            <table class="proc-table">
-                <thead>
-                    <tr>
-                        <th>Process</th>
-                        <th>CPU</th>
-                        <th>MEM</th>
-                    </tr>
-                </thead>
-                <tbody id="top-processes">
-                    <tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:16px 0; font-size:12px;">Loading…</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-</div><!-- /middle-row -->
 
 <!-- Bottom: Services + Network Interfaces + Recent Logs -->
 <div class="bottom-row">

@@ -5,7 +5,7 @@
     var SSE_URL = '/api/device/live?metrics=cpu,ram,thermal,battery,network';
 
     var latest = { cpu: null, ram: null, thermal: null, battery: null, network: null };
-    var buffers = { cpu: [], ram: [], batt: [], net: [] };
+    var buffers = { cpu: [], ram: [], batt: [], net_up: [], net_down: [] };
     var MAX_BUF = 30;
 
     /* ---- Buffer + sparkline ---- */
@@ -20,7 +20,7 @@
         var min = Math.min.apply(null, buf);
         var max = Math.max.apply(null, buf);
         var range = max - min || 1;
-        var w = 100, h = 18;
+        var w = 100, h = 22;
         var d = '';
         buf.forEach(function(v, i) {
             var x = (i / (buf.length - 1)) * w;
@@ -198,8 +198,10 @@
         netEl.className = 'health-pill' + (rx > 0 || tx > 0 ? ' good' : ' warn');
         netEl.querySelector('span:last-child').textContent = (rx > 0 || tx > 0) ? 'Active' : 'Idle';
 
-        pushBuf('net', Math.max(rx, tx));
-        updateSpark('sparkpath-net', 'net');
+        pushBuf('net_up', tx);
+        updateSpark('sparkpath-net-up', 'net_up');
+        pushBuf('net_down', rx);
+        updateSpark('sparkpath-net-down', 'net_down');
     }
 
     /* ---- Network details (IPs, interface) ---- */
