@@ -224,12 +224,13 @@
 .sparkline-line {
     fill: none;
     stroke-width: 0.8;
-    filter: drop-shadow(0 2px 2px currentColor);
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
 }
 
-.card-ram .sparkline-line      { stroke: var(--blue); }
-.card-battery .sparkline-line  { stroke: var(--green); }
-.card-network .sparkline-line  { stroke: var(--purple); }
+.card-ram .sparkline-line { stroke: var(--blue); filter: drop-shadow(0 1px 2px rgba(59,130,246,0.4)); }
+.card-battery .sparkline-line { stroke: var(--green); filter: drop-shadow(0 1px 2px rgba(16,185,129,0.4)); }
+.card-network .sparkline-line { stroke: var(--purple); filter: drop-shadow(0 1px 2px rgba(168,85,247,0.4)); }
+.card-storage .sparkline-line { stroke: var(--orange); filter: drop-shadow(0 1px 2px rgba(249,115,22,0.4)); }
 
 /* ---- Progress Bars ---- */
 .progress-bar-outer {
