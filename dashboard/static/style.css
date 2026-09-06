@@ -1317,7 +1317,7 @@ label {
     position: absolute;
     inset: 0;
     background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(2px);
     z-index: 1;
 }
 
@@ -1328,6 +1328,7 @@ label {
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
     padding: 28px;
+    width: 90%;
     min-width: 320px;
     max-width: 480px;
     max-height: 80vh;
