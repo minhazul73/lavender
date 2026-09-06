@@ -1027,20 +1027,27 @@ class NetworkRateCollector(MetricCollector):
 
     def _primary_interface(self, counters: Dict[str, Tuple[int, int]]) -> Optional[str]:
         """Pick the best interface to report: prefer non-loopback, non-veth,
-        exclude lo, docker, bridge, tun, tap."""
+        exclude lo, docker, bridge, tun, tap. Prefer interfaces with actual
+        traffic (non-zero rx_bytes) over idle interfaces like usb0."""
         exclude = {"lo", "docker", "br-", "veth", "tun", "tap", "virbr", "bond"}
         candidates = []
         for iface in sorted(counters.keys()):
             if any(iface.startswith(p) for p in exclude):
                 continue
             candidates.append(iface)
-        if candidates:
-            return candidates[0]
-        # Fallback to any interface
-        for iface in sorted(counters.keys()):
-            if iface != "lo":
+        if not candidates:
+            # Fallback to any non-loopback interface
+            for iface in sorted(counters.keys()):
+                if iface != "lo":
+                    return iface
+            return None
+        # Prefer interfaces with actual traffic (non-zero rx_bytes)
+        for iface in candidates:
+            rx_bytes, _ = counters[iface]
+            if rx_bytes > 0:
                 return iface
-        return None
+        # All candidates have zero traffic — return the first one
+        return candidates[0]
 
 
 # ---------------------------------------------------------------------------
