@@ -180,10 +180,10 @@
         var rx = data.rx_rate_bps || 0;
         var tx = data.tx_rate_bps || 0;
 
-        // Top card
-        document.getElementById('net-iface').textContent = iface;
-        document.getElementById('net-up').textContent = '↑ ' + fmtRate(tx);
-        document.getElementById('net-down').textContent = '↓ ' + fmtRate(rx);
+        // Middle network card (was top card)
+        document.getElementById('net-iface-middle').textContent = iface;
+        document.getElementById('net-up-middle').textContent = '↑ ' + fmtRate(tx);
+        document.getElementById('net-down-middle').textContent = '↓ ' + fmtRate(rx);
 
         // Bottom network card
         var detEl = document.getElementById('net-iface-detail');

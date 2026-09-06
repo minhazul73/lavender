@@ -133,10 +133,10 @@
     grid-column: 1;
 }
 
-/* ---- Middle row: chart (65%) + processes (35%) ---- */
+/* ---- Middle row: network (60%) + processes (40%) ---- */
 .middle-row {
     display: grid;
-    grid-template-columns: 0.65fr 0.35fr;
+    grid-template-columns: 0.6fr 0.4fr;
     gap: 12px;
     margin-bottom: 14px;
 }
