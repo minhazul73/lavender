@@ -20,7 +20,7 @@
         var min = Math.min.apply(null, buf);
         var max = Math.max.apply(null, buf);
         var range = max - min || 1;
-        var w = 100, h = 22;
+        var w = 100, h = 18;
         var d = '';
         buf.forEach(function(v, i) {
             var x = (i / (buf.length - 1)) * w;
