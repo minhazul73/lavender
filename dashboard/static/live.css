@@ -330,19 +330,19 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
 }
 
 .store-mount-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
+    margin-bottom: 4px;
 }
 
 .store-mount-icon {
-    font-size: 15px;
+    font-size: 14px;
 }
 
 .store-mount-label {
@@ -353,7 +353,7 @@
 .store-mount-pct {
     font-family: 'JetBrains Mono', monospace;
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .store-mount-bar-wrap {
@@ -362,7 +362,6 @@
     background: rgba(255,255,255,0.06);
     border-radius: 99px;
     overflow: hidden;
-    margin: 4px 0;
 }
 
 .store-mount-bar {
@@ -385,9 +384,11 @@
 }
 
 .store-mount-detail {
-    font-size: 11px;
-    color: var(--text-muted);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
     font-family: 'JetBrains Mono', monospace;
+    margin-top: 3px;
 }
 
 /* ---- CPU Cores Grid ---- */
