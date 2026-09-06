@@ -99,16 +99,17 @@
             <span class="card-title">Battery</span>
             <a href="/battery" class="card-link">→</a>
         </div>
-        <div class="card-body">
-            <div class="stat-main" id="batt-pct" style="color: var(--green);">—</div>
-            <div class="stat-sub" id="batt-state">—</div>
-            <div class="stat-sub" id="batt-temp">—°C</div>
-            <div class="stat-sub" id="batt-volt" style="display:none;">—</div>
+        <div class="card-body" style="padding: 10px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="stat-main" id="batt-pct" style="color: var(--green); font-size: 26px;">—</div>
+                <div class="stat-sub" id="batt-state" style="color: var(--text-muted); font-size: 11px;">—</div>
+            </div>
+            <div class="stat-sub" id="batt-temp" style="margin-top:2px;">—°C</div>
+            <div style="font-size:13px; color:var(--blue); font-family:'JetBrains Mono',monospace; margin: 6px 0 4px;" id="batt-volt-current">— V</div>
             <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 24" preserveAspectRatio="none">
                 <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
                 <path class="sparkline-line" id="sparkpath-batt" d="" stroke-width="0.8" style="stroke:var(--blue);"/>
             </svg>
-            <div style="font-size:9px; color:var(--text-muted); margin-top:2px;">voltage trend</div>
         </div>
     </section>
 

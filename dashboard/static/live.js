@@ -166,7 +166,8 @@
         }
         document.getElementById('batt-state').textContent = state;
         document.getElementById('batt-temp').textContent = temp !== null ? temp.toFixed(1) + '°C' : '—°C';
-        document.getElementById('batt-volt').textContent = volt !== null ? volt.toFixed(2) + ' V' : '— V';
+        var voltEl = document.getElementById('batt-volt-current');
+        if (voltEl) voltEl.textContent = volt !== null ? volt.toFixed(2) + ' V' : '— V';
 
         if (volt !== null) {
             pushBuf('batt', volt);
