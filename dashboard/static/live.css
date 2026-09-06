@@ -249,36 +249,55 @@
 /* ---- Sparklines ---- */
 .sparkline {
     width: 100%;
-    height: 24px;
+    height: 32px;
     flex: 1;
-    margin-top: 4px;
+    margin-top: 6px;
     display: block;
-    border-radius: 2px;
-    overflow: visible;
+    border-radius: 4px;
+    overflow: hidden;   /* clip lines that approach the edge */
 }
 
-/* Network sparklines in middle card — expand to fill card body */
+/* Network sparklines — tall, fills all available space */
 .sparkline-net {
-    height: 24px;
-    min-height: 60px;
+    height: 40px;
+    min-height: 56px;
     flex: 1;
 }
 
-.sparkline-bg {
-    fill: rgba(255, 255, 255, 0.02);
+/* Area fill under the curve — rendered by gradient path from JS */
+.sparkline-area {
+    stroke: none;
+    transition: d 0.3s ease;
 }
 
+/* The line itself */
 .sparkline-line {
     fill: none;
-    stroke-width: 0.8;
-    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3));
+    stroke-width: 0.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: d 0.3s ease;
 }
 
-.card-ram .sparkline-line { stroke: var(--blue); filter: drop-shadow(0 1px 2px rgba(59,130,246,0.4)); }
-.card-battery .sparkline-line { stroke: var(--blue); filter: drop-shadow(0 1px 2px rgba(59,130,246,0.4)); }
-#sparkpath-net-up { filter: drop-shadow(0 1px 2px rgba(168,85,247,0.4)); }
-#sparkpath-net-down { filter: drop-shadow(0 1px 2px rgba(16,185,129,0.4)); }
-.card-network .sparkline-line { stroke: var(--purple); }
+/* Per-card stroke colors + neon glow drops */
+.card-ram .sparkline-line {
+    stroke: var(--blue);
+    filter: drop-shadow(0 0 3px rgba(59,130,246,0.7)) drop-shadow(0 0 6px rgba(59,130,246,0.3));
+}
+
+.card-battery .sparkline-line {
+    stroke: var(--green);
+    filter: drop-shadow(0 0 3px rgba(16,185,129,0.7)) drop-shadow(0 0 6px rgba(16,185,129,0.3));
+}
+
+#sparkpath-net-up {
+    filter: drop-shadow(0 0 4px rgba(168,85,247,0.8)) drop-shadow(0 0 8px rgba(168,85,247,0.4));
+}
+
+#sparkpath-net-down {
+    filter: drop-shadow(0 0 4px rgba(16,185,129,0.8)) drop-shadow(0 0 8px rgba(16,185,129,0.4));
+}
+
 
 /* ---- Progress Bars ---- */
 .progress-bar-outer {

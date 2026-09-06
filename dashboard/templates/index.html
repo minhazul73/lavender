@@ -81,9 +81,15 @@
                 <div class="progress-bar-inner" id="ram-bar" style="width:0%"></div>
             </div>
             <div class="stat-sub" id="ram-detail">— free</div>
-            <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 24" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
-                <path class="sparkline-line" id="sparkpath-ram" d="" stroke-width="0.8"/>
+            <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 32" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="grad-ram" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--blue)" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="var(--blue)" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <path class="sparkline-area" id="sparkarea-ram" d="" fill="url(#grad-ram)"/>
+                <path class="sparkline-line" id="sparkpath-ram" d="" stroke-width="1.2"/>
             </svg>
         </div>
     </section>
@@ -108,9 +114,15 @@
                 </div>
             </div>
             <div style="font-size:13px; color:var(--blue); font-family:'JetBrains Mono',monospace; margin: 6px 0 4px;" id="batt-volt-current">— V</div>
-            <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 24" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
-                <path class="sparkline-line" id="sparkpath-batt" d="" stroke-width="0.8" style="stroke:var(--blue);"/>
+            <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 32" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="grad-batt" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--green)" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <path class="sparkline-area" id="sparkarea-batt" d="" fill="url(#grad-batt)"/>
+                <path class="sparkline-line" id="sparkpath-batt" d="" stroke-width="1.2" style="stroke:var(--green);"/>
             </svg>
         </div>
     </section>
@@ -160,16 +172,28 @@
             <div class="net-spark-container" style="display:flex; gap:8px; flex:1;">
                 <div class="net-spark-col" style="flex:1; min-width:0; display:flex; flex-direction:column;">
                     <div style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Upload</div>
-                    <svg class="sparkline sparkline-net" id="sparkline-net-up" viewBox="0 0 100 24" preserveAspectRatio="none">
-                        <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
-                        <path class="sparkline-line" id="sparkpath-net-up" d="" stroke-width="0.8" style="stroke:var(--purple);"/>
+                    <svg class="sparkline sparkline-net" id="sparkline-net-up" viewBox="0 0 100 40" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="grad-net-up" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="var(--purple)" stop-opacity="0.4"/>
+                                <stop offset="100%" stop-color="var(--purple)" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <path class="sparkline-area" id="sparkarea-net-up" d="" fill="url(#grad-net-up)"/>
+                        <path class="sparkline-line" id="sparkpath-net-up" d="" stroke-width="1.0" style="stroke:var(--purple);"/>
                     </svg>
                 </div>
                 <div class="net-spark-col" style="flex:1; min-width:0; display:flex; flex-direction:column;">
                     <div style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Download</div>
-                    <svg class="sparkline sparkline-net" id="sparkline-net-down" viewBox="0 0 100 24" preserveAspectRatio="none">
-                        <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
-                        <path class="sparkline-line" id="sparkpath-net-down" d="" stroke-width="0.8" style="stroke:var(--green);"/>
+                    <svg class="sparkline sparkline-net" id="sparkline-net-down" viewBox="0 0 100 40" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="grad-net-down" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="var(--green)" stop-opacity="0.4"/>
+                                <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <path class="sparkline-area" id="sparkarea-net-down" d="" fill="url(#grad-net-down)"/>
+                        <path class="sparkline-line" id="sparkpath-net-down" d="" stroke-width="1.0" style="stroke:var(--green);"/>
                     </svg>
                 </div>
             </div>

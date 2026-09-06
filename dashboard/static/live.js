@@ -15,25 +15,67 @@
         if (buf.length > MAX_BUF) buf.shift();
     }
 
-    function sparkPath(buf) {
-        if (buf.length < 2) return '';
+    /**
+     * Build a smooth Catmull-Rom cubic bezier path for a data buffer.
+     * w/h are the SVG viewBox dimensions.
+     * Returns { line, area } path strings.
+     */
+    function buildSparkPaths(buf, w, h) {
+        w = w || 100; h = h || 32;
+        if (buf.length < 2) return { line: '', area: '' };
+
         var min = Math.min.apply(null, buf);
         var max = Math.max.apply(null, buf);
         var range = max - min || 1;
-        var w = 100, h = 22;
-        var d = '';
-        buf.forEach(function(v, i) {
-            var x = (i / (buf.length - 1)) * w;
-            var y = h - ((v - min) / range) * h;
-            y = Math.max(0, Math.min(h, y));
-            d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+        var pad = h * 0.08; // inset so curve peak never reaches the SVG edge
+
+        // Map buffer values to SVG coordinates
+        var pts = buf.map(function(v, i) {
+            return {
+                x: parseFloat(((i / (buf.length - 1)) * w).toFixed(2)),
+                y: parseFloat((pad + (1 - (v - min) / range) * (h - pad * 2)).toFixed(2))
+            };
         });
-        return d;
+
+        // Catmull-Rom tension
+        var t = 0.4;
+
+        function ctrlPts(p0, p1, p2, p3) {
+            return {
+                cp1x: p1.x + (p2.x - p0.x) * t,
+                cp1y: p1.y + (p2.y - p0.y) * t,
+                cp2x: p2.x - (p3.x - p1.x) * t,
+                cp2y: p2.y - (p3.y - p1.y) * t
+            };
+        }
+
+        var line = 'M' + pts[0].x + ',' + pts[0].y;
+        for (var i = 0; i < pts.length - 1; i++) {
+            var p0 = pts[Math.max(0, i - 1)];
+            var p1 = pts[i];
+            var p2 = pts[i + 1];
+            var p3 = pts[Math.min(pts.length - 1, i + 2)];
+            var c = ctrlPts(p0, p1, p2, p3);
+            line += ' C' + c.cp1x + ',' + c.cp1y + ' ' + c.cp2x + ',' + c.cp2y + ' ' + p2.x + ',' + p2.y;
+        }
+
+        // Area path: follow the line then close along the bottom
+        var last = pts[pts.length - 1];
+        var area = line + ' L' + last.x + ',' + h + ' L' + pts[0].x + ',' + h + ' Z';
+
+        return { line: line, area: area };
     }
 
-    function updateSpark(id, bufKey) {
-        if (buffers[bufKey].length < 2) return;
-        document.getElementById(id).setAttribute('d', sparkPath(buffers[bufKey]));
+    function updateSpark(lineId, bufKey, areaId, svgH) {
+        var buf = buffers[bufKey];
+        if (!buf || buf.length < 2) return;
+        var paths = buildSparkPaths(buf, 100, svgH || 32);
+        var lineEl = document.getElementById(lineId);
+        if (lineEl) lineEl.setAttribute('d', paths.line);
+        if (areaId) {
+            var areaEl = document.getElementById(areaId);
+            if (areaEl) areaEl.setAttribute('d', paths.area);
+        }
     }
 
     /* ---- Format helpers ---- */
@@ -147,7 +189,7 @@
         bar.className = 'progress-bar-inner' + (pct > 85 ? ' crit' : (pct > 70 ? ' warn' : ''));
 
         pushBuf('ram', pct);
-        updateSpark('sparkpath-ram', 'ram');
+        updateSpark('sparkpath-ram', 'ram', 'sparkarea-ram', 32);
     }
 
     function updateBattery(data) {
@@ -171,7 +213,7 @@
 
         if (volt !== null) {
             pushBuf('batt', volt);
-            updateSpark('sparkpath-batt', 'batt');
+            updateSpark('sparkpath-batt', 'batt', 'sparkarea-batt', 32);
         }
     }
 
@@ -200,9 +242,9 @@
         netEl.querySelector('span:last-child').textContent = (rx > 0 || tx > 0) ? 'Active' : 'Idle';
 
         pushBuf('net_up', tx);
-        updateSpark('sparkpath-net-up', 'net_up');
+        updateSpark('sparkpath-net-up', 'net_up', 'sparkarea-net-up', 40);
         pushBuf('net_down', rx);
-        updateSpark('sparkpath-net-down', 'net_down');
+        updateSpark('sparkpath-net-down', 'net_down', 'sparkarea-net-down', 40);
     }
 
     /* ---- Network details (IPs, interface) ---- */
