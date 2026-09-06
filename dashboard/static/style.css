@@ -1318,10 +1318,12 @@ label {
     inset: 0;
     background: rgba(0, 0, 0, 0.7);
     backdrop-filter: blur(6px);
+    z-index: 1;
 }
 
 .modal-content {
     position: relative;
+    z-index: 2;
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-xl);
