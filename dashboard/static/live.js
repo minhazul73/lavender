@@ -262,22 +262,30 @@
         mEl.querySelector('span:last-child').textContent = pct.toFixed(0) + '%';
     }
 
-    /* ---- Thermal (top 3 in bottom card) ---- */
+    /* ---- Thermal (3 key zones in bottom card) ---- */
     function updateThermalTop(data) {
         var zones = data.zones || [];
         if (!zones.length) return;
 
-        // Sort by temperature descending, take top 3
-        var sorted = zones.slice().sort(function(a, b) {
-            var ta = a.temp_celsius || 0;
-            var tb = b.temp_celsius || 0;
-            return tb - ta;
-        }).slice(0, 3);
+        // Pick the 3 zones the user cares about: Battery, GPU, CPU SS0
+        var wanted = ['Battery', 'GPU (Adreno)', 'CPU SS0 (Gold/Big)'];
+        var selected = [];
+        zones.forEach(function(z) {
+            var label = z.display_name || z.name;
+            if (wanted.indexOf(label) >= 0) selected.push(z);
+        });
+        // If any missing, fill from remaining zones
+        if (selected.length < 3) {
+            zones.forEach(function(z) {
+                var label = z.display_name || z.name;
+                if (selected.indexOf(z) < 0 && selected.length < 3) selected.push(z);
+            });
+        }
 
         var container = document.getElementById('thermal-top');
         if (!container) return;
 
-        container.innerHTML = sorted.map(function(z) {
+        container.innerHTML = selected.map(function(z) {
             var temp = z.temp_celsius;
             var label = z.display_name || z.name;
             var cls = '';
