@@ -374,8 +374,33 @@
 /* ---- Process Table ---- */
 .proc-table {
     width: 100%;
+    /* Fixed layout: browser respects our column widths instead of auto-sizing */
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 12px;
+}
+
+/* Process column: greedy — takes all space not claimed by CPU/MEM */
+.proc-table th:first-child,
+.proc-table td:first-child {
+    width: auto; /* fills remaining space */
+}
+
+/* CPU column: just wide enough for "1000.0s" */
+.proc-table th:nth-child(2),
+.proc-table td:nth-child(2) {
+    width: 64px;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* MEM column: just wide enough for "1024 MB" */
+.proc-table th:nth-child(3),
+.proc-table td:nth-child(3) {
+    width: 72px;
+    text-align: right;
+    white-space: nowrap;
+    padding-right: 14px;
 }
 
 .proc-table th {
@@ -406,13 +431,14 @@
     color: var(--text-primary);
 }
 
+/* Process name: expands freely, clips with ellipsis only when truly out of room */
 .proc-table .proc-name {
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
-    max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* No max-width — table-layout:fixed + column widths handle the constraint */
 }
 
 /* ---- Services Donut ---- */
