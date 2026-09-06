@@ -371,6 +371,9 @@ body::before {
     box-shadow: var(--shadow-card);
     transition: var(--transition);
     position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .card::before {
@@ -455,6 +458,9 @@ body::before {
 
 .card-body {
     padding: 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .card-actions {
