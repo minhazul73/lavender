@@ -163,14 +163,14 @@
                 <div style="font-size:16px; color:var(--green);" id="net-down-middle">↓ —</div>
             </div>
             <div class="net-spark-container" style="display:flex; gap:8px; flex:1;">
-                <div class="net-spark-col" style="flex:1; min-width:0;">
+                <div class="net-spark-col" style="flex:1; min-width:0; display:flex; flex-direction:column;">
                     <div style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Upload</div>
                     <svg class="sparkline sparkline-net" id="sparkline-net-up" viewBox="0 0 100 24" preserveAspectRatio="none">
                         <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
                         <path class="sparkline-line" id="sparkpath-net-up" d="" stroke-width="0.8" style="stroke:var(--purple);"/>
                     </svg>
                 </div>
-                <div class="net-spark-col" style="flex:1; min-width:0;">
+                <div class="net-spark-col" style="flex:1; min-width:0; display:flex; flex-direction:column;">
                     <div style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Download</div>
                     <svg class="sparkline sparkline-net" id="sparkline-net-down" viewBox="0 0 100 24" preserveAspectRatio="none">
                         <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
