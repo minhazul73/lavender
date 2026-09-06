@@ -105,6 +105,30 @@ function formatBytes(bytes, decimals = 1) {
 }
 
 /**
+ * Sidebar toggle — collapse/expand with localStorage persistence
+ */
+function sidebarToggle() {
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.querySelector('.main');
+    
+    // Restore saved state
+    const collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+    if (collapsed) {
+        sidebar.classList.add('collapsed');
+        if (main) main.classList.add('sidebar-collapsed');
+        toggleBtn.classList.add('active');
+    }
+    
+    toggleBtn.addEventListener('click', function() {
+        const isCollapsed = sidebar.classList.toggle('collapsed');
+        if (main) main.classList.toggle('sidebar-collapsed', isCollapsed);
+        toggleBtn.classList.toggle('active', isCollapsed);
+        localStorage.setItem('sidebar-collapsed', isCollapsed);
+    });
+}
+
+/**
  * HTMX event handlers for common patterns
  */
 document.addEventListener('DOMContentLoaded', function() {
@@ -112,4 +136,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.htmx) {
         htmx.process(document.body);
     }
+
+    sidebarToggle();
 });
