@@ -123,19 +123,10 @@
             <span class="card-title">Storage</span>
             <a href="/storage" class="card-link">→</a>
         </div>
-        <div class="card-body">
-            <div class="stat-main" id="store-used" style="color: var(--orange);">—</div>
-            <div class="stat-sub" id="store-pct">—% used</div>
-            <div class="progress-bar-outer">
-                <div class="progress-bar-inner" id="store-bar" style="width:0%; background: linear-gradient(90deg,var(--orange),#ef4444);"></div>
+        <div class="card-body" style="padding: 10px 14px;">
+            <div id="store-mounts" style="display:flex; flex-direction:column; gap:10px;">
+                <div style="color:var(--text-muted); font-size:12px;">Loading storage…</div>
             </div>
-            <div class="stat-sub" id="store-detail">— / —</div>
-            <div class="stat-sub" id="store-free" style="display:none;">—</div>
-            <div class="stat-sub" id="store-total" style="display:none;">—</div>
-            <svg class="sparkline" id="sparkline-stor" viewBox="0 0 100 24" preserveAspectRatio="none">
-                <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
-                <path class="sparkline-line" id="sparkpath-stor" d="" stroke-width="0.8" style="stroke: var(--orange);"/>
-            </svg>
         </div>
     </section>
 

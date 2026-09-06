@@ -264,25 +264,59 @@
     /* ---- Storage ---- */
     function updateStorage(data) {
         var disks = data.disks || [];
+        if (!disks.length) return;
+
+        // Health pill — use root disk percentage
         var root = null;
         for (var i = 0; i < disks.length; i++) {
             if (disks[i].mount === '/') { root = disks[i]; break; }
         }
         if (!root && disks.length > 0) root = disks[0];
-        if (!root) return;
 
-        var pct = root.use_pct !== null && root.use_pct !== undefined ? root.use_pct : 0;
-        document.getElementById('store-used').textContent = root.used || 'N/A';
-        document.getElementById('store-free').textContent = root.avail || 'N/A';
-        document.getElementById('store-pct').textContent = pct + '%';
-        document.getElementById('store-total').textContent = root.size || 'N/A';
-        document.getElementById('store-detail').textContent = (root.used || '?') + ' / ' + (root.size || '?');
-        document.getElementById('store-bar').style.width = pct + '%';
-        document.getElementById('store-bar').className = 'progress-bar-inner' + (pct > 90 ? ' crit' : (pct > 80 ? ' warn' : ''));
-
+        var rootPct = root ? _pctNum(root) : 0;
         var dEl = document.getElementById('health-disk');
-        dEl.className = 'health-pill' + (pct > 90 ? ' crit' : (pct > 80 ? ' warn' : ' good'));
-        dEl.querySelector('span:last-child').textContent = pct + '%';
+        if (dEl) {
+            dEl.className = 'health-pill' + (rootPct > 90 ? ' crit' : (rootPct > 80 ? ' warn' : ' good'));
+            dEl.querySelector('span:last-child').textContent = rootPct + '%';
+        }
+
+        // Render all mounts in the storage card body
+        var container = document.getElementById('store-mounts');
+        if (!container) return;
+
+        // Sort: non-external first (root), then external
+        var sorted = disks.slice().sort(function(a, b) {
+            var aExt = a.is_external ? 1 : 0;
+            var bExt = b.is_external ? 1 : 0;
+            return aExt - bExt || (a.mount > b.mount ? 1 : -1);
+        });
+
+        container.innerHTML = sorted.map(function(d) {
+            var pct = _pctNum(d);
+            var barClass = pct > 90 ? ' crit' : (pct > 80 ? ' warn' : '');
+            var isExt = d.is_external ? ' is-external' : '';
+            var mountDisplay = d.mount === '/' ? 'System (' + d.mount + ')' : d.mount;
+            var icon = d.is_external ? '💾' : '📁';
+            var used = d.used || '?', total = d.size || '?', avail = d.avail || '?';
+            return '<div class="store-mount' + isExt + '">'
+                + '<div class="store-mount-header">'
+                +  '<span class="store-mount-icon">' + icon + '</span>'
+                +  '<span class="store-mount-label">' + mountDisplay + '</span>'
+                +  '<span class="store-mount-pct">' + pct + '%</span>'
+                + '</div>'
+                + '<div class="store-mount-bar-wrap">'
+                +  '<div class="store-mount-bar' + barClass + '" style="width:' + pct + '%"></div>'
+                + '</div>'
+                + '<div class="store-mount-detail">'
+                +  used + ' / ' + total + ' · ' + avail + ' free'
+                + '</div>'
+                + '</div>';
+        }).join('');
+    }
+
+    function _pctNum(d) {
+        if (d.pct_num !== undefined) return d.pct_num;
+        return parseInt((d.use_pct || '0').replace('%', '')) || 0;
     }
 
     /* ---- Services ---- */
@@ -352,61 +386,6 @@
         }).join('');
     }
 
-    /* ---- System Activity chart (canvas-based, premium) ---- */
-    var chartData = { cpu: [], mem: [] };
-    function renderChart() {
-        if (latest.cpu) chartData.cpu.push(latest.cpu.load5 || 0);
-        if (latest.ram) chartData.mem.push(latest.ram.used_pct || 0);
-        if (chartData.cpu.length > 60) chartData.cpu.shift();
-        if (chartData.mem.length > 60) chartData.mem.shift();
-
-        var canvas = document.getElementById('chart-activity');
-        if (!canvas) return;
-        var ctx = canvas.getContext('2d');
-        var w = canvas.width, h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
-
-        // Subtle horizontal grid lines
-        ctx.strokeStyle = 'rgba(99,179,237,0.05)';
-        ctx.lineWidth = 1;
-        for (var gi = 0; gi <= 4; gi++) {
-            var gy = Math.round((gi / 4) * h) + 0.5;
-            ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
-        }
-
-        var maxV = 100;
-
-        function drawGradientLine(data, lineColor, gradTop, gradBot) {
-            if (data.length < 2) return;
-            var len = data.length;
-            // Filled area
-            ctx.beginPath();
-            data.forEach(function(v, i) {
-                var x = (i / (len - 1)) * w;
-                var y = h - Math.min(100, Math.max(0, v)) / maxV * h;
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            });
-            ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
-            var grad = ctx.createLinearGradient(0, 0, 0, h);
-            grad.addColorStop(0, gradTop); grad.addColorStop(1, gradBot);
-            ctx.fillStyle = grad; ctx.fill();
-            // Stroke line with glow
-            ctx.beginPath();
-            data.forEach(function(v, i) {
-                var x = (i / (len - 1)) * w;
-                var y = h - Math.min(100, Math.max(0, v)) / maxV * h;
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            });
-            ctx.strokeStyle = lineColor; ctx.lineWidth = 2;
-            ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-            ctx.shadowColor = lineColor; ctx.shadowBlur = 8;
-            ctx.stroke(); ctx.shadowBlur = 0;
-        }
-
-        drawGradientLine(chartData.mem, '#3b82f6', 'rgba(59,130,246,0.2)', 'rgba(59,130,246,0.01)');
-        drawGradientLine(chartData.cpu, '#a855f7', 'rgba(168,85,247,0.25)', 'rgba(168,85,247,0.01)');
-    }
-
     /* ---- Top processes (table) ---- */
     function updateTopProcesses(data) {
         var procs = data.processes || [];
@@ -445,8 +424,8 @@
                 return;
             }
             var data = msg.data;
-            if (metric === 'cpu') { updateCpu(data); renderChart(); }
-            else if (metric === 'ram') { updateRam(data); renderChart(); }
+            if (metric === 'cpu') { updateCpu(data); }
+            else if (metric === 'ram') { updateRam(data); }
             else if (metric === 'thermal') updateThermal(data);
             else if (metric === 'battery') { updateBattery(data); updateBatteryPill(); }
             else if (metric === 'network') updateNetwork(data);
