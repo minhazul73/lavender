@@ -514,5 +514,5 @@
     fetchJson('/api/system/services').then(function(d) { if (d) updateServices(d); });
     fetchJson('/api/system/logs?limit=10').then(function(d) { if (d) updateLogs(d); });
     fetchJson('/api/device/network').then(function(d) { if (d) updateNetworkDetails(d); });
-    fetchJson('/api/system/processes?sort_by=mem&limit=5').then(function(d) { if (d) updateTopProcesses(d); });
+    fetchJson('/api/system/processes?sort_by=mem&limit=6').then(function(d) { if (d) updateTopProcesses(d); });
 })();
