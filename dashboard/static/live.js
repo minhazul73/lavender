@@ -268,17 +268,17 @@
         if (!zones.length) return;
 
         // Pick the 3 zones the user cares about: Battery, GPU, CPU SS0
-        var wanted = ['Battery', 'GPU (Adreno)', 'CPU SS0 (Gold/Big)'];
+        var wanted = ['AOSS (Always-On Sensor)', 'GPU (Adreno)', 'CPU SS0 (Gold/Big)', 'CPU SS1 (LITTLE)'];
         var selected = [];
         zones.forEach(function(z) {
             var label = z.display_name || z.name;
             if (wanted.indexOf(label) >= 0) selected.push(z);
         });
         // If any missing, fill from remaining zones
-        if (selected.length < 3) {
+        if (selected.length < 4) {
             zones.forEach(function(z) {
                 var label = z.display_name || z.name;
-                if (selected.indexOf(z) < 0 && selected.length < 3) selected.push(z);
+                if (selected.indexOf(z) < 0 && selected.length < 4) selected.push(z);
             });
         }
 
