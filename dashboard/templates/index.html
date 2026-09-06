@@ -102,9 +102,11 @@
         <div class="card-body" style="padding: 10px 14px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <div class="stat-main" id="batt-pct" style="color: var(--green); font-size: 26px;">—</div>
-                <div class="stat-sub" id="batt-state" style="color: var(--text-muted); font-size: 11px;">—</div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+                    <div class="stat-sub" id="batt-state" style="color: var(--text-muted); font-size: 11px;">—</div>
+                    <div class="stat-sub" id="batt-temp" style="color: var(--text-muted); font-size: 11px;">—°C</div>
+                </div>
             </div>
-            <div class="stat-sub" id="batt-temp" style="margin-top:2px;">—°C</div>
             <div style="font-size:13px; color:var(--blue); font-family:'JetBrains Mono',monospace; margin: 6px 0 4px;" id="batt-volt-current">— V</div>
             <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 24" preserveAspectRatio="none">
                 <rect class="sparkline-bg" x="0" y="0" width="100" height="24"/>
