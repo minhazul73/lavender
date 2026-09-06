@@ -475,6 +475,23 @@ class ThermalZone:
     crit: bool = False
 
 
+# Thermal zone name mapping for readable labels
+THERMAL_NAME_MAP = {
+    "aoss_thermal": "AOSS (Always-On Sensor)",
+    "cpuss0_thermal": "CPU SS0 (Gold/Big)",
+    "cpuss1_thermal": "CPU SS1 (LITTLE)",
+    "cpu0_thermal": "CPU0 (Gold)",
+    "cpu1_thermal": "CPU1 (Gold)",
+    "cpu2_thermal": "CPU2 (LITTLE)",
+    "cpu3_thermal": "CPU3 (LITTLE)",
+    "pwr_cluster_thermal": "Power Cluster",
+    "gpu_thermal": "GPU (Adreno)",
+    "qcom_battery": "Battery",
+    "pm660_thermal": "PM660 (PMIC)",
+    "pm660l_thermal": "PM660L (PMIC)",
+}
+
+
 class ThermalCollector(MetricCollector):
     """Collects thermal zone data from hwmon and platform device sysfs.
 
@@ -518,6 +535,7 @@ class ThermalCollector(MetricCollector):
                         zone_name = f"{zone_name}-{temp_i}"
                     zones.append({
                         "name": zone_name,
+                        "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
                         "type": dev_type,
                         "temp_millicelsius": temp_val,
                         "temp_celsius": tc,
@@ -540,6 +558,7 @@ class ThermalCollector(MetricCollector):
                     crit = tc >= 90.0
                     zones.append({
                         "name": dev_name,
+                        "display_name": THERMAL_NAME_MAP.get(dev_name, dev_name),
                         "type": "platform-thermal",
                         "temp_millicelsius": temp_val,
                         "temp_celsius": tc,
@@ -562,6 +581,7 @@ class ThermalCollector(MetricCollector):
                     crit = tc >= 90.0
                     zones.append({
                         "name": zone_name,
+                        "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
                         "type": dev_type,
                         "temp_millicelsius": temp_val,
                         "temp_celsius": tc,

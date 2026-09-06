@@ -167,7 +167,7 @@
     .middle-row { grid-template-columns: 1fr; }
 }
 
-/* ---- Bottom row: Services (compact) | Network Info (medium) | Recent Logs (wide) ---- */
+/* ---- Bottom row: Services (compact) | Thermal (medium) | Recent Logs (wide) ---- */
 /* Logs contain long text lines — give them the most space */
 .bottom-row {
     display: grid;
@@ -275,7 +275,7 @@
 }
 
 .card-ram .sparkline-line { stroke: var(--blue); filter: drop-shadow(0 1px 2px rgba(59,130,246,0.4)); }
-.card-battery .sparkline-line { stroke: var(--green); filter: drop-shadow(0 1px 2px rgba(16,185,129,0.4)); }
+.card-battery .sparkline-line { stroke: var(--blue); filter: drop-shadow(0 1px 2px rgba(59,130,246,0.4)); }
 #sparkpath-net-up { filter: drop-shadow(0 1px 2px rgba(168,85,247,0.4)); }
 #sparkpath-net-down { filter: drop-shadow(0 1px 2px rgba(16,185,129,0.4)); }
 .card-network .sparkline-line { stroke: var(--purple); }
@@ -695,12 +695,14 @@
 .card-battery { --card-accent: var(--green); }
 .card-network { --card-accent: var(--purple); }
 .card-storage { --card-accent: var(--orange); }
+.card-thermal { --card-accent: var(--orange); }
 
 .card-cpu::after,
 .card-ram::after,
 .card-battery::after,
 .card-network::after,
-.card-storage::after {
+.card-storage::after,
+.card-thermal::after {
     content: '';
     position: absolute;
     top: 0;
@@ -718,6 +720,7 @@
 .card-battery:hover { box-shadow: var(--shadow-lg), 0 0 20px rgba(16,185,129,0.15); }
 .card-network:hover { box-shadow: var(--shadow-lg), 0 0 20px rgba(168,85,247,0.15); }
 .card-storage:hover { box-shadow: var(--shadow-lg), 0 0 20px rgba(249,115,22,0.15); }
+.card-thermal:hover { box-shadow: var(--shadow-lg), 0 0 20px rgba(249,115,22,0.15); }
 
 /* ---- Section entry animations ---- */
 .metrics-row > *,

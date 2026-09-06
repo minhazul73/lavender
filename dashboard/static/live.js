@@ -262,6 +262,36 @@
         mEl.querySelector('span:last-child').textContent = pct.toFixed(0) + '%';
     }
 
+    /* ---- Thermal (top 3 in bottom card) ---- */
+    function updateThermalTop(data) {
+        var zones = data.zones || [];
+        if (!zones.length) return;
+
+        // Sort by temperature descending, take top 3
+        var sorted = zones.slice().sort(function(a, b) {
+            var ta = a.temp_celsius || 0;
+            var tb = b.temp_celsius || 0;
+            return tb - ta;
+        }).slice(0, 3);
+
+        var container = document.getElementById('thermal-top');
+        if (!container) return;
+
+        container.innerHTML = sorted.map(function(z) {
+            var temp = z.temp_celsius;
+            var label = z.display_name || z.name;
+            var cls = '';
+            if (temp >= 90) cls = 'crit';
+            else if (temp >= 70) cls = 'warn';
+
+            return '<div style="display:flex; justify-content:space-between; align-items:center;">'
+                + '<span style="font-size:11px; color:var(--text-secondary);">' + label + '</span>'
+                + '<span style="font-size:11px; font-family:JetBrains Mono,monospace; color:' + (cls ? 'var(--' + cls + ')' : 'var(--text-primary)') + ';">'
+                + (temp !== null ? temp.toFixed(1) + '°C' : '—°C') + '</span>'
+                + '</div>';
+        }).join('');
+    }
+
     /* ---- Storage ---- */
     function updateStorage(data) {
         var disks = data.disks || [];
@@ -493,6 +523,6 @@
     fetchJson('/api/system/storage').then(function(d) { if (d) updateStorage(d); });
     fetchJson('/api/system/services').then(function(d) { if (d) updateServices(d); });
     fetchJson('/api/system/logs?limit=10').then(function(d) { if (d) updateLogs(d); });
-    fetchJson('/api/device/network').then(function(d) { if (d) updateNetworkDetails(d); });
+    fetchJson('/api/device/battery').then(function(d) { if (d && d.thermal) updateThermalTop({zones: d.thermal}); });
     fetchJson('/api/system/processes?sort_by=mem&limit=6').then(function(d) { if (d) updateTopProcesses(d); });
 })();
