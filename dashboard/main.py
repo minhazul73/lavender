@@ -2,10 +2,27 @@
 FastAPI application for Device Dashboard.
 """
 import os
+import subprocess
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
+
+
+def _get_git_hash() -> str:
+    """Get the short git hash for cache-busting static assets."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except Exception:
+        return "dev"
+
+
+_GIT_HASH = _get_git_hash()
 
 
 class Templates:
@@ -22,7 +39,7 @@ class Templates:
     def TemplateResponse(self, request: Request, name: str, context: dict) -> HTMLResponse:
         """Render a template. Signature matches Jinja2Templates for drop-in use."""
         tmpl = self._env.get_template(name)
-        body = tmpl.render(**context)
+        body = tmpl.render(**context, git_hash=_GIT_HASH)
         return HTMLResponse(content=body, status_code=200, media_type="text/html")
 
 
