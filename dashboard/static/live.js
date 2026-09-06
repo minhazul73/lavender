@@ -168,8 +168,8 @@
         document.getElementById('batt-temp').textContent = temp !== null ? temp.toFixed(1) + '°C' : '—°C';
         document.getElementById('batt-volt').textContent = volt !== null ? volt.toFixed(2) + ' V' : '— V';
 
-        if (pct !== null) {
-            pushBuf('batt', pct);
+        if (volt !== null) {
+            pushBuf('batt', volt);
             updateSpark('sparkpath-batt', 'batt');
         }
     }
