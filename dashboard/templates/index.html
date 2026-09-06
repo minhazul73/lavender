@@ -280,15 +280,15 @@
         <div class="card-header">
             <span class="card-icon" style="background:rgba(249,115,22,0.12); color:var(--orange);">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="9"/><path d="M12 2v10l3 3"/>
+                    <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
                 </svg>
             </span>
             <span class="card-title">Thermal</span>
             <a href="/thermal" class="card-link">→</a>
         </div>
-        <div class="card-body" style="padding: 10px 14px; flex: 1;">
-            <div id="thermal-top" style="display:flex; flex-direction:column; gap:6px;">
-                <div style="color:var(--text-muted); font-size:11px;">Loading thermal data…</div>
+        <div class="card-body thermal-card-body">
+            <div id="thermal-top" class="thermal-zones">
+                <div class="thermal-loading">Loading thermal data…</div>
             </div>
         </div>
     </section>

@@ -262,22 +262,20 @@
         mEl.querySelector('span:last-child').textContent = pct.toFixed(0) + '%';
     }
 
-    /* ---- Thermal (3 key zones in bottom card) ---- */
+    /* ---- Thermal (gauge-style zones in bottom card) ---- */
     function updateThermalTop(data) {
         var zones = data.zones || [];
         if (!zones.length) return;
 
-        // Pick the 3 zones the user cares about: Battery, GPU, CPU SS0
+        // Priority zones to show
         var wanted = ['AOSS (Always-On Sensor)', 'GPU (Adreno)', 'CPU SS0 (Gold/Big)', 'CPU SS1 (LITTLE)'];
         var selected = [];
         zones.forEach(function(z) {
             var label = z.display_name || z.name;
             if (wanted.indexOf(label) >= 0) selected.push(z);
         });
-        // If any missing, fill from remaining zones
         if (selected.length < 4) {
             zones.forEach(function(z) {
-                var label = z.display_name || z.name;
                 if (selected.indexOf(z) < 0 && selected.length < 4) selected.push(z);
             });
         }
@@ -285,18 +283,73 @@
         var container = document.getElementById('thermal-top');
         if (!container) return;
 
-        container.innerHTML = selected.map(function(z) {
-            var temp = z.temp_celsius;
-            var label = z.display_name || z.name;
-            var cls = '';
-            if (temp >= 90) cls = 'crit';
-            else if (temp >= 70) cls = 'warn';
+        // Map zone labels to short display names + icon paths
+        function zoneIcon(label) {
+            var l = label.toLowerCase();
+            if (l.indexOf('gpu') >= 0)    return '<path d="M2 4h20v12H2z M8 20h8 M12 16v4"/>';
+            if (l.indexOf('cpu') >= 0)    return '<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/>';
+            if (l.indexOf('aoss') >= 0 || l.indexOf('always') >= 0)
+                                          return '<path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>';
+            return '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+        }
 
-            return '<div style="display:flex; justify-content:space-between; align-items:center;">'
-                + '<span style="font-size:11px; color:var(--text-secondary);">' + label + '</span>'
-                + '<span style="font-size:11px; font-family:JetBrains Mono,monospace; color:' + (cls ? 'var(--' + cls + ')' : 'var(--text-primary)') + ';">'
-                + (temp !== null ? temp.toFixed(1) + '°C' : '—°C') + '</span>'
-                + '</div>';
+        function shortLabel(label) {
+            if (label.indexOf('AOSS') >= 0)    return 'Always-On';
+            if (label.indexOf('Gold') >= 0)    return 'CPU Big';
+            if (label.indexOf('LITTLE') >= 0)  return 'CPU Little';
+            if (label.indexOf('GPU') >= 0)     return 'GPU';
+            // Trim long names
+            return label.length > 16 ? label.slice(0, 15) + '…' : label;
+        }
+
+        // Color stops: cool(≤45) → good(45-60) → warn(60-80) → crit(≥80)
+        function tempColor(t) {
+            if (t >= 80) return 'var(--red)';
+            if (t >= 60) return 'var(--yellow)';
+            if (t >= 45) return 'var(--orange)';
+            return 'var(--green)';
+        }
+
+        function heatGradient(t) {
+            if (t >= 80) return 'linear-gradient(90deg, #f97316, #ef4444)';
+            if (t >= 60) return 'linear-gradient(90deg, #f59e0b, #f97316)';
+            if (t >= 45) return 'linear-gradient(90deg, var(--orange), #f59e0b)';
+            return 'linear-gradient(90deg, var(--green), #06b6d4)';
+        }
+
+        // Bar fill: 20°C = 0%, 100°C = 100%
+        function heatPct(t) {
+            return Math.max(0, Math.min(100, ((t - 20) / 80) * 100)).toFixed(1);
+        }
+
+        container.innerHTML = selected.map(function(z) {
+            var temp  = z.temp_celsius;
+            var label = z.display_name || z.name;
+            var pct   = heatPct(temp);
+            var col   = tempColor(temp);
+            var grad  = heatGradient(temp);
+            var icon  = zoneIcon(label);
+            var short = shortLabel(label);
+            var tempStr = (temp !== null) ? temp.toFixed(1) + '°C' : '—';
+
+            return [
+                '<div class="tz-row">',
+                  '<div class="tz-icon">',
+                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none"',
+                    ' stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">',
+                    icon, '</svg>',
+                  '</div>',
+                  '<div class="tz-body">',
+                    '<div class="tz-meta">',
+                      '<span class="tz-label">' + short + '</span>',
+                      '<span class="tz-badge" style="color:' + col + '; border-color:' + col + ';">' + tempStr + '</span>',
+                    '</div>',
+                    '<div class="tz-track">',
+                      '<div class="tz-fill" style="width:' + pct + '%; background:' + grad + ';"></div>',
+                    '</div>',
+                  '</div>',
+                '</div>'
+            ].join('');
         }).join('');
     }
 
