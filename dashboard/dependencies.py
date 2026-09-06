@@ -13,13 +13,25 @@ def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     """
     Run a command and return (returncode, stdout, stderr).
     cmd should be a list of arguments.
+    
+    Preserves XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS from the
+    parent environment so systemctl --user commands work correctly.
     """
     try:
+        env = os.environ.copy()
+        # Ensure XDG_RUNTIME_DIR is set for systemd --user commands
+        if "XDG_RUNTIME_DIR" not in env:
+            uid = os.getuid()
+            env["XDG_RUNTIME_DIR"] = f"/run/user/{uid}"
+        if "DBUS_SESSION_BUS_ADDRESS" not in env:
+            rd = env.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}")
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={rd}/systemd/private"
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
         return result.returncode, result.stdout.strip(), result.stderr.strip()
     except subprocess.TimeoutExpired:
