@@ -246,54 +246,59 @@
             <span class="card-title">Services</span>
             <a href="/services" class="card-link">→</a>
         </div>
-        <div class="card-body" style="text-align:center; padding:14px;">
-            <!-- Premium donut chart -->
-            <div class="svc-donut-wrap">
-                <svg viewBox="0 0 36 36">
-                    <!-- Background track -->
-                    <circle class="svc-donut-bg" cx="18" cy="18" r="15.5"/>
-                    <!-- Failed (red) -->
-                    <circle id="svc-donut-failed"
-                        class="svc-donut-track"
-                        cx="18" cy="18" r="15.5"
-                        stroke="#ef4444"
-                        stroke-dasharray="0 100"
-                        stroke-dashoffset="0"
-                        style="filter:drop-shadow(0 0 4px rgba(239,68,68,0.5))"/>
-                    <!-- Inactive (yellow) -->
-                    <circle id="svc-donut-inactive"
-                        class="svc-donut-track"
-                        cx="18" cy="18" r="15.5"
-                        stroke="#f59e0b"
-                        stroke-dasharray="0 100"
-                        stroke-dashoffset="0"
-                        style="filter:drop-shadow(0 0 4px rgba(245,158,11,0.4))"/>
-                    <!-- Active (green) -->
-                    <circle id="svc-donut-active"
-                        class="svc-donut-track"
-                        cx="18" cy="18" r="15.5"
-                        stroke="#10b981"
-                        stroke-dasharray="0 100"
-                        stroke-dashoffset="0"
-                        style="filter:drop-shadow(0 0 4px rgba(16,185,129,0.5))"/>
-                </svg>
-                <div class="svc-donut-label">
-                    <span class="total" id="svc-total-donut">—</span>
-                    <span class="label">total</span>
+        <div class="card-body svc-card-body">
+            <div class="svc-layout">
+                <!-- Donut Chart -->
+                <div class="svc-donut-wrap">
+                    <svg viewBox="0 0 36 36">
+                        <circle class="svc-donut-bg" cx="18" cy="18" r="15.5"/>
+                        <circle id="svc-donut-failed"
+                            class="svc-donut-track"
+                            cx="18" cy="18" r="15.5"
+                            stroke="#ef4444"
+                            stroke-dasharray="0 100"
+                            stroke-dashoffset="0"/>
+                        <circle id="svc-donut-inactive"
+                            class="svc-donut-track"
+                            cx="18" cy="18" r="15.5"
+                            stroke="#f59e0b"
+                            stroke-dasharray="0 100"
+                            stroke-dashoffset="0"/>
+                        <circle id="svc-donut-active"
+                            class="svc-donut-track"
+                            cx="18" cy="18" r="15.5"
+                            stroke="#10b981"
+                            stroke-dasharray="0 100"
+                            stroke-dashoffset="0"/>
+                    </svg>
+                    <div class="svc-donut-label">
+                        <span class="total" id="svc-total-donut">—</span>
+                        <span class="label">total</span>
+                    </div>
                 </div>
-            </div>
-            <div class="svc-legend">
-                <div class="svc-legend-item" style="color:var(--green);">
-                    <span class="svc-legend-dot" style="background:var(--green);"></span>
-                    <span id="svc-active-count">0</span>
-                </div>
-                <div class="svc-legend-item" style="color:var(--yellow);">
-                    <span class="svc-legend-dot" style="background:var(--yellow);"></span>
-                    <span id="svc-inactive-count">0</span>
-                </div>
-                <div class="svc-legend-item" style="color:var(--red);">
-                    <span class="svc-legend-dot" style="background:var(--red);"></span>
-                    <span id="svc-failed-count">0</span>
+                <!-- Stat Rows -->
+                <div class="svc-stats">
+                    <div class="svc-stat-row">
+                        <span class="svc-stat-bar" style="background:var(--green);"></span>
+                        <div class="svc-stat-info">
+                            <span class="svc-stat-count" id="svc-active-count" style="color:var(--green);">0</span>
+                            <span class="svc-stat-label">Active</span>
+                        </div>
+                    </div>
+                    <div class="svc-stat-row">
+                        <span class="svc-stat-bar" style="background:var(--yellow);"></span>
+                        <div class="svc-stat-info">
+                            <span class="svc-stat-count" id="svc-inactive-count" style="color:var(--yellow);">0</span>
+                            <span class="svc-stat-label">Inactive</span>
+                        </div>
+                    </div>
+                    <div class="svc-stat-row">
+                        <span class="svc-stat-bar" style="background:var(--red);"></span>
+                        <div class="svc-stat-info">
+                            <span class="svc-stat-count" id="svc-failed-count" style="color:var(--red);">0</span>
+                            <span class="svc-stat-label">Failed</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
