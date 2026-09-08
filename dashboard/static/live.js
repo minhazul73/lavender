@@ -560,7 +560,7 @@
             var data = msg.data;
             if (metric === 'cpu') { updateCpu(data); }
             else if (metric === 'ram') { updateRam(data); }
-            else if (metric === 'thermal') { updateThermal(data); updateThermalTop(data); }
+            else if (metric === 'thermal') { updateThermal(data); updateThermalTop({zones: data}); }
             else if (metric === 'battery') { updateBattery(data); updateBatteryPill(); }
             else if (metric === 'network') updateNetwork(data);
         } catch (err) {
