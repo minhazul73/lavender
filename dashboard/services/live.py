@@ -478,17 +478,29 @@ class ThermalZone:
 # Thermal zone name mapping for readable labels
 THERMAL_NAME_MAP = {
     "aoss_thermal": "AOSS (Always-On Sensor)",
+    "aoss-thermal": "AOSS (Always-On Sensor)",
     "cpuss0_thermal": "CPU SS0 (Gold/Big)",
+    "cpuss0-thermal": "CPU SS0 (Gold/Big)",
     "cpuss1_thermal": "CPU SS1 (LITTLE)",
+    "cpuss1-thermal": "CPU SS1 (LITTLE)",
     "cpu0_thermal": "CPU0 (Gold)",
+    "cpu0-thermal": "CPU0 (Gold)",
     "cpu1_thermal": "CPU1 (Gold)",
+    "cpu1-thermal": "CPU1 (Gold)",
     "cpu2_thermal": "CPU2 (LITTLE)",
+    "cpu2-thermal": "CPU2 (LITTLE)",
     "cpu3_thermal": "CPU3 (LITTLE)",
+    "cpu3-thermal": "CPU3 (LITTLE)",
     "pwr_cluster_thermal": "Power Cluster",
+    "pwr-cluster-thermal": "Power Cluster",
     "gpu_thermal": "GPU (Adreno)",
+    "gpu-thermal": "GPU (Adreno)",
     "qcom_battery": "Battery",
+    "qcom-battery": "Battery",
     "pm660_thermal": "PM660 (PMIC)",
+    "pm660-thermal": "PM660 (PMIC)",
     "pm660l_thermal": "PM660L (PMIC)",
+    "pm660l-thermal": "PM660L (PMIC)",
 }
 
 
@@ -529,10 +541,10 @@ class ThermalCollector(MetricCollector):
                     warning = tc >= 70.0
                     crit = tc >= 90.0
                     zone_name = f"{label}" if label else f"hwmon-{hwmon_name}-{temp_i}"
-                    if zone_name not in seen_names:
-                        seen_names.add(zone_name)
-                    else:
-                        zone_name = f"{zone_name}-{temp_i}"
+                    norm_type = dev_type.replace("-", "_")
+                    if norm_type in seen_names:
+                        continue  # already found via a previous source (e.g. platform)
+                    seen_names.add(norm_type)
                     zones.append({
                         "name": zone_name,
                         "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
@@ -573,9 +585,15 @@ class ThermalCollector(MetricCollector):
                 zone_dir = os.path.join(thermal_path, zone_name)
                 type_file = os.path.join(zone_dir, "type")
                 dev_type = _read_file(type_file) or "thermal"
+                # Normalize: use underscores consistently for dedup key
+                norm_type = dev_type.replace("-", "_")
                 temp_file = os.path.join(zone_dir, "temp")
                 temp_val = _read_int(temp_file, 0)
                 if temp_val > 0:
+                    # Skip duplicates already found via hwmon (same dev_type, normalized)
+                    if norm_type in seen_names:
+                        continue
+                    seen_names.add(norm_type)
                     tc = temp_val / 1000.0
                     warning = tc >= 70.0
                     crit = tc >= 90.0
