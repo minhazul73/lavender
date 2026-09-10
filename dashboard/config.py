@@ -1,3 +1,6 @@
+import os
+import secrets
+
 PORT = 8080
 HOST = "0.0.0.0"
 DEBUG = False
@@ -43,3 +46,17 @@ SSE_RAM_BUFFER = 20
 SSE_THERMAL_BUFFER = 20
 SSE_BATTERY_BUFFER = 30
 SSE_NETWORK_BUFFER = 30
+
+# ===== Auth & Session Settings =====
+SESSION_COOKIE_NAME = "rn7_session"
+SESSION_MAX_IDLE_MINUTES = 60
+ADMIN_ELEVATION_TIMEOUT_MINUTES = 15
+SESSION_SECRET_KEY = os.environ.get("DASHBOARD_SECRET_KEY", "rn7-dashboard-secret-key-default-2026")
+
+# SSH Loopback Bridge Settings
+SSH_LOOPBACK_HOST = os.environ.get("SSH_HOST", "127.0.0.1")
+SSH_LOOPBACK_PORT = int(os.environ.get("SSH_PORT", "22"))
+SSH_LOGIN_TIMEOUT = 10  # seconds
+
+# Rate Limiting
+LOGIN_RATE_LIMIT = "10/minute"

@@ -1,8 +1,13 @@
 """
 API routes for device-level operations.
+Protected with session authentication and privilege verification.
 """
-from fastapi import APIRouter, Query, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Query, HTTPException, Depends
 
+from dashboard.auth.session import UserSession
+from dashboard.auth.deps import require_session, require_admin, get_current_session
+from dashboard.dependencies import run_session_sudo
 from dashboard.services.network import (
     get_ip_addresses,
     get_wifi_info,
@@ -35,14 +40,13 @@ from dashboard.services.power import (
     suspend,
 )
 
-
 router = APIRouter()
 
 
 # ---- Network ----
 
 @router.get("/device/network")
-async def api_network():
+async def api_network(session: UserSession = Depends(require_session)):
     """Get network information."""
     return {
         "interfaces": get_ip_addresses(),
@@ -53,7 +57,10 @@ async def api_network():
 
 
 @router.get("/device/network/ping")
-async def api_ping(target: str = Query("8.8.8.8", description="Target to ping")):
+async def api_ping(
+    target: str = Query("8.8.8.8", description="Target to ping"),
+    session: UserSession = Depends(require_session),
+):
     """Ping a target and return results."""
     return ping_test(target)
 
@@ -61,7 +68,7 @@ async def api_ping(target: str = Query("8.8.8.8", description="Target to ping"))
 # ---- Battery / Device Stats ----
 
 @router.get("/device/battery")
-async def api_battery():
+async def api_battery(session: Optional[UserSession] = Depends(get_current_session)):
     """Get battery and device stats."""
     return {
         "battery": get_battery_info(),
@@ -74,7 +81,7 @@ async def api_battery():
 # ---- Packages ----
 
 @router.get("/device/packages")
-async def api_packages():
+async def api_packages(session: UserSession = Depends(require_session)):
     """Get package information."""
     return {
         "installed_count": get_installed_count(),
@@ -83,8 +90,14 @@ async def api_packages():
 
 
 @router.post("/device/packages/upgrade")
-async def api_upgrade_packages():
-    """Upgrade all packages (requires sudo)."""
+async def api_upgrade_packages(session: UserSession = Depends(require_admin)):
+    """Upgrade all packages (requires administrative privileges)."""
+    if session and session.ssh_conn:
+        code, out, err = await run_session_sudo(session, ["apk", "upgrade"])
+        if code != 0:
+            raise HTTPException(status_code=500, detail=err or out or "Upgrade failed")
+        return {"action": "upgrade", "success": True, "output": out}
+
     result = upgrade_packages()
     if not result["success"]:
         raise HTTPException(status_code=500, detail=result.get("error", "Upgrade failed"))
@@ -92,7 +105,10 @@ async def api_upgrade_packages():
 
 
 @router.get("/device/packages/search")
-async def api_search_packages(query: str = Query(..., min_length=1)):
+async def api_search_packages(
+    query: str = Query(..., min_length=1),
+    session: UserSession = Depends(require_session),
+):
     """Search for packages."""
     return {"results": search_packages(query)}
 
@@ -100,7 +116,7 @@ async def api_search_packages(query: str = Query(..., min_length=1)):
 # ---- Users ----
 
 @router.get("/device/users")
-async def api_users():
+async def api_users(session: UserSession = Depends(require_session)):
     """Get user and group information."""
     return {
         "users": get_users(),
@@ -111,11 +127,17 @@ async def api_users():
     }
 
 
-# ---- Power ----
+# ---- Power Controls (Admin Gated) ----
 
 @router.post("/device/power/reboot")
-async def api_reboot():
-    """Reboot the system."""
+async def api_reboot(session: UserSession = Depends(require_admin)):
+    """Reboot the system (requires administrative privileges)."""
+    if session and session.ssh_conn:
+        code, out, err = await run_session_sudo(session, ["systemctl", "reboot"])
+        if code != 0:
+            raise HTTPException(status_code=500, detail=err or out or "Reboot failed")
+        return {"action": "reboot", "success": True, "output": out}
+
     result = reboot()
     if not result["success"]:
         raise HTTPException(status_code=500, detail=result.get("error", "Reboot failed"))
@@ -123,8 +145,14 @@ async def api_reboot():
 
 
 @router.post("/device/power/poweroff")
-async def api_poweroff():
-    """Power off the system."""
+async def api_poweroff(session: UserSession = Depends(require_admin)):
+    """Power off the system (requires administrative privileges)."""
+    if session and session.ssh_conn:
+        code, out, err = await run_session_sudo(session, ["systemctl", "poweroff"])
+        if code != 0:
+            raise HTTPException(status_code=500, detail=err or out or "Poweroff failed")
+        return {"action": "poweroff", "success": True, "output": out}
+
     result = poweroff()
     if not result["success"]:
         raise HTTPException(status_code=500, detail=result.get("error", "Poweroff failed"))
@@ -132,8 +160,14 @@ async def api_poweroff():
 
 
 @router.post("/device/power/suspend")
-async def api_suspend():
-    """Suspend the system."""
+async def api_suspend(session: UserSession = Depends(require_admin)):
+    """Suspend the system (requires administrative privileges)."""
+    if session and session.ssh_conn:
+        code, out, err = await run_session_sudo(session, ["systemctl", "suspend"])
+        if code != 0:
+            raise HTTPException(status_code=500, detail=err or out or "Suspend failed")
+        return {"action": "suspend", "success": True, "output": out}
+
     result = suspend()
     if not result["success"]:
         raise HTTPException(status_code=500, detail=result.get("error", "Suspend failed"))
