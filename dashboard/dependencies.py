@@ -51,6 +51,52 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     return run_command(full_cmd, timeout)
 
 
+async def run_session_command(
+    session: Optional["UserSession"],
+    cmd: list[str],
+    timeout: int = 30,
+) -> tuple[int, str, str]:
+    """
+    Run command over authenticated user's SSH loopback session if available,
+    otherwise fallback to local subprocess.
+    """
+    from dashboard.auth.bridge import ssh_run
+    if session and session.ssh_conn and not getattr(session.ssh_conn, "is_closing", lambda: False)():
+        return await ssh_run(session.ssh_conn, cmd, timeout=timeout)
+    return run_command(cmd, timeout=timeout)
+
+
+async def run_session_user_service(
+    session: Optional["UserSession"],
+    cmd: list[str],
+    timeout: int = 30,
+) -> tuple[int, str, str]:
+    """
+    Run user systemd service command (systemctl --user ...) ensuring
+    XDG_RUNTIME_DIR and DBUS variables match the session's UID.
+    """
+    from dashboard.auth.bridge import ssh_run_user_service
+    if session and session.ssh_conn and not getattr(session.ssh_conn, "is_closing", lambda: False)():
+        return await ssh_run_user_service(session.ssh_conn, session.uid, cmd, timeout=timeout)
+    return run_command(cmd, timeout=timeout)
+
+
+async def run_session_sudo(
+    session: Optional["UserSession"],
+    cmd: list[str],
+    password: Optional[str] = None,
+    timeout: int = 30,
+) -> tuple[int, str, str]:
+    """
+    Run privileged command with sudo over the user's SSH session.
+    """
+    from dashboard.auth.bridge import ssh_run_sudo
+    if session and session.ssh_conn and not getattr(session.ssh_conn, "is_closing", lambda: False)():
+        return await ssh_run_sudo(session.ssh_conn, cmd, password=password, timeout=timeout)
+    return run_sudo_command(cmd, timeout=timeout)
+
+
+
 def which(program: str) -> Optional[str]:
     """Find program in PATH, return full path or None."""
     return shutil.which(program)

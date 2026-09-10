@@ -70,14 +70,23 @@ async def sse_generator(metrics: list[str] | None):
         await monitor.remove_client()
 
 
+from dashboard.auth.deps import get_current_session
+from dashboard.auth.session import UserSession
+from fastapi import HTTPException, Depends
+
+
 @router.get("/device/live")
 async def live_sse(
     metrics: list[str] | None = Query(None, description="Comma-separated metric names"),
+    session: UserSession | None = Depends(get_current_session),
 ):
-    """SSE endpoint streaming live metrics.
+    """SSE endpoint streaming live metrics. Requires authenticated session.
 
     Open with:  EventSource('/api/device/live?metrics=cpu,ram,thermal,battery,network')
     """
+    if session is None:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     if metrics is not None:
         flat_metrics = [m.strip() for metric in metrics for m in str(metric).split(",")]
     else:

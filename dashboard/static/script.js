@@ -139,3 +139,108 @@ document.addEventListener('DOMContentLoaded', function() {
 
     sidebarToggle();
 });
+
+/**
+ * ===== Cockpit-style Administrative Elevation Helpers =====
+ */
+let _pendingElevationCallback = null;
+
+function openElevateModal(promptMessage, onElevated) {
+    const modal = document.getElementById('elevate-modal');
+    if (!modal) return;
+
+    const promptEl = document.getElementById('elevate-prompt-text');
+    if (promptEl && promptMessage) {
+        promptEl.textContent = promptMessage;
+    }
+
+    const pwdInput = document.getElementById('elevate-password');
+    const errEl = document.getElementById('elevate-error');
+    if (pwdInput) pwdInput.value = '';
+    if (errEl) errEl.style.display = 'none';
+
+    _pendingElevationCallback = onElevated || null;
+    modal.style.display = 'flex';
+    if (pwdInput) {
+        setTimeout(() => pwdInput.focus(), 50);
+    }
+}
+
+function closeElevateModal() {
+    const modal = document.getElementById('elevate-modal');
+    if (modal) modal.style.display = 'none';
+    _pendingElevationCallback = null;
+}
+
+async function submitElevation() {
+    const pwdInput = document.getElementById('elevate-password');
+    const errEl = document.getElementById('elevate-error');
+    const submitBtn = document.getElementById('elevate-submit-btn');
+
+    const password = pwdInput ? pwdInput.value : '';
+    if (!password) {
+        if (errEl) {
+            errEl.textContent = 'Please enter your system password.';
+            errEl.style.display = 'block';
+        }
+        return;
+    }
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Verifying…';
+    }
+    if (errEl) errEl.style.display = 'none';
+
+    try {
+        const res = await fetch('/auth/elevate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            showToast('Administrative access granted', 'success');
+            closeElevateModal();
+            if (typeof _pendingElevationCallback === 'function') {
+                const cb = _pendingElevationCallback;
+                _pendingElevationCallback = null;
+                cb();
+            } else {
+                window.location.reload();
+            }
+        } else {
+            if (errEl) {
+                errEl.textContent = data.detail || data.error || 'Authentication failed. Please check password.';
+                errEl.style.display = 'block';
+            }
+            if (pwdInput) {
+                pwdInput.focus();
+                pwdInput.select();
+            }
+        }
+    } catch (err) {
+        if (errEl) {
+            errEl.textContent = 'Network error while connecting to server.';
+            errEl.style.display = 'block';
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Authenticate';
+        }
+    }
+}
+
+async function dropAdminAccess() {
+    try {
+        const res = await fetch('/auth/drop-admin', { method: 'POST' });
+        if (res.ok) {
+            showToast('Administrative access turned off', 'info');
+            window.location.reload();
+        }
+    } catch (err) {
+        showToast('Failed to drop admin access', 'error');
+    }
+}

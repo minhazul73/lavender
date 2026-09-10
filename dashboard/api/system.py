@@ -1,14 +1,21 @@
 """
 API routes for system-related operations.
+Protected with session authentication and privilege verification.
 """
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+
+from dashboard.auth.session import UserSession
+from dashboard.auth.deps import require_session, require_admin
+from dashboard.dependencies import (
+    run_session_command,
+    run_session_user_service,
+    run_session_sudo,
+)
 from dashboard.services.systemd import (
     list_services,
     get_service_status,
     get_service_logs,
     service_action,
-    service_toggle_enabled,
-    get_all_units,
     get_recent_logs,
 )
 from dashboard.services.processes import (
@@ -18,9 +25,7 @@ from dashboard.services.processes import (
     get_memory_info,
     get_memory_human,
 )
-from dashboard.services.storage import (
-    get_disk_usage,
-)
+from dashboard.services.storage import get_disk_usage
 
 router = APIRouter()
 
@@ -30,8 +35,9 @@ router = APIRouter()
 @router.get("/system/services")
 async def api_list_services(
     scope: str = Query(None, description="Filter by scope: user, system, or all"),
+    session: UserSession = Depends(require_session),
 ):
-    """List systemd services."""
+    """List systemd services for current user and system."""
     user_only = scope == "user"
     system_only = scope == "system"
     services = list_services(user_only=user_only, system_only=system_only)
@@ -39,7 +45,11 @@ async def api_list_services(
 
 
 @router.get("/system/services/{service_name}")
-async def api_service_status(service_name: str, user: bool = Query(False)):
+async def api_service_status(
+    service_name: str,
+    user: bool = Query(False),
+    session: UserSession = Depends(require_session),
+):
     """Get detailed status for a service."""
     status = get_service_status(service_name, user=user)
     return status
@@ -50,6 +60,7 @@ async def api_service_logs(
     service_name: str,
     lines: int = Query(50, ge=1, le=200),
     user: bool = Query(False),
+    session: UserSession = Depends(require_session),
 ):
     """Get recent logs for a service."""
     logs = get_service_logs(service_name, lines=lines, user=user)
@@ -61,15 +72,45 @@ async def api_service_action(
     service_name: str,
     action: str,
     user: bool = Query(False),
+    session: UserSession = Depends(require_session),
 ):
-    """Start, stop, restart, enable, or disable a service."""
+    """
+    Start, stop, restart, enable, or disable a service.
+    User services run under authenticated user's session.
+    System services require administrative elevation.
+    """
     valid_actions = ["start", "stop", "restart", "enable", "disable"]
     if action not in valid_actions:
-        # Handle toggle_enabled separately
-        if action == "toggle_enabled":
-            return {"error": "Use enable/disable directly"}
         raise HTTPException(status_code=400, detail=f"Invalid action: {action}")
-    
+
+    # System services require admin elevation
+    if not user and not session.is_elevated():
+        raise HTTPException(
+            status_code=403,
+            detail="Administrative privileges required to modify system services.",
+        )
+
+    # If running via SSH session bridge
+    if session and session.ssh_conn:
+        if user:
+            code, out, err = await run_session_user_service(
+                session, ["systemctl", "--user", action, service_name]
+            )
+        else:
+            code, out, err = await run_session_sudo(
+                session, ["systemctl", action, service_name]
+            )
+        if code != 0:
+            raise HTTPException(status_code=500, detail=err or out or f"Failed to {action} {service_name}")
+        return {
+            "success": True,
+            "action": action,
+            "service": service_name,
+            "user": user,
+            "output": out,
+        }
+
+    # Fallback
     result = service_action(service_name, action, user=user)
     if not result["success"]:
         raise HTTPException(status_code=500, detail=result.get("error", "Action failed"))
@@ -79,7 +120,7 @@ async def api_service_action(
 # ---- Storage / Disk ----
 
 @router.get("/system/storage")
-async def api_storage():
+async def api_storage(session: UserSession = Depends(require_session)):
     """Get disk usage information."""
     return {
         "disks": get_disk_usage(),
@@ -89,7 +130,11 @@ async def api_storage():
 # ---- Processes ----
 
 @router.get("/system/processes")
-async def api_processes(sort_by: str = Query("mem", pattern="^(cpu|mem)$"), limit: int = Query(20, ge=5, le=100)):
+async def api_processes(
+    sort_by: str = Query("mem", pattern="^(cpu|mem)$"),
+    limit: int = Query(20, ge=5, le=100),
+    session: UserSession = Depends(require_session),
+):
     """Get top processes."""
     return {
         "processes": get_top_processes(sort_by=sort_by, limit=limit),
@@ -99,8 +144,17 @@ async def api_processes(sort_by: str = Query("mem", pattern="^(cpu|mem)$"), limi
 
 
 @router.post("/system/processes/kill")
-async def api_kill_process(pid: int = Query(..., ge=1, description="PID to kill")):
-    """Kill a process by PID."""
+async def api_kill_process(
+    pid: int = Query(..., ge=1, description="PID to kill"),
+    session: UserSession = Depends(require_admin),
+):
+    """Kill a process by PID (requires administrative elevation)."""
+    if session and session.ssh_conn:
+        code, out, err = await run_session_sudo(session, ["kill", "-9", str(pid)])
+        if code != 0:
+            raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {pid}")
+        return {"action": "kill", "pid": pid, "success": True, "output": out}
+
     result = kill_process(pid)
     if not result["success"]:
         raise HTTPException(status_code=500, detail=result.get("error", "Kill failed"))
@@ -108,7 +162,7 @@ async def api_kill_process(pid: int = Query(..., ge=1, description="PID to kill"
 
 
 @router.get("/system/memory")
-async def api_memory():
+async def api_memory(session: UserSession = Depends(require_session)):
     """Get detailed memory info."""
     return {
         "human": get_memory_human(),
@@ -119,7 +173,10 @@ async def api_memory():
 # ---- Recent System Logs ----
 
 @router.get("/system/logs")
-async def api_recent_logs(lines: int = Query(20, ge=1, le=200)):
+async def api_recent_logs(
+    lines: int = Query(20, ge=1, le=200),
+    session: UserSession = Depends(require_session),
+):
     """Get recent system journal logs."""
     logs = get_recent_logs(lines=lines)
     return {"logs": logs, "count": len(logs)}
