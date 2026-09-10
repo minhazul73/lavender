@@ -453,19 +453,26 @@ body::before {
     overflow-y: auto;
     overflow-x: hidden;
     max-height: calc(100vh - 58px);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 179, 237, 0.4) rgba(0, 0, 0, 0.2);
 }
 
 .content::-webkit-scrollbar {
-    width: 4px;
+    width: 8px;
 }
 
 .content::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 99px;
 }
 
 .content::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: rgba(99, 179, 237, 0.35);
     border-radius: 99px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+    background: rgba(6, 182, 212, 0.65);
 }
 
 /* ===== Cards ===== */
@@ -726,6 +733,22 @@ body::before {
 .table-responsive {
     overflow-x: auto;
     border-radius: var(--radius-md);
+}
+
+.table-scroll-wrap {
+    max-height: calc(100vh - 270px);
+    min-height: 200px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+}
+
+.table-sticky thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    z-index: 5;
+    box-shadow: 0 1px 0 var(--border);
 }
 
 /* ===== Mono / Code ===== */

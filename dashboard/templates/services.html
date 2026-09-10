@@ -4,14 +4,20 @@
 {% block page_title %}Systemd Services{% endblock %}
 
 {% block content %}
-<div class="toolbar">
+<div class="toolbar" style="flex-wrap: wrap; gap: 12px; align-items: center;">
+    <div class="search-box">
+        <input type="text" id="service-search" class="input" placeholder="Search services (e.g. ssh, hermes)..." style="min-width: 240px;" />
+    </div>
     <div class="filter-group">
-        <label>Filter:</label>
+        <label>Scope:</label>
         <select id="scope-filter" class="select">
             <option value="all">All Services</option>
             <option value="user">User Only</option>
             <option value="system">System Only</option>
         </select>
+    </div>
+    <div class="filter-group">
+        <label>State:</label>
         <select id="state-filter" class="select">
             <option value="">All States</option>
             <option value="active">Active</option>
@@ -19,16 +25,28 @@
             <option value="failed">Failed</option>
         </select>
     </div>
+    <div class="limit-group">
+        <label>Show:</label>
+        <select id="service-limit" class="select">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+            <option value="all">All</option>
+        </select>
+    </div>
     <button class="btn" id="refresh-services">Refresh</button>
 </div>
 
 <div class="card">
-    <div class="card-header">
-        <h3>All Services (<span id="service-count">0</span>)</h3>
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <h3>All Services (<span id="service-count">0</span>)</h3>
+            <span id="service-showing-info" style="font-size: 12px; color: var(--text-muted); font-weight: normal;"></span>
+        </div>
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
+    <div class="card-body" style="padding: 0;">
+        <div class="table-scroll-wrap">
+            <table class="table table-sticky">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -39,10 +57,18 @@
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody id="services-table" hx-get="/api/system/services" hx-trigger="load, refresh-services.click" hx-swap="innerHTML">
+                <tbody id="services-table">
                     <tr><td colspan="6" class="text-center">Loading...</td></tr>
                 </tbody>
             </table>
+        </div>
+        <div class="pagination-bar" id="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 8px;">
+            <span id="page-info" style="font-size: 12px; color: var(--text-secondary);">Showing 0 of 0</span>
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="btn btn-xs" id="btn-prev-page" disabled>← Previous</button>
+                <span id="page-indicator" style="font-size: 12px; color: var(--text-muted); padding: 0 4px;">Page 1</span>
+                <button class="btn btn-xs" id="btn-next-page">Next →</button>
+            </div>
         </div>
     </div>
 </div>
@@ -88,62 +114,144 @@
 
 {% block extra_js %}
 <script>
-let currentServices = [];
+let rawServices = [];
+let currentPage = 1;
 
-// The table body uses hx-get to load data declaratively
-// We enhance it: after loading, parse JSON and render HTML rows
 document.addEventListener('DOMContentLoaded', function() {
-    // The hx-get on #services-table will load the JSON.
-    // We intercept and render it as HTML table rows.
-    // Use htmx's onLoad swap override via a custom handler.
-    
-    // Actually, HTMX can't auto-render JSON as table rows.
-    // We need to load the data via fetch and render manually.
-    // Replace the hx-get on tbody with a manual load.
-    
-    const tbody = document.getElementById('services-table');
-    tbody.removeAttribute('hx-get');
-    tbody.removeAttribute('hx-trigger');
-    tbody.removeAttribute('hx-swap');
-    
-    loadServices('all');
+    setupEventListeners();
+    loadServices();
 });
 
-function loadServices(scope = 'all') {
+function loadServices() {
+    const tbody = document.getElementById('services-table');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding: 24px 0;">Loading services...</td></tr>';
+
+    const scope = document.getElementById('scope-filter').value;
     const params = scope !== 'all' ? `?scope=${scope}` : '';
+
     fetch(`/api/system/services${params}`)
         .then(r => r.json())
         .then(data => {
-            currentServices = data.services || [];
-            document.getElementById('service-count').textContent = data.count || 0;
-            document.getElementById('services-table').innerHTML = renderServices(currentServices);
+            rawServices = data.services || [];
+            // Sort alphabetically by name for easy searching/browsing
+            rawServices.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            currentPage = 1;
+            updateFilteredServices();
         })
         .catch(e => {
-            document.getElementById('services-table').innerHTML = 
-                '<tr><td colspan="6" class="text-center text-muted">Failed to load services</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Failed to load services</td></tr>';
         });
+}
+
+function updateFilteredServices() {
+    const search = (document.getElementById('service-search').value || '').toLowerCase().trim();
+    const state = document.getElementById('state-filter').value;
+    const limitVal = document.getElementById('service-limit').value;
+    const pageSize = limitVal === 'all' ? Infinity : parseInt(limitVal, 10);
+
+    const filtered = rawServices.filter(s => {
+        if (search && !(s.name || '').toLowerCase().includes(search)) return false;
+        if (state && s.active_state !== state) return false;
+        return true;
+    });
+
+    const totalFiltered = filtered.length;
+    const totalRaw = rawServices.length;
+    document.getElementById('service-count').textContent = totalRaw;
+
+    const totalPages = pageSize === Infinity ? 1 : Math.max(1, Math.ceil(totalFiltered / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIdx = pageSize === Infinity ? 0 : (currentPage - 1) * pageSize;
+    const endIdx = pageSize === Infinity ? totalFiltered : Math.min(startIdx + pageSize, totalFiltered);
+    const pageItems = filtered.slice(startIdx, endIdx);
+
+    // Header info
+    const infoEl = document.getElementById('service-showing-info');
+    if (totalFiltered !== totalRaw) {
+        infoEl.textContent = `(${totalFiltered} matching filter)`;
+    } else {
+        infoEl.textContent = '';
+    }
+
+    // Page info
+    const pageInfoEl = document.getElementById('page-info');
+    if (totalFiltered === 0) {
+        pageInfoEl.textContent = 'No services found';
+    } else {
+        pageInfoEl.textContent = `Showing ${startIdx + 1}–${endIdx} of ${totalFiltered} services`;
+    }
+
+    document.getElementById('page-indicator').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('btn-prev-page').disabled = (currentPage <= 1);
+    document.getElementById('btn-next-page').disabled = (currentPage >= totalPages || pageSize === Infinity);
+
+    const tbody = document.getElementById('services-table');
+    tbody.innerHTML = renderServices(pageItems);
 }
 
 function renderServices(services) {
     if (!services || services.length === 0) {
-        return '<tr><td colspan="6" class="text-center">No services found</td></tr>';
+        return '<tr><td colspan="6" class="text-center text-muted" style="padding: 24px 0;">No services found</td></tr>';
     }
     return services.map(s => {
         const activeClass = s.active_state === 'active' ? 'status-active' : 
                            s.active_state === 'failed' ? 'status-failed' : 'status-inactive';
         return `
         <tr>
-            <td><span class="mono">${s.name}</span></td>
+            <td><span class="mono">${escapeHtml(s.name)}</span></td>
             <td><span class="badge ${s.scope}">${s.scope}</span></td>
-            <td><span class="mono small">${s.load_state}</span></td>
-            <td><span class="status-indicator ${activeClass}"></span> ${s.active_state}</td>
-            <td class="mono small">${s.sub_state}</td>
+            <td><span class="mono small">${escapeHtml(s.load_state)}</span></td>
+            <td><span class="status-indicator ${activeClass}"></span> ${escapeHtml(s.active_state)}</td>
+            <td class="mono small">${escapeHtml(s.sub_state)}</td>
             <td>
-                <button class="btn btn-xs" onclick="viewService('${s.name}', '${s.scope}')">View</button>
-                <button class="btn btn-xs btn-info" onclick="viewLogs('${s.name}', '${s.scope}')">Logs</button>
+                <button class="btn btn-xs" onclick="viewService('${escapeHtml(s.name)}', '${s.scope}')">View</button>
+                <button class="btn btn-xs btn-info" onclick="viewLogs('${escapeHtml(s.name)}', '${s.scope}')">Logs</button>
             </td>
         </tr>`;
     }).join('');
+}
+
+function setupEventListeners() {
+    document.getElementById('service-search').addEventListener('input', function() {
+        currentPage = 1;
+        updateFilteredServices();
+    });
+
+    document.getElementById('scope-filter').addEventListener('change', function() {
+        loadServices();
+    });
+
+    document.getElementById('state-filter').addEventListener('change', function() {
+        currentPage = 1;
+        updateFilteredServices();
+    });
+
+    document.getElementById('service-limit').addEventListener('change', function() {
+        currentPage = 1;
+        updateFilteredServices();
+    });
+
+    document.getElementById('refresh-services').addEventListener('click', function() {
+        loadServices();
+    });
+
+    document.getElementById('btn-prev-page').addEventListener('click', function() {
+        if (currentPage > 1) {
+            currentPage--;
+            updateFilteredServices();
+            const wrap = document.querySelector('.table-scroll-wrap');
+            if (wrap) wrap.scrollTop = 0;
+        }
+    });
+
+    document.getElementById('btn-next-page').addEventListener('click', function() {
+        currentPage++;
+        updateFilteredServices();
+        const wrap = document.querySelector('.table-scroll-wrap');
+        if (wrap) wrap.scrollTop = 0;
+    });
 }
 
 function viewService(name, scope) {
@@ -166,7 +274,7 @@ function renderServiceDetail(data) {
     return `
         <div class="service-status-row">
             <span class="label">Status:</span>
-            <span class="value">${status} (${data.sub_state})</span>
+            <span class="value">${status} (${escapeHtml(data.sub_state)})</span>
         </div>
         <div class="service-status-row">
             <span class="label">PID:</span>
@@ -174,18 +282,18 @@ function renderServiceDetail(data) {
         </div>
         <div class="service-status-row">
             <span class="label">Memory:</span>
-            <span class="value">${data.memory || 'N/A'}</span>
+            <span class="value">${escapeHtml(data.memory) || 'N/A'}</span>
         </div>
         <div class="service-status-row">
             <span class="label">CPU:</span>
-            <span class="value">${data.cpu || 'N/A'}</span>
+            <span class="value">${escapeHtml(data.cpu) || 'N/A'}</span>
         </div>
         <div class="service-actions">
-            <button class="btn btn-sm" onclick="doAction('${data.name}', 'start', ${data.user})">Start</button>
-            <button class="btn btn-sm" onclick="doAction('${data.name}', 'stop', ${data.user})">Stop</button>
-            <button class="btn btn-sm" onclick="doAction('${data.name}', 'restart', ${data.user})">Restart</button>
-            <button class="btn btn-sm" onclick="doAction('${data.name}', 'enable', ${data.user})">Enable</button>
-            <button class="btn btn-sm" onclick="doAction('${data.name}', 'disable', ${data.user})">Disable</button>
+            <button class="btn btn-sm" onclick="doAction('${escapeHtml(data.name)}', 'start', ${data.user})">Start</button>
+            <button class="btn btn-sm" onclick="doAction('${escapeHtml(data.name)}', 'stop', ${data.user})">Stop</button>
+            <button class="btn btn-sm" onclick="doAction('${escapeHtml(data.name)}', 'restart', ${data.user})">Restart</button>
+            <button class="btn btn-sm" onclick="doAction('${escapeHtml(data.name)}', 'enable', ${data.user})">Enable</button>
+            <button class="btn btn-sm" onclick="doAction('${escapeHtml(data.name)}', 'disable', ${data.user})">Disable</button>
         </div>
         ${data.output ? '<h4>Output:</h4><pre class="logs-output">' + escapeHtml(data.output) + '</pre>' : ''}
         ${data.error ? '<h4 class="error">Error:</h4><pre class="logs-output error">' + escapeHtml(data.error) + '</pre>' : ''}
@@ -223,7 +331,7 @@ function doAction(name, action, user) {
             if (data.success) {
                 document.getElementById('service-action-result').innerHTML = 
                     '<div class="alert alert-success">✓ ' + action + ' completed</div>';
-                loadServices(document.getElementById('scope-filter').value);
+                loadServices();
             } else {
                 document.getElementById('service-action-result').innerHTML = 
                     '<div class="alert alert-error">✗ Failed: ' + escapeHtml(data.error || 'Unknown error') + '</div>';
@@ -240,28 +348,5 @@ function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-
-// Filter change handlers
-document.getElementById('scope-filter').addEventListener('change', function() {
-    loadServices(this.value);
-});
-
-document.getElementById('state-filter').addEventListener('change', function() {
-    filterByState(this.value);
-});
-
-function filterByState(state) {
-    const tbody = document.getElementById('services-table');
-    if (!state) {
-        tbody.innerHTML = renderServices(currentServices);
-        return;
-    }
-    const filtered = currentServices.filter(s => s.active_state === state);
-    tbody.innerHTML = renderServices(filtered);
-}
-
-document.getElementById('refresh-services').addEventListener('click', function() {
-    loadServices(document.getElementById('scope-filter').value);
-});
 </script>
 {% endblock %}

@@ -22,7 +22,7 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
         code, out, err = run_command(["systemctl", "--user", "list-units", "--type=service", "--all", "--no-pager", "--no-legend"], timeout=15)
         if code == 0:
             for line in out.split("\n"):
-                line = line.strip()
+                line = line.lstrip("●* ").strip()
                 if not line:
                     continue
                 parts = line.split()
@@ -43,7 +43,7 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
             code, out, err = run_sudo_command(["systemctl", "list-units", "--type=service", "--all", "--no-pager", "--no-legend"], timeout=15)
         if code == 0:
             for line in out.split("\n"):
-                line = line.strip()
+                line = line.lstrip("●* ").strip()
                 if not line:
                     continue
                 parts = line.split()
@@ -150,7 +150,7 @@ def get_all_units() -> list[dict]:
     code, out, err = run_command(["systemctl", "--user", "list-units", "--all", "--no-pager", "--no-legend"], timeout=15)
     if code == 0:
         for line in out.split("\n"):
-            line = line.strip()
+            line = line.lstrip("●* ").strip()
             if not line or line.startswith("UNIT"):
                 continue
             parts = line.split()
@@ -167,7 +167,7 @@ def get_all_units() -> list[dict]:
     code, out, err = run_sudo_command(["systemctl", "list-units", "--all", "--no-pager", "--no-legend"], timeout=15)
     if code == 0:
         for line in out.split("\n"):
-            line = line.strip()
+            line = line.lstrip("●* ").strip()
             if not line or line.startswith("UNIT"):
                 continue
             parts = line.split()
