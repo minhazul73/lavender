@@ -2,10 +2,11 @@
 API routes for device-level operations.
 Protected with session authentication and privilege verification.
 """
+from typing import Optional
 from fastapi import APIRouter, Query, HTTPException, Depends
 
 from dashboard.auth.session import UserSession
-from dashboard.auth.deps import require_session, require_admin
+from dashboard.auth.deps import require_session, require_admin, get_current_session
 from dashboard.dependencies import run_session_sudo
 from dashboard.services.network import (
     get_ip_addresses,
@@ -67,7 +68,7 @@ async def api_ping(
 # ---- Battery / Device Stats ----
 
 @router.get("/device/battery")
-async def api_battery(session: UserSession = Depends(require_session)):
+async def api_battery(session: Optional[UserSession] = Depends(get_current_session)):
     """Get battery and device stats."""
     return {
         "battery": get_battery_info(),

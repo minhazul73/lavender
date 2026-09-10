@@ -2,10 +2,11 @@
 API routes for system-related operations.
 Protected with session authentication and privilege verification.
 """
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
 from dashboard.auth.session import UserSession
-from dashboard.auth.deps import require_session, require_admin
+from dashboard.auth.deps import require_session, require_admin, get_current_session
 from dashboard.dependencies import (
     run_session_command,
     run_session_user_service,
@@ -35,7 +36,7 @@ router = APIRouter()
 @router.get("/system/services")
 async def api_list_services(
     scope: str = Query(None, description="Filter by scope: user, system, or all"),
-    session: UserSession = Depends(require_session),
+    session: Optional[UserSession] = Depends(get_current_session),
 ):
     """List systemd services for current user and system."""
     user_only = scope == "user"
@@ -120,7 +121,7 @@ async def api_service_action(
 # ---- Storage / Disk ----
 
 @router.get("/system/storage")
-async def api_storage(session: UserSession = Depends(require_session)):
+async def api_storage(session: Optional[UserSession] = Depends(get_current_session)):
     """Get disk usage information."""
     return {
         "disks": get_disk_usage(),
@@ -133,7 +134,7 @@ async def api_storage(session: UserSession = Depends(require_session)):
 async def api_processes(
     sort_by: str = Query("mem", pattern="^(cpu|mem)$"),
     limit: int = Query(20, ge=5, le=100),
-    session: UserSession = Depends(require_session),
+    session: Optional[UserSession] = Depends(get_current_session),
 ):
     """Get top processes."""
     return {
@@ -162,7 +163,7 @@ async def api_kill_process(
 
 
 @router.get("/system/memory")
-async def api_memory(session: UserSession = Depends(require_session)):
+async def api_memory(session: Optional[UserSession] = Depends(get_current_session)):
     """Get detailed memory info."""
     return {
         "human": get_memory_human(),
@@ -175,7 +176,7 @@ async def api_memory(session: UserSession = Depends(require_session)):
 @router.get("/system/logs")
 async def api_recent_logs(
     lines: int = Query(20, ge=1, le=200),
-    session: UserSession = Depends(require_session),
+    session: Optional[UserSession] = Depends(get_current_session),
 ):
     """Get recent system journal logs."""
     logs = get_recent_logs(lines=lines)

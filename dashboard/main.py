@@ -154,11 +154,28 @@ PAGES: dict[str, tuple[str, str]] = {
 }
 
 
+from typing import Optional
+
+
 def _register_page(path: str, template_name: str, summary: str) -> None:
-    async def page(request: Request, session: UserSession = Depends(require_session)) -> HTMLResponse:
-        return templates.TemplateResponse(
-            request=request, name=template_name, context={"request": request, "session": session}
-        )
+    if path == "/":
+        # Homepage is public — accessible without authentication
+        async def page(
+            request: Request,
+            session: Optional[UserSession] = Depends(get_current_session),
+        ) -> HTMLResponse:
+            return templates.TemplateResponse(
+                request=request, name=template_name, context={"request": request, "session": session}
+            )
+    else:
+        # All other pages require authentication
+        async def page(
+            request: Request,
+            session: UserSession = Depends(require_session),
+        ) -> HTMLResponse:
+            return templates.TemplateResponse(
+                request=request, name=template_name, context={"request": request, "session": session}
+            )
 
     page.__name__ = f"page_{template_name.removesuffix('.html')}"
     app.get(path, response_class=HTMLResponse, summary=summary)(page)
