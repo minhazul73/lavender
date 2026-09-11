@@ -1,5 +1,5 @@
 """
-FastAPI application for Device Dashboard.
+FastAPI application for Lavender.
 """
 import os
 import asyncio
@@ -79,7 +79,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Device Dashboard",
+    title="Lavender",
     description="Web UI for managing postmarketOS on Redmi Note 7",
     version="1.0.0",
     lifespan=lifespan,

@@ -1,5 +1,5 @@
 /**
- * Device Dashboard — Minimal JS helpers
+ * Lavender — Minimal JS helpers
  * HTMX is loaded from CDN; this provides modal helpers and utilities
  */
 

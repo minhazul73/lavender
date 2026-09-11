@@ -1,5 +1,5 @@
 """
-Shared dependencies and utility functions for the Device Dashboard.
+Shared dependencies and utility functions for the Lavender.
 """
 import subprocess
 import shutil

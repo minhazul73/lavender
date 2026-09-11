@@ -1,4 +1,4 @@
-# Device Dashboard
+# Lavender
 
 A lightweight FastAPI web dashboard for managing postmarketOS on ARM64 devices. Provides system management, device stats, and live monitoring through a dark-theme UI.
 
@@ -34,8 +34,8 @@ A lightweight FastAPI web dashboard for managing postmarketOS on ARM64 devices. 
 ### Installation
 
 ```bash
-git clone https://github.com/minhazul73/rn7-linux-dashboard.git
-cd rn7-linux-dashboard
+git clone https://github.com/minhazul73/lavender.git
+cd lavender
 pip install -r requirements.txt
 ```
 
@@ -48,9 +48,9 @@ python -m uvicorn dashboard.main:app --host 0.0.0.0 --port 8080
 
 **As systemd user service:**
 ```bash
-cp systemd/hermes-device-dashboard.service ~/.config/systemd/user/
+cp systemd/lavender.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now hermes-device-dashboard
+systemctl --user enable --now lavender
 ```
 
 ### Access
@@ -92,7 +92,7 @@ Edit `dashboard/config.py` to change:
 ## Project Structure
 
 ```
-rn7-linux-dashboard/
+lavender/
 ├── dashboard/
 │   ├── main.py              # FastAPI app, route registration
 │   ├── config.py            # Configuration (port, thresholds)
@@ -126,8 +126,10 @@ rn7-linux-dashboard/
 │       ├── live.js          # SSE client, live rendering
 │       └── live.css         # Live monitoring styles
 ├── systemd/
-│   └── hermes-device-dashboard.service
+│   └── lavender.service
 ├── requirements.txt
+├── LICENSE
+├── CONTRIBUTING.md
 └── README.md
 ```
 
@@ -138,9 +140,13 @@ rn7-linux-dashboard/
 3. **CPU frequency** — Requires kernel with cpufreq sysfs. Some devices may not expose this data.
 4. **WiFi info** — `iwinfo` not installed by default on postmarketOS.
 
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE) for details.
 
 ## Credits
 

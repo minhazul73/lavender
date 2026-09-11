@@ -1,5 +1,5 @@
 [Unit]
-Description=Hermes Device Dashboard (Web UI)
+Description=Lavender (Web UI)
 Documentation=file:///home/rahat/hermes-device-dashboard/README.md
 After=network.target hermes-gateway.service
 
