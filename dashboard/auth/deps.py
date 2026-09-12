@@ -78,8 +78,8 @@ async def require_admin(
     # Check for direct password elevation in header
     admin_pwd = request.headers.get("X-Admin-Password")
     if admin_pwd:
-        from dashboard.auth.bridge import verify_session_sudo
-        valid, err = await verify_session_sudo(session, admin_pwd)
+        from dashboard.auth.bridge import verify_sudo_password
+        valid, err = await verify_sudo_password(admin_pwd)
         if valid:
             session.elevate()
             return session

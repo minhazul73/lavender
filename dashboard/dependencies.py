@@ -57,11 +57,11 @@ async def run_session_command(
     timeout: int = 30,
 ) -> tuple[int, str, str]:
     """
-    Run command over authenticated user's session (SSH or Local PAM fallback).
+    Run command over authenticated user's session.
     """
-    from dashboard.auth.bridge import run_session_cmd
+    from dashboard.auth.bridge import run_command_async
     if session:
-        return await run_session_cmd(session, cmd, timeout=timeout)
+        return await run_command_async(cmd, timeout=timeout)
     return run_command(cmd, timeout=timeout)
 
 
@@ -74,10 +74,9 @@ async def run_session_user_service(
     Run user systemd service command (systemctl --user ...) ensuring
     XDG_RUNTIME_DIR and DBUS variables match the session's UID.
     """
-    from dashboard.auth.bridge import run_session_user_unit
-    if session:
-        return await run_session_user_unit(session, cmd, timeout=timeout)
-    return run_command(cmd, timeout=timeout)
+    from dashboard.auth.bridge import run_user_service_async
+    uid = session.uid if session else os.getuid()
+    return await run_user_service_async(uid, cmd, timeout=timeout)
 
 
 async def run_session_sudo(
@@ -87,12 +86,10 @@ async def run_session_sudo(
     timeout: int = 30,
 ) -> tuple[int, str, str]:
     """
-    Run privileged command with sudo over user's session (SSH or Local PAM fallback).
+    Run privileged command with sudo over user's session.
     """
-    from dashboard.auth.bridge import run_session_elevated
-    if session:
-        return await run_session_elevated(session, cmd, password=password, timeout=timeout)
-    return run_sudo_command(cmd, timeout=timeout)
+    from dashboard.auth.bridge import run_sudo_async
+    return await run_sudo_async(cmd, password=password, timeout=timeout)
 
 
 

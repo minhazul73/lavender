@@ -52,15 +52,8 @@ SESSION_COOKIE_NAME = "rn7_session"
 SESSION_MAX_IDLE_MINUTES = 60
 ADMIN_ELEVATION_TIMEOUT_MINUTES = 15
 SESSION_SECRET_KEY = os.environ.get("DASHBOARD_SECRET_KEY", "rn7-dashboard-secret-key-default-2026")
-
-# SSH Loopback Bridge Settings
-SSH_LOOPBACK_HOST = os.environ.get("SSH_HOST", "127.0.0.1")
-SSH_LOOPBACK_PORT = int(os.environ.get("SSH_PORT", "22"))
-SSH_LOGIN_TIMEOUT = 10  # seconds
-
-# Local Auth Fallback (for UI devices without SSH daemon)
-AUTH_FALLBACK_TO_LOCAL = True
 PAM_SERVICE = os.environ.get("PAM_SERVICE", "login")
 
 # Rate Limiting
 LOGIN_RATE_LIMIT = "10/minute"
+
