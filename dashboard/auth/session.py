@@ -30,6 +30,7 @@ class UserSession:
     is_admin: bool = False
     admin_until: Optional[float] = None
     ssh_conn: Optional[asyncssh.SSHClientConnection] = None
+    auth_mode: str = "ssh"  # "ssh" (loopback) or "local" (PAM)
     created_at: float = field(default_factory=time.time)
     last_used: float = field(default_factory=time.time)
 
@@ -75,6 +76,11 @@ class UserSession:
 
     def to_dict(self) -> dict:
         """Serialize safe session state for JSON responses."""
+        is_connected = (
+            True
+            if self.auth_mode == "local"
+            else (self.ssh_conn is not None and not getattr(self.ssh_conn, "is_closing", lambda: False)())
+        )
         return {
             "username": self.username,
             "uid": self.uid,
@@ -85,7 +91,8 @@ class UserSession:
             "is_admin": self.is_elevated(),
             "can_elevate": self.can_elevate(),
             "admin_remaining_seconds": self.admin_remaining_seconds(),
-            "connected": self.ssh_conn is not None and not getattr(self.ssh_conn, "is_closing", lambda: False)(),
+            "auth_mode": self.auth_mode,
+            "connected": is_connected,
         }
 
 
@@ -113,6 +120,7 @@ class SessionStore:
         username: str,
         user_info: dict,
         ssh_conn: Optional[asyncssh.SSHClientConnection] = None,
+        auth_mode: str = "ssh",
     ) -> UserSession:
         """Create and store a new user session."""
         sid = secrets.token_hex(32)
@@ -126,9 +134,13 @@ class SessionStore:
             groups=user_info.get("groups", []),
             is_admin=False,
             ssh_conn=ssh_conn,
+            auth_mode=auth_mode,
         )
         self._sessions[sid] = session
-        logger.info("Created session %s for user %s (uid=%d)", sid[:8], username, session.uid)
+        logger.info(
+            "Created %s session %s for user %s (uid=%d)",
+            auth_mode, sid[:8], username, session.uid
+        )
         return session
 
     async def get(self, session_id: str) -> Optional[UserSession]:

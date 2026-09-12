@@ -16,9 +16,9 @@ from dashboard.config import (
 )
 from dashboard.auth.session import UserSession, session_store
 from dashboard.auth.bridge import (
-    open_ssh_session,
-    verify_sudo_password,
-    drop_sudo_ticket,
+    authenticate_user,
+    verify_session_sudo,
+    drop_session_sudo,
     AuthError,
     BridgeConnectionError,
 )
@@ -77,7 +77,7 @@ async def api_login(
         )
 
     try:
-        ssh_conn, user_info = await open_ssh_session(username, password)
+        auth_mode, ssh_conn, user_info = await authenticate_user(username, password)
     except AuthError as exc:
         if is_json:
             raise HTTPException(status_code=401, detail=str(exc))
@@ -89,7 +89,7 @@ async def api_login(
         if is_json:
             raise HTTPException(status_code=503, detail=str(exc))
         return RedirectResponse(
-            url=f"/login?error=SSH+service+unavailable&next={next}",
+            url=f"/login?error=Authentication+service+unavailable&next={next}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
     except Exception as exc:
@@ -102,7 +102,7 @@ async def api_login(
         )
 
     # Authentication succeeded: create session and set signed cookie
-    session = await session_store.create(username, user_info, ssh_conn)
+    session = await session_store.create(username, user_info, ssh_conn, auth_mode=auth_mode)
     signed_token = session_store.sign_session_id(session.session_id)
 
     # Sanitize next parameter to prevent open redirects
@@ -115,6 +115,7 @@ async def api_login(
             "redirect": safe_next,
             "is_admin": session.is_admin,
             "can_elevate": session.can_elevate(),
+            "auth_mode": session.auth_mode,
         })
     else:
         res = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
@@ -139,8 +140,7 @@ async def api_logout(
     Log out user, drop sudo ticket, close SSH connection, and clear session cookie.
     """
     if session:
-        if session.ssh_conn:
-            await drop_sudo_ticket(session.ssh_conn)
+        await drop_session_sudo(session)
         await session_store.delete(session.session_id)
 
     is_json = request.headers.get("accept", "").startswith("application/json")
@@ -166,19 +166,13 @@ async def api_elevate(
 ):
     """
     Cockpit-style administrative elevation.
-    Prompts for user's Linux password and refreshes sudo ticket on SSH loopback.
+    Prompts for user's Linux password and refreshes sudo ticket (SSH or Local).
     """
-    if not session.ssh_conn:
-        raise HTTPException(
-            status_code=503,
-            detail="SSH session disconnected. Please sign in again.",
-        )
-
     password = payload.password
     if not password:
         raise HTTPException(status_code=400, detail="Password is required")
 
-    valid, err = await verify_sudo_password(session.ssh_conn, password)
+    valid, err = await verify_session_sudo(session, password)
     if not valid:
         logger.warning("Administrative elevation failed for user %s: %s", session.username, err)
         raise HTTPException(
@@ -198,8 +192,7 @@ async def api_elevate(
 @router.post("/drop-admin")
 async def api_drop_admin(session: UserSession = Depends(require_session)):
     """Drop active administrative elevation and revoke sudo ticket."""
-    if session.ssh_conn:
-        await drop_sudo_ticket(session.ssh_conn)
+    await drop_session_sudo(session)
     session.drop_elevation()
     logger.info("User %s dropped administrative access", session.username)
     return {"success": True, "is_admin": False}

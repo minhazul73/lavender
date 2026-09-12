@@ -6,3 +6,5 @@ asyncssh>=2.14.0
 itsdangerous>=2.1.0
 slowapi>=0.1.9
 python-multipart>=0.0.9
+python-pam>=2.0.0
+six>=1.16.0
