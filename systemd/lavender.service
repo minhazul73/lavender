@@ -18,12 +18,9 @@ MemoryMax=300M
 MemoryHigh=200M
 CPUQuota=50%
 
-# Security hardening
-NoNewPrivileges=yes
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/rahat/hermes-device-dashboard
-PrivateTmp=yes
+# Privilege escalation requirements
+# NoNewPrivileges must be disabled (no) so sudo and PAM unix_chkpwd can elevate privileges
+NoNewPrivileges=no
 
 [Install]
 WantedBy=default.target

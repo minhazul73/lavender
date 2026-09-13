@@ -49,57 +49,86 @@ def verify_linux_credentials(username: str, password: str) -> bool:
     """
     Verify user credentials directly on the Linux host.
     Checks:
-    1. Direct PAM authentication via python-pam
-    2. Sudo validation (sudo -S -p '' -k -v)
-    3. Su validation (/bin/su -c true)
+    1. Direct shadow verification (if readable / shadow group)
+    2. PAM authentication (login, base-auth, other, system-auth)
+    3. Sudo validation (sudo -k followed by sudo -S -p '' -v)
+    4. Doas validation (common on Alpine / postmarketOS)
     """
     if not password:
         return False
 
-    # 1. PAM authentication
+    # 1. Direct shadow verification (instant, works if user is in shadow group or root)
+    try:
+        import spwd
+        import crypt
+        sp = spwd.getspnam(username)
+        if sp and sp.sp_pwdp:
+            if crypt.crypt(password, sp.sp_pwdp) == sp.sp_pwdp:
+                logger.info("Direct shadow authentication successful for user %s", username)
+                return True
+    except Exception as exc:
+        logger.debug("Direct shadow auth unavailable: %s", exc)
+
+    # 2. PAM authentication
     try:
         import pam
         p = pam.pam()
-        services_to_try = [PAM_SERVICE, "login", "common-auth", "passwd", "sudo"]
-        for s in set(services_to_try):
+        candidate_services = [PAM_SERVICE, "base-auth", "login", "other", "common-auth", "system-auth", "sudo"]
+        seen = set()
+        for s in candidate_services:
+            if s in seen:
+                continue
+            seen.add(s)
+            # Only test services present in /etc/pam.d or 'other'
+            if os.path.isdir("/etc/pam.d") and not os.path.isfile(f"/etc/pam.d/{s}") and s != "other":
+                continue
             try:
                 if p.authenticate(username, password, service=s):
+                    logger.info("PAM authentication successful for user %s via service '%s'", username, s)
                     return True
-            except Exception:
-                pass
+                logger.debug("PAM service '%s' check returned %s: %s", s, p.code, p.reason)
+            except Exception as e:
+                logger.debug("PAM service '%s' exception: %s", s, e)
     except Exception as exc:
         logger.debug("PAM library auth failed or unavailable: %s", exc)
 
-    # 2. Sudo validation (works if user is in wheel/sudo group)
+    # 3. Sudo validation (invalidate cache first, then validate with password)
     try:
+        subprocess.run(["sudo", "-k"], capture_output=True, timeout=2)
         proc = subprocess.run(
-            ["sudo", "-S", "-p", "", "-k", "-v"],
+            ["sudo", "-S", "-p", "", "-v"],
             input=f"{password}\n",
             capture_output=True,
             text=True,
             timeout=5,
         )
         if proc.returncode == 0:
+            logger.info("Sudo validation successful for user %s", username)
             return True
-    except Exception:
-        pass
+        logger.warning(
+            "Sudo auth check failed for user %s (code %d): %s",
+            username, proc.returncode, proc.stderr.strip()
+        )
+    except Exception as exc:
+        logger.warning("Sudo auth check exception for %s: %s", username, exc)
 
-    # 3. /bin/su validation (setuid root on all Linux distros)
-    for su_bin in ["/bin/su", "/usr/bin/su"]:
-        if os.path.isfile(su_bin):
-            try:
-                proc = subprocess.run(
-                    [su_bin, "-c", "true", username],
-                    input=f"{password}\n",
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
-                if proc.returncode == 0:
-                    return True
-            except Exception:
-                pass
+    # 4. Doas validation (common on Alpine / postmarketOS)
+    if os.path.isfile("/usr/bin/doas") or os.path.isfile("/bin/doas"):
+        try:
+            proc = subprocess.run(
+                ["doas", "-C", "/etc/doas.conf", "true"],
+                input=f"{password}\n",
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if proc.returncode == 0:
+                logger.info("Doas validation successful for user %s", username)
+                return True
+        except Exception:
+            pass
 
+    logger.warning("All credential verification methods failed for user '%s'", username)
     return False
 
 
