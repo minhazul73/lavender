@@ -57,12 +57,11 @@ async def run_session_command(
     timeout: int = 30,
 ) -> tuple[int, str, str]:
     """
-    Run command over authenticated user's SSH loopback session if available,
-    otherwise fallback to local subprocess.
+    Run command over authenticated user's session.
     """
-    from dashboard.auth.bridge import ssh_run
-    if session and session.ssh_conn and not getattr(session.ssh_conn, "is_closing", lambda: False)():
-        return await ssh_run(session.ssh_conn, cmd, timeout=timeout)
+    from dashboard.auth.bridge import run_command_async
+    if session:
+        return await run_command_async(cmd, timeout=timeout)
     return run_command(cmd, timeout=timeout)
 
 
@@ -75,10 +74,9 @@ async def run_session_user_service(
     Run user systemd service command (systemctl --user ...) ensuring
     XDG_RUNTIME_DIR and DBUS variables match the session's UID.
     """
-    from dashboard.auth.bridge import ssh_run_user_service
-    if session and session.ssh_conn and not getattr(session.ssh_conn, "is_closing", lambda: False)():
-        return await ssh_run_user_service(session.ssh_conn, session.uid, cmd, timeout=timeout)
-    return run_command(cmd, timeout=timeout)
+    from dashboard.auth.bridge import run_user_service_async
+    uid = session.uid if session else os.getuid()
+    return await run_user_service_async(uid, cmd, timeout=timeout)
 
 
 async def run_session_sudo(
@@ -88,12 +86,10 @@ async def run_session_sudo(
     timeout: int = 30,
 ) -> tuple[int, str, str]:
     """
-    Run privileged command with sudo over the user's SSH session.
+    Run privileged command with sudo over user's session.
     """
-    from dashboard.auth.bridge import ssh_run_sudo
-    if session and session.ssh_conn and not getattr(session.ssh_conn, "is_closing", lambda: False)():
-        return await ssh_run_sudo(session.ssh_conn, cmd, password=password, timeout=timeout)
-    return run_sudo_command(cmd, timeout=timeout)
+    from dashboard.auth.bridge import run_sudo_async
+    return await run_sudo_async(cmd, password=password, timeout=timeout)
 
 
 
