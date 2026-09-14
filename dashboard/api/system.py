@@ -8,9 +8,14 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from dashboard.auth.session import UserSession
 from dashboard.auth.deps import require_session, require_admin, get_current_session
 from dashboard.dependencies import (
-    run_session_command,
-    run_session_user_service,
-    run_session_sudo,
+    run_command,
+    get_uptime,
+    parse_passwd_users,
+    parse_groups,
+)
+from dashboard.auth.bridge import (
+    run_user_service_async,
+    run_sudo_async,
 )
 from dashboard.services.systemd import (
     list_services,
@@ -94,12 +99,12 @@ async def api_service_action(
     # If running via SSH session bridge
     if session and session.ssh_conn:
         if user:
-            code, out, err = await run_session_user_service(
-                session, ["systemctl", "--user", action, service_name]
+            code, out, err = await run_user_service_async(
+                session.uid, ["systemctl", "--user", action, service_name]
             )
         else:
-            code, out, err = await run_session_sudo(
-                session, ["systemctl", action, service_name]
+            code, out, err = await run_sudo_async(
+                ["systemctl", action, service_name], password=None
             )
         if code != 0:
             raise HTTPException(status_code=500, detail=err or out or f"Failed to {action} {service_name}")
@@ -151,7 +156,7 @@ async def api_kill_process(
 ):
     """Kill a process by PID (requires administrative elevation)."""
     if session and session.ssh_conn:
-        code, out, err = await run_session_sudo(session, ["kill", "-9", str(pid)])
+        code, out, err = await run_sudo_async(["kill", "-9", str(pid)], password=None)
         if code != 0:
             raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {pid}")
         return {"action": "kill", "pid": pid, "success": True, "output": out}
