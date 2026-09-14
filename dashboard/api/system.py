@@ -9,7 +9,6 @@ from dashboard.auth.session import UserSession
 from dashboard.auth.deps import require_session, require_admin, get_current_session
 from dashboard.dependencies import (
     run_command,
-    get_uptime,
     parse_passwd_users,
     parse_groups,
 )
