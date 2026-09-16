@@ -9,67 +9,135 @@ from datetime import datetime
 from dashboard.dependencies import run_command, run_sudo_command
 
 
-def get_top_processes(sort_by: str = "mem", limit: int = 20) -> list[dict]:
+def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
     """
-    Get top processes by CPU or memory usage.
-    BusyBox ps aux only gives: PID USER TIME COMMAND (4 columns).
-    No %CPU/%MEM/VSZ/RSS — we sort by TIME as a proxy.
-    For memory, read /proc/PID/stat for RSS.
+    Get processes by CPU or memory usage.
+    Supports both standard procps ps aux (11 columns) and BusyBox ps aux (4 columns).
+    If limit <= 0, returns all processes.
     """
     code, out, err = run_command(["ps", "aux"], timeout=10)
     if code != 0:
         return [{"error": err}]
 
+    total_mem_kb = 0
+    try:
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    total_mem_kb = float(line.split()[1])
+                    break
+    except Exception:
+        pass
+
     processes = []
-    lines = out.split("\n")
-    # Skip header: PID USER TIME COMMAND
+    lines = out.strip().split("\n")
+    if not lines:
+        return []
+
+    header = lines[0].split()
+    is_busybox = len(header) >= 1 and header[0] == "PID"
+
     for line in lines[1:]:
         line = line.strip()
         if not line:
             continue
-        parts = line.split(None, 3)  # PID USER TIME COMMAND (4 fields)
-        if len(parts) >= 4:
-            try:
+        try:
+            if is_busybox:
+                # BusyBox format: PID USER TIME COMMAND
+                parts = line.split(None, 3)
+                if len(parts) < 4:
+                    continue
                 pid = int(parts[0])
                 user = parts[1]
                 time_str = parts[2]
                 command = parts[3]
-                # Parse TIME: MM:SS or HH:MM:SS — convert to seconds
+
                 time_secs = 0
                 for part in time_str.split(":"):
                     time_secs = time_secs * 60 + int(part)
-                # Get RSS from /proc/PID/stat (field 24, in pages)
+
+                state = "S"
                 rss_kb = 0
+                vsz_kb = 0
                 try:
                     with open(f"/proc/{pid}/stat", "r") as f:
-                        stat = f.read().split()
-                        # rss is field 24 (0-indexed: 23), in pages
-                        rss_pages = int(stat[23])
-                        # page size from /proc/sysinfo or assume 4096
-                        rss_kb = rss_pages * 4
+                        content = f.read()
+                        rparen = content.rfind(")")
+                        if rparen != -1:
+                            rest = content[rparen + 2:].split()
+                            state = rest[0]
+                            vsz_kb = int(rest[20]) // 1024
+                            rss_kb = int(rest[21]) * 4
                 except Exception:
                     pass
-                processes.append({
-                    "user": user,
-                    "pid": pid,
-                    "cpu": time_secs,       # TIME in seconds as CPU proxy
-                    "mem": rss_kb,          # RSS in KB from /proc/PID/stat
-                    "time": time_str,
-                    "command": command,
-                    "vsz": 0,              # Not available from BusyBox ps
-                    "rss": rss_kb,          # RSS in KB
-                    "stat": "?",           # Not available from BusyBox ps
-                    "start": "?",          # Not available from BusyBox ps
-                })
-            except (ValueError, IndexError):
-                continue
 
-    # Sort: by TIME (cpu proxy) or RSS (mem)
+                mem_pct = round((rss_kb / total_mem_kb) * 100, 1) if total_mem_kb > 0 else 0.0
+
+                processes.append({
+                    "pid": pid,
+                    "user": user,
+                    "cpu": 0.0,
+                    "cpu_time": time_secs,
+                    "time": time_str,
+                    "mem": rss_kb,
+                    "mem_pct": mem_pct,
+                    "vsz": vsz_kb,
+                    "rss": rss_kb,
+                    "stat": state,
+                    "command": command,
+                })
+            else:
+                # Procps format: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+                parts = line.split(None, 10)
+                if len(parts) < 11:
+                    continue
+                user = parts[0]
+                pid = int(parts[1])
+                cpu_pct = float(parts[2])
+                mem_pct = float(parts[3])
+                vsz_kb = int(parts[4])
+                rss_kb = int(parts[5])
+                stat = parts[7]
+                time_str = parts[9]
+                command = parts[10]
+
+                time_secs = 0
+                for part in time_str.split(":"):
+                    try:
+                        time_secs = time_secs * 60 + int(part)
+                    except ValueError:
+                        pass
+
+                processes.append({
+                    "pid": pid,
+                    "user": user,
+                    "cpu": cpu_pct,
+                    "cpu_time": time_secs,
+                    "time": time_str,
+                    "mem": rss_kb,
+                    "mem_pct": mem_pct,
+                    "vsz": vsz_kb,
+                    "rss": rss_kb,
+                    "stat": stat,
+                    "command": command,
+                })
+        except (ValueError, IndexError):
+            continue
+
     if sort_by == "cpu":
-        processes.sort(key=lambda p: p["cpu"], reverse=True)
-    else:
-        processes.sort(key=lambda p: p["mem"], reverse=True)
-    return processes[:limit]
+        processes.sort(key=lambda p: (p.get("cpu", 0), p.get("cpu_time", 0)), reverse=True)
+    elif sort_by == "pid":
+        processes.sort(key=lambda p: p.get("pid", 0))
+    elif sort_by == "user":
+        processes.sort(key=lambda p: p.get("user", ""))
+    elif sort_by == "name":
+        processes.sort(key=lambda p: p.get("command", "").lower())
+    else:  # default 'mem'
+        processes.sort(key=lambda p: p.get("mem", 0), reverse=True)
+
+    if limit > 0:
+        return processes[:limit]
+    return processes
 
 
 def get_system_load() -> dict:
@@ -152,4 +220,21 @@ def get_memory_human() -> dict:
                     result["parsed"]["swap_total"] = swap_parts[1]
                     result["parsed"]["swap_used"] = swap_parts[2]
                     result["parsed"]["swap_free"] = swap_parts[3]
+
+    # Add calculated memory percentage from /proc/meminfo
+    try:
+        with open("/proc/meminfo", "r") as f:
+            meminfo = {}
+            for line in f:
+                p = line.split(":")
+                if len(p) == 2:
+                    meminfo[p[0].strip()] = float(p[1].split()[0])
+            total = meminfo.get("MemTotal", 0)
+            avail = meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
+            if total > 0:
+                used = total - avail
+                result["parsed"]["percent"] = round((used / total) * 100, 1)
+    except Exception:
+        pass
+
     return result

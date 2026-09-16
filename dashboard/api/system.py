@@ -128,11 +128,11 @@ async def api_storage(session: Optional[UserSession] = Depends(get_current_sessi
 
 @router.get("/system/processes")
 async def api_processes(
-    sort_by: str = Query("mem", pattern="^(cpu|mem)$"),
-    limit: int = Query(20, ge=5, le=100),
+    sort_by: str = Query("mem", pattern="^(cpu|mem|pid|user|name)$"),
+    limit: int = Query(0, ge=0, le=2000, description="0 returns all processes"),
     session: Optional[UserSession] = Depends(get_current_session),
 ):
-    """Get top processes."""
+    """Get processes and system resource stats."""
     return {
         "processes": get_top_processes(sort_by=sort_by, limit=limit),
         "load": get_system_load(),
