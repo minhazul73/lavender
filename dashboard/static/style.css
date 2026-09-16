@@ -1043,6 +1043,15 @@ label {
     min-width: 200px;
 }
 
+input[type="search"].input {
+    -webkit-appearance: textfield;
+}
+
+input[type="search"].input::-webkit-search-decoration,
+input[type="search"].input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+}
+
 /* ===== Tabs ===== */
 .tabs {
     display: flex;

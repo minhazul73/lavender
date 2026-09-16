@@ -6,7 +6,7 @@
 {% block content %}
 <div class="toolbar" style="flex-wrap: wrap; gap: 12px; align-items: center;">
     <div class="search-box">
-        <input type="text" id="service-search" class="input" placeholder="Search services (e.g. ssh, hermes)..." style="min-width: 240px;" />
+        <input type="search" id="service-search" name="service_search" class="input" placeholder="Search services (e.g. ssh, lavender)..." style="min-width: 240px;" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
     </div>
     <div class="filter-group">
         <label>Scope:</label>
@@ -214,10 +214,15 @@ function renderServices(services) {
 }
 
 function setupEventListeners() {
-    document.getElementById('service-search').addEventListener('input', function() {
-        currentPage = 1;
-        updateFilteredServices();
-    });
+    const searchInput = document.getElementById('service-search');
+    if (searchInput) {
+        ['input', 'search'].forEach(evt => {
+            searchInput.addEventListener(evt, function() {
+                currentPage = 1;
+                updateFilteredServices();
+            });
+        });
+    }
 
     document.getElementById('scope-filter').addEventListener('change', function() {
         loadServices();

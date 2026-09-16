@@ -177,14 +177,17 @@
         <p id="elevate-prompt-text" style="color: var(--text-muted); font-size: 13px; margin: 0 0 16px 0;">
             Enter system password for <strong style="color: var(--text-primary)">{{ session.username if session else 'user' }}</strong> to gain administrative privileges.
         </p>
-        <div style="margin-bottom: 16px;">
-            <input type="password" id="elevate-password" class="input" placeholder="Password" style="width: 100%; box-sizing: border-box;" onkeydown="if(event.key==='Enter') submitElevation()" />
-            <div id="elevate-error" style="color: #f87171; font-size: 12px; margin-top: 6px; display: none;"></div>
-        </div>
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeElevateModal()">Cancel</button>
-            <button class="btn btn-primary" id="elevate-submit-btn" onclick="submitElevation()">Authenticate</button>
-        </div>
+        <form id="elevate-form" onsubmit="event.preventDefault(); submitElevation();" autocomplete="off">
+            <input type="text" name="username" value="{{ session.username if session else '' }}" autocomplete="username" style="display:none;" tabindex="-1" aria-hidden="true" />
+            <div style="margin-bottom: 16px;">
+                <input type="password" id="elevate-password" name="password" autocomplete="current-password" class="input" placeholder="Password" style="width: 100%; box-sizing: border-box;" onkeydown="if(event.key==='Enter') submitElevation()" />
+                <div id="elevate-error" style="color: #f87171; font-size: 12px; margin-top: 6px; display: none;"></div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeElevateModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="elevate-submit-btn">Authenticate</button>
+            </div>
+        </form>
     </div>
 </div>
 
