@@ -7,7 +7,8 @@ from fastapi import APIRouter, Query, HTTPException, Depends
 
 from dashboard.auth.session import UserSession
 from dashboard.auth.deps import require_session, require_admin, get_current_session
-from dashboard.dependencies import run_session_sudo
+from dashboard.dependencies import run_command
+from dashboard.auth.bridge import run_sudo_async
 from dashboard.services.network import (
     get_ip_addresses,
     get_wifi_info,
@@ -92,16 +93,10 @@ async def api_packages(session: UserSession = Depends(require_session)):
 @router.post("/device/packages/upgrade")
 async def api_upgrade_packages(session: UserSession = Depends(require_admin)):
     """Upgrade all packages (requires administrative privileges)."""
-    if session and session.ssh_conn:
-        code, out, err = await run_session_sudo(session, ["apk", "upgrade"])
-        if code != 0:
-            raise HTTPException(status_code=500, detail=err or out or "Upgrade failed")
-        return {"action": "upgrade", "success": True, "output": out}
-
-    result = upgrade_packages()
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Upgrade failed"))
-    return result
+    code, out, err = await run_sudo_async(["apk", "upgrade"], password=None)
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or "Upgrade failed")
+    return {"action": "upgrade", "success": True, "output": out}
 
 
 @router.get("/device/packages/search")
@@ -132,43 +127,25 @@ async def api_users(session: UserSession = Depends(require_session)):
 @router.post("/device/power/reboot")
 async def api_reboot(session: UserSession = Depends(require_admin)):
     """Reboot the system (requires administrative privileges)."""
-    if session and session.ssh_conn:
-        code, out, err = await run_session_sudo(session, ["systemctl", "reboot"])
-        if code != 0:
-            raise HTTPException(status_code=500, detail=err or out or "Reboot failed")
-        return {"action": "reboot", "success": True, "output": out}
-
-    result = reboot()
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Reboot failed"))
-    return result
+    code, out, err = await run_sudo_async(["systemctl", "reboot"], password=None)
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or "Reboot failed")
+    return {"action": "reboot", "success": True, "output": out}
 
 
 @router.post("/device/power/poweroff")
 async def api_poweroff(session: UserSession = Depends(require_admin)):
     """Power off the system (requires administrative privileges)."""
-    if session and session.ssh_conn:
-        code, out, err = await run_session_sudo(session, ["systemctl", "poweroff"])
-        if code != 0:
-            raise HTTPException(status_code=500, detail=err or out or "Poweroff failed")
-        return {"action": "poweroff", "success": True, "output": out}
-
-    result = poweroff()
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Poweroff failed"))
-    return result
+    code, out, err = await run_sudo_async(["systemctl", "poweroff"], password=None)
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or "Poweroff failed")
+    return {"action": "poweroff", "success": True, "output": out}
 
 
 @router.post("/device/power/suspend")
 async def api_suspend(session: UserSession = Depends(require_admin)):
     """Suspend the system (requires administrative privileges)."""
-    if session and session.ssh_conn:
-        code, out, err = await run_session_sudo(session, ["systemctl", "suspend"])
-        if code != 0:
-            raise HTTPException(status_code=500, detail=err or out or "Suspend failed")
-        return {"action": "suspend", "success": True, "output": out}
-
-    result = suspend()
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Suspend failed"))
-    return result
+    code, out, err = await run_sudo_async(["systemctl", "suspend"], password=None)
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or "Suspend failed")
+    return {"action": "suspend", "success": True, "output": out}

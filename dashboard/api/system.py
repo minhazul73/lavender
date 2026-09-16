@@ -95,31 +95,23 @@ async def api_service_action(
             detail="Administrative privileges required to modify system services.",
         )
 
-    # If running via SSH session bridge
-    if session and session.ssh_conn:
-        if user:
-            code, out, err = await run_user_service_async(
-                session.uid, ["systemctl", "--user", action, service_name]
-            )
-        else:
-            code, out, err = await run_sudo_async(
-                ["systemctl", action, service_name], password=None
-            )
-        if code != 0:
-            raise HTTPException(status_code=500, detail=err or out or f"Failed to {action} {service_name}")
-        return {
-            "success": True,
-            "action": action,
-            "service": service_name,
-            "user": user,
-            "output": out,
-        }
-
-    # Fallback
-    result = service_action(service_name, action, user=user)
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Action failed"))
-    return result
+    if user:
+        code, out, err = await run_user_service_async(
+            session.uid, ["systemctl", "--user", action, service_name]
+        )
+    else:
+        code, out, err = await run_sudo_async(
+            ["systemctl", action, service_name], password=None
+        )
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or f"Failed to {action} {service_name}")
+    return {
+        "success": True,
+        "action": action,
+        "service": service_name,
+        "user": user,
+        "output": out,
+    }
 
 
 # ---- Storage / Disk ----
@@ -154,16 +146,10 @@ async def api_kill_process(
     session: UserSession = Depends(require_admin),
 ):
     """Kill a process by PID (requires administrative elevation)."""
-    if session and session.ssh_conn:
-        code, out, err = await run_sudo_async(["kill", "-9", str(pid)], password=None)
-        if code != 0:
-            raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {pid}")
-        return {"action": "kill", "pid": pid, "success": True, "output": out}
-
-    result = kill_process(pid)
-    if not result["success"]:
-        raise HTTPException(status_code=500, detail=result.get("error", "Kill failed"))
-    return result
+    code, out, err = await run_sudo_async(["kill", "-9", str(pid)], password=None)
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {pid}")
+    return {"action": "kill", "pid": pid, "success": True, "output": out}
 
 
 @router.get("/system/memory")
