@@ -75,12 +75,20 @@
             <a href="/processes" class="card-link">→</a>
         </div>
         <div class="card-body">
-            <div class="stat-main" id="ram-used" style="color: var(--blue);">—</div>
-            <div class="stat-sub" id="ram-pct">—%  used</div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <div style="display:flex; align-items:baseline; gap:3px;">
+                    <span class="stat-main" id="ram-used" style="color: var(--blue);">—</span>
+                    <span class="stat-sub font-mono" id="ram-total" style="font-size:11px; color:var(--text-muted);">/ —</span>
+                </div>
+                <span class="stat-sub font-mono" id="ram-pct" style="font-weight:700; color:var(--blue); font-size:13px;">—%</span>
+            </div>
             <div class="progress-bar-outer">
                 <div class="progress-bar-inner" id="ram-bar" style="width:0%"></div>
             </div>
-            <div class="stat-sub" id="ram-detail">— free</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="stat-sub" id="ram-detail">— free</span>
+                <span class="stat-sub font-mono" id="ram-swap" style="font-size:11px; color:var(--text-muted);">Swap: —</span>
+            </div>
             <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 32" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="grad-ram" x1="0" y1="0" x2="0" y2="1">
@@ -103,27 +111,68 @@
                 </svg>
             </span>
             <span class="card-title">Battery</span>
-            <a href="/battery" class="card-link">→</a>
+            <span class="batt-badge badge-neutral" id="batt-badge">
+                <span class="batt-badge-dot"></span>
+                <span id="batt-badge-text">Detecting…</span>
+            </span>
         </div>
-        <div class="card-body" style="padding: 10px 14px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div class="stat-main" id="batt-pct" style="color: var(--green); font-size: 26px;">—</div>
-                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
-                    <div class="stat-sub" id="batt-state" style="color: var(--text-muted); font-size: 11px;">—</div>
-                    <div class="stat-sub" id="batt-temp" style="color: var(--text-muted); font-size: 11px;">—°C</div>
+        <div class="card-body">
+            <!-- Hero Row: Percentage, Gauge Bar & Dynamic Primary Metrics -->
+            <div class="batt-hero-section">
+                <div class="batt-hero-left">
+                    <div class="batt-pct-wrap">
+                        <span class="batt-pct-val" id="batt-pct">—</span>
+                    </div>
+                    <div class="batt-gauge-container" title="Battery Charge Level">
+                        <div class="batt-gauge-track">
+                            <div class="batt-gauge-fill" id="batt-gauge-fill" style="width: 0%;"></div>
+                        </div>
+                        <div class="batt-gauge-cap"></div>
+                    </div>
+                </div>
+                <div class="batt-hero-right">
+                    <div class="batt-rate-card">
+                        <span class="batt-meta-label" id="batt-rate-label">Power Rate</span>
+                        <span class="batt-meta-val font-mono" id="batt-rate-val">— W</span>
+                    </div>
+                    <div class="batt-time-card">
+                        <span class="batt-meta-label" id="batt-time-label">Estimated Time</span>
+                        <span class="batt-meta-val font-mono" id="batt-time-val">—</span>
+                    </div>
                 </div>
             </div>
-            <div style="font-size:13px; color:var(--blue); font-family:'JetBrains Mono',monospace; margin: 6px 0 4px;" id="batt-volt-current">— V</div>
-            <svg class="sparkline" id="sparkline-batt" viewBox="0 0 100 32" preserveAspectRatio="none">
-                <defs>
-                    <linearGradient id="grad-batt" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stop-color="var(--green)" stop-opacity="0.35"/>
-                        <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
-                    </linearGradient>
-                </defs>
-                <path class="sparkline-area" id="sparkarea-batt" d="" fill="url(#grad-batt)"/>
-                <path class="sparkline-line" id="sparkpath-batt" d="" stroke-width="1.2" style="stroke:var(--green);"/>
-            </svg>
+
+            <!-- Secondary 2x2 Telemetry Grid -->
+            <div class="batt-stats-grid">
+                <div class="batt-stat-tile batt-tile-voltage">
+                    <div class="batt-volt-header">
+                        <span class="batt-stat-label batt-volt-label">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px; margin-right:2px; color:#38bdf8;">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                            </svg>Voltage
+                        </span>
+                        <span class="batt-volt-range font-mono" id="batt-volt-range">3.4–4.35V</span>
+                    </div>
+                    <div class="batt-volt-value-wrap">
+                        <span class="batt-stat-val batt-volt-val font-mono" id="batt-voltage">— V</span>
+                    </div>
+                    <div class="batt-volt-meter-track" title="Voltage Range">
+                        <div class="batt-volt-meter-fill" id="batt-volt-bar" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <div class="batt-stat-tile">
+                    <span class="batt-stat-label">Temperature</span>
+                    <span class="batt-stat-val font-mono" id="batt-temperature">—°C</span>
+                </div>
+                <div class="batt-stat-tile">
+                    <span class="batt-stat-label">Energy</span>
+                    <span class="batt-stat-val font-mono" id="batt-energy">— / — Wh</span>
+                </div>
+                <div class="batt-stat-tile">
+                    <span class="batt-stat-label">Battery Health</span>
+                    <span class="batt-stat-val font-mono" id="batt-health">—</span>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -313,7 +362,6 @@
                 </svg>
             </span>
             <span class="card-title">Thermal</span>
-            <a href="/thermal" class="card-link">→</a>
         </div>
         <div class="card-body thermal-card-body">
             <div id="thermal-top" class="thermal-zones">

@@ -171,7 +171,6 @@ PAGES: dict[str, tuple[str, str]] = {
     "/processes": ("processes.html", "Running processes"),
     "/storage": ("storage.html", "Storage and disks"),
     "/network": ("network.html", "Network interfaces"),
-    "/battery": ("battery.html", "Battery and device info"),
     "/packages": ("packages.html", "Package management"),
     "/users": ("users.html", "User management"),
     "/power": ("power.html", "Power controls"),
@@ -207,3 +206,9 @@ def _register_page(path: str, template_name: str, summary: str) -> None:
 
 for _path, (_template, _summary) in PAGES.items():
     _register_page(_path, _template, _summary)
+
+
+@app.get("/battery", response_class=RedirectResponse, summary="Redirect to live overview")
+async def page_battery_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/", status_code=307)
+
