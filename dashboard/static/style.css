@@ -1581,23 +1581,148 @@ input[type="search"].input::-webkit-search-cancel-button {
     color: var(--text-muted);
 }
 
-/* ===== Network ===== */
+/* ===== Network & WiFi ===== */
+.net-summary-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.net-metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    backdrop-filter: blur(10px);
+    transition: var(--transition);
+}
+
+.net-metric-card:hover {
+    border-color: var(--border-accent);
+    transform: translateY(-1px);
+}
+
+.net-metric-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.net-metric-icon.icon-cyan {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+.net-metric-icon.icon-green {
+    background: var(--green-dim);
+    color: var(--green);
+}
+
+.net-metric-icon.icon-purple {
+    background: var(--purple-dim);
+    color: var(--purple);
+}
+
+.net-metric-icon.icon-blue {
+    background: var(--blue-dim);
+    color: var(--blue);
+}
+
+.net-metric-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.net-metric-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.net-metric-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.net-metric-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* Category Filter Tabs */
+.iface-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.iface-filter-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.iface-filter-btn:hover {
+    border-color: var(--border-accent);
+    color: var(--text-primary);
+}
+
+.iface-filter-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* Interface Grid & Cards */
 .interfaces-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 16px;
 }
 
 .iface-card {
-    background: var(--bg-elevated);
+    background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: 16px;
     transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
 }
 
 .iface-card:hover {
     border-color: var(--border-accent);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.iface-card.is-default-route {
+    border-color: rgba(6, 182, 212, 0.45);
+    background: linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, var(--bg-card) 100%);
 }
 
 .iface-header {
@@ -1605,72 +1730,494 @@ input[type="search"].input::-webkit-search-cancel-button {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.iface-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.iface-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
 }
 
 .iface-header h4 {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 700;
     font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iface-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.badge-default {
+    background: var(--purple-dim);
+    color: var(--purple);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.badge-type {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: capitalize;
+}
+
+/* Interface Transfer Stats */
+.iface-traffic-bar {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    font-size: 11.5px;
+}
+
+.traffic-col {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.traffic-icon {
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.traffic-rx {
+    color: var(--green);
+}
+
+.traffic-tx {
     color: var(--accent);
+}
+
+.traffic-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
 }
 
 .iface-details {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 6px;
+    font-size: 12px;
 }
 
-.iface-details>div {
+.iface-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 3px 0;
 }
 
-.iface-details .label {
+.iface-row .label {
     color: var(--text-muted);
-    font-size: 12px;
 }
 
-.iface-details .value {
-    font-size: 12px;
-    font-family: 'JetBrains Mono', monospace;
+.iface-row .value {
     color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
 }
 
-.addr-list {
-    margin-top: 10px;
+/* Address List & Badges with strict overflow prevention */
+.addr-section {
+    margin-top: 12px;
     padding-top: 10px;
     border-top: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.addr-list .label {
-    display: block;
+.addr-section .label {
     color: var(--text-muted);
     font-size: 10.5px;
-    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.addr-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(6, 182, 212, 0.06);
+    border: 1px solid rgba(6, 182, 212, 0.18);
+    border-radius: 4px;
+    padding: 4px 8px;
+    max-width: 100%;
+}
+
+.addr-item.addr-v6 {
+    background: rgba(168, 85, 247, 0.06);
+    border-color: rgba(168, 85, 247, 0.18);
+}
+
+.addr-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+
+.addr-item.addr-v6 .addr-text {
+    color: var(--purple);
+}
+
+.btn-copy-chip {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.btn-copy-chip:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* WiFi Tab Components */
+.wifi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.wifi-hero-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.wifi-hero-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+
+.wifi-hero-title h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wifi-signal-meter {
+    margin: 16px 0;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.signal-bar-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.signal-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.signal-bar-fill.good {
+    background: var(--green);
+    box-shadow: 0 0 10px var(--green-glow);
+}
+
+.signal-bar-fill.warn {
+    background: var(--yellow);
+    box-shadow: 0 0 10px var(--yellow-glow);
+}
+
+.signal-bar-fill.crit {
+    background: var(--red);
+    box-shadow: 0 0 10px var(--red-glow);
+}
+
+.signal-numeric {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.wifi-specs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.wifi-spec-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+}
+
+.wifi-spec-box .label {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.wifi-spec-box .val {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    margin-top: 2px;
+}
+
+/* Nearby Networks Table */
+.nearby-table-wrap {
+    overflow-x: auto;
+    max-height: 420px;
+}
+
+.nearby-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.nearby-table th {
+    text-align: left;
+    padding: 10px 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
 
-.addr-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    background: var(--accent-dim);
-    border: 1px solid var(--border-accent);
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    margin: 2px;
-    color: var(--accent);
+.nearby-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
 }
 
-.wifi-card {
-    background: var(--bg-elevated);
+.nearby-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.nearby-table tr.current-net td {
+    background: rgba(6, 182, 212, 0.05);
+    color: var(--text-primary);
+}
+
+/* DNS Tab Components */
+.dns-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+}
+
+.dns-server-card {
+    background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: 16px;
-    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    transition: var(--transition);
+}
+
+.dns-server-card:hover {
+    border-color: var(--border-accent);
+}
+
+.dns-server-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dns-provider-badge {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--border-accent);
+}
+
+.dns-provider-badge.provider-cloudflare {
+    background: var(--purple-dim);
+    color: var(--purple);
+    border-color: rgba(168, 85, 247, 0.3);
+}
+
+.dns-provider-badge.provider-google {
+    background: var(--blue-dim);
+    color: var(--blue);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.dns-provider-badge.provider-quad9 {
+    background: var(--green-dim);
+    color: var(--green);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* DNS Query & Connectivity Diagnostic Tools */
+.diag-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 18px;
+}
+
+.diag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.diag-header h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.diag-input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.diag-input-row .input {
+    flex: 1;
+}
+
+.presets-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+    align-items: center;
+}
+
+.preset-chip {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.preset-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.ping-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    margin: 14px 0;
+}
+
+.ping-stat-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 8px;
+    text-align: center;
+}
+
+.ping-stat-box .label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+}
+
+.ping-stat-box .val {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+}
+
+.terminal-box {
+    background: #020617;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #94a3b8;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    margin-top: 10px;
 }
 
 /* ===== Modal ===== */

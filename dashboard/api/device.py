@@ -12,9 +12,13 @@ from dashboard.auth.bridge import run_sudo_async
 from dashboard.services.network import (
     get_ip_addresses,
     get_wifi_info,
+    get_dns_info,
     get_dns_servers,
     ping_test,
     get_gateways,
+    get_network_summary,
+    dns_lookup,
+    scan_wifi_networks,
 )
 from dashboard.services.battery import (
     get_battery_info,
@@ -48,11 +52,14 @@ router = APIRouter()
 
 @router.get("/device/network")
 async def api_network(session: UserSession = Depends(require_session)):
-    """Get network information."""
+    """Get complete network information."""
+    dns_info = get_dns_info()
     return {
+        "summary": get_network_summary(),
         "interfaces": get_ip_addresses(),
         "wifi": get_wifi_info(),
-        "dns": get_dns_servers(),
+        "dns": dns_info.get("upstream_ips", []),
+        "dns_details": dns_info,
         "gateways": get_gateways(),
     }
 
@@ -60,10 +67,28 @@ async def api_network(session: UserSession = Depends(require_session)):
 @router.get("/device/network/ping")
 async def api_ping(
     target: str = Query("8.8.8.8", description="Target to ping"),
+    count: int = Query(3, ge=1, le=10, description="Ping packet count"),
     session: UserSession = Depends(require_session),
 ):
     """Ping a target and return results."""
-    return ping_test(target)
+    return ping_test(target, count=count)
+
+
+@router.get("/device/network/dns-query")
+async def api_dns_query(
+    domain: str = Query("google.com", description="Domain to resolve"),
+    session: UserSession = Depends(require_session),
+):
+    """Test resolving a domain and measure latency."""
+    return dns_lookup(domain)
+
+
+@router.post("/device/network/wifi-scan")
+async def api_wifi_scan(
+    session: UserSession = Depends(require_session),
+):
+    """Trigger WiFi scan for nearby networks."""
+    return {"networks": scan_wifi_networks()}
 
 
 # ---- Battery / Device Stats ----
