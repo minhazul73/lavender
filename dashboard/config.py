@@ -5,6 +5,10 @@ PORT = 8080
 HOST = "0.0.0.0"
 DEBUG = False
 
+# Application Version (SemVer: < 1.0 indicates development / pre-release status)
+APP_VERSION = "0.4.0"
+
+
 # Sudo commands that need elevation (documented limitation)
 SUDO_COMMANDS = {
     "systemctl_system": ["sudo", "systemctl"],

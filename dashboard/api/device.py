@@ -44,8 +44,17 @@ from dashboard.services.power import (
     poweroff,
     suspend,
 )
+from dashboard.services.device_info import get_system_info
 
 router = APIRouter()
+
+
+# ---- System & Hardware Info ----
+
+@router.get("/device/info")
+async def api_device_info(session: Optional[UserSession] = Depends(get_current_session)):
+    """Get dynamic system, hardware model, OS, and kernel metadata."""
+    return get_system_info()
 
 
 # ---- Network ----

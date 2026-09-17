@@ -13,9 +13,10 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from dashboard.config import SESSION_COOKIE_NAME
+from dashboard.config import SESSION_COOKIE_NAME, APP_VERSION
 from dashboard.auth.session import UserSession, session_store
 from dashboard.auth.deps import get_current_session, require_session
+from dashboard.services.device_info import get_system_info
 
 
 def _get_git_hash() -> str:
@@ -51,6 +52,8 @@ class Templates:
         session = getattr(request.state, "session", None)
         context.setdefault("session", session)
         context.setdefault("request", request)
+        context.setdefault("app_version", APP_VERSION)
+        context.setdefault("device_info", get_system_info())
         body = tmpl.render(**context, git_hash=_GIT_HASH)
         return HTMLResponse(content=body, status_code=200, media_type="text/html")
 
@@ -101,8 +104,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Lavender",
-    description="Web UI for managing postmarketOS on Redmi Note 7",
-    version="1.0.0",
+    description="Web UI for Linux system management and device monitoring",
+    version=APP_VERSION,
     lifespan=lifespan,
 )
 
