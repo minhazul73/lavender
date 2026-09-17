@@ -1255,9 +1255,9 @@
 .batt-stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 5px 8px;
-    padding: 7px 10px;
-    background: rgba(0, 0, 0, 0.22);
+    gap: 6px 8px;
+    padding: 7px 9px;
+    background: rgba(0, 0, 0, 0.25);
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -1265,7 +1265,11 @@
 .batt-stat-tile {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 1px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .batt-stat-label {
@@ -1279,6 +1283,65 @@
     font-size: 11.5px;
     font-weight: 600;
     color: var(--text-primary);
+}
+
+/* Featured Voltage Tile: Eye-catching & Easily Measurable */
+.batt-tile-voltage {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(59, 130, 246, 0.08));
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 14px rgba(6, 182, 212, 0.15);
+    padding: 4px 7px 5px;
+}
+
+.batt-volt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.batt-volt-label {
+    color: #38bdf8 !important;
+    font-weight: 600 !important;
+    display: inline-flex;
+    align-items: center;
+}
+
+.batt-volt-range {
+    font-size: 8.5px;
+    color: rgba(255, 255, 255, 0.45);
+    letter-spacing: -0.02em;
+}
+
+.batt-volt-value-wrap {
+    display: flex;
+    align-items: baseline;
+    margin-top: 1px;
+}
+
+.batt-volt-val {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #38bdf8 !important;
+    letter-spacing: -0.01em;
+    text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    line-height: 1.15;
+}
+
+.batt-volt-meter-track {
+    width: 100%;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 3px;
+}
+
+.batt-volt-meter-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #0284c7, #38bdf8);
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.7);
+    transition: width 0.4s ease;
 }
 
 /* ---- Services card — side-by-side layout ---- */

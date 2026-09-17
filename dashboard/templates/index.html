@@ -136,9 +136,21 @@
 
             <!-- Secondary 2x2 Telemetry Grid -->
             <div class="batt-stats-grid">
-                <div class="batt-stat-tile">
-                    <span class="batt-stat-label">Voltage</span>
-                    <span class="batt-stat-val font-mono" id="batt-voltage">— V</span>
+                <div class="batt-stat-tile batt-tile-voltage">
+                    <div class="batt-volt-header">
+                        <span class="batt-stat-label batt-volt-label">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px; margin-right:2px; color:#38bdf8;">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                            </svg>Voltage
+                        </span>
+                        <span class="batt-volt-range font-mono" id="batt-volt-range">3.4–4.35V</span>
+                    </div>
+                    <div class="batt-volt-value-wrap">
+                        <span class="batt-stat-val batt-volt-val font-mono" id="batt-voltage">— V</span>
+                    </div>
+                    <div class="batt-volt-meter-track" title="Voltage Range">
+                        <div class="batt-volt-meter-fill" id="batt-volt-bar" style="width: 0%;"></div>
+                    </div>
                 </div>
                 <div class="batt-stat-tile">
                     <span class="batt-stat-label">Temperature</span>

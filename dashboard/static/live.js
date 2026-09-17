@@ -303,11 +303,28 @@
         }
 
         // 5. Secondary Telemetry Grid
+        // Voltage with eye-catching display and micro-meter calculation
         var voltEl = document.getElementById('batt-voltage');
+        var voltRangeEl = document.getElementById('batt-volt-range');
+        var voltBarEl = document.getElementById('batt-volt-bar');
         if (volt !== null && volt !== undefined) {
             if (voltEl) voltEl.textContent = volt.toFixed(2) + ' V';
+
+            // Dynamic voltage range (1S phones vs multi-cell packs)
+            var minV = 3.4, maxV = 4.35;
+            if (volt > 13.5) { minV = 13.6; maxV = 17.4; }
+            else if (volt > 9.0) { minV = 10.2; maxV = 13.05; }
+            else if (volt > 5.0) { minV = 6.8; maxV = 8.7; }
+            else { minV = 3.4; maxV = 4.35; }
+
+            if (voltRangeEl) voltRangeEl.textContent = minV + '–' + maxV + 'V';
+            if (voltBarEl) {
+                var vPct = Math.min(100, Math.max(0, ((volt - minV) / (maxV - minV)) * 100));
+                voltBarEl.style.width = vPct.toFixed(0) + '%';
+            }
         } else {
             if (voltEl) voltEl.textContent = '— V';
+            if (voltBarEl) voltBarEl.style.width = '0%';
         }
 
         var tempEl = document.getElementById('batt-temperature');
