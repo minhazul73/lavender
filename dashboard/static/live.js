@@ -179,10 +179,25 @@
         var used = data.used || 0;
         var avail = data.available || 0;
         var pct = data.used_pct || 0;
+        var cached = (data.cached || 0) + (data.buffers || 0);
+        var swapTotal = data.swap_total || 0;
+        var swapUsed = data.swap_used || 0;
 
         document.getElementById('ram-used').textContent = fmtMem(used);
+        var totalEl = document.getElementById('ram-total');
+        if (totalEl) totalEl.textContent = '/ ' + fmtMem(total);
+
         document.getElementById('ram-pct').textContent = pct.toFixed(0) + '%';
         document.getElementById('ram-detail').textContent = fmtMem(avail) + ' free';
+
+        var swapEl = document.getElementById('ram-swap');
+        if (swapEl) {
+            if (swapTotal > 0) {
+                swapEl.textContent = 'Swap: ' + fmtMem(swapUsed);
+            } else {
+                swapEl.textContent = 'Cache: ' + fmtMem(cached);
+            }
+        }
 
         var bar = document.getElementById('ram-bar');
         bar.style.width = Math.min(100, pct) + '%';

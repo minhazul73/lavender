@@ -1060,7 +1060,6 @@
     flex-direction: column;
     justify-content: space-between;
     gap: 10px;
-    /* padding: 12px 14px 12px; */
 }
 
 /* Dynamic State Badge in Card Header */

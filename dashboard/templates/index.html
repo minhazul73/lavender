@@ -75,12 +75,20 @@
             <a href="/processes" class="card-link">→</a>
         </div>
         <div class="card-body">
-            <div class="stat-main" id="ram-used" style="color: var(--blue);">—</div>
-            <div class="stat-sub" id="ram-pct">—%  used</div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                <div style="display:flex; align-items:baseline; gap:3px;">
+                    <span class="stat-main" id="ram-used" style="color: var(--blue);">—</span>
+                    <span class="stat-sub font-mono" id="ram-total" style="font-size:11px; color:var(--text-muted);">/ —</span>
+                </div>
+                <span class="stat-sub font-mono" id="ram-pct" style="font-weight:700; color:var(--blue); font-size:13px;">—%</span>
+            </div>
             <div class="progress-bar-outer">
                 <div class="progress-bar-inner" id="ram-bar" style="width:0%"></div>
             </div>
-            <div class="stat-sub" id="ram-detail">— free</div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="stat-sub" id="ram-detail">— free</span>
+                <span class="stat-sub font-mono" id="ram-swap" style="font-size:11px; color:var(--text-muted);">Swap: —</span>
+            </div>
             <svg class="sparkline" id="sparkline-ram" viewBox="0 0 100 32" preserveAspectRatio="none">
                 <defs>
                     <linearGradient id="grad-ram" x1="0" y1="0" x2="0" y2="1">
