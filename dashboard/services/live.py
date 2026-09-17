@@ -669,7 +669,7 @@ class BatteryCollector(MetricCollector):
         """Return aggregated battery info (dict, not BatteryInfo dataclass,
         for JSON serialization in SSE)."""
         info = self._collect_sysfs()
-        upower_info = self._collect_upower()
+        upower_info = await asyncio.to_thread(self._collect_upower)
         if upower_info:
             for k, v in upower_info.items():
                 if v is not None:
@@ -681,8 +681,8 @@ class BatteryCollector(MetricCollector):
                         info[k] = v
 
         state = str(info.get("state") or "unknown").lower()
-        info["charging"] = "charging" in state and "discharging" not in state
-        info["discharging"] = "discharging" in state
+        info["charging"] = state == "charging"
+        info["discharging"] = state == "discharging"
         if info.get("percentage") is not None:
             info["battery_level"] = f"{info['percentage']}%"
         info["battery_state"] = state
@@ -718,9 +718,6 @@ class BatteryCollector(MetricCollector):
         }
 
         if not batteries:
-            up = self._collect_upower()
-            if up.get("percentage") is not None:
-                result.update(up)
             return result
 
         # Aggregate from sysfs
@@ -739,6 +736,8 @@ class BatteryCollector(MetricCollector):
         energy = None
         energy_full = None
         capacity = None
+        capacity_num = 0
+        capacity_den = 0
 
         for batt in batteries:
             cap_file = f"/sys/class/power_supply/{batt}/capacity"
@@ -791,7 +790,7 @@ class BatteryCollector(MetricCollector):
             elif v > 0:
                 curr_file = f"/sys/class/power_supply/{batt}/current_now"
                 cr = _read_int(curr_file, 0)
-                if cr > 0:
+                if cr != 0:
                     rate_val = abs(cr * v) / 1_000_000_000_000.0
                     if energy_rate is None or rate_val > energy_rate:
                         energy_rate = rate_val
@@ -834,14 +833,16 @@ class BatteryCollector(MetricCollector):
                     energy_full = (cf * v) / 1_000_000_000_000.0
 
             if efd > 0 and ef > 0:
-                capacity = round((ef / efd) * 100, 1)
+                capacity_num += ef
+                capacity_den += efd
             else:
                 cfd_file = f"/sys/class/power_supply/{batt}/charge_full_design"
                 cfd = _read_int(cfd_file, 0)
                 cf_file = f"/sys/class/power_supply/{batt}/charge_full"
                 cf = _read_int(cf_file, 0)
                 if cfd > 0 and cf > 0:
-                    capacity = round((cf / cfd) * 100, 1)
+                    capacity_num += cf
+                    capacity_den += cfd
 
             e_file = f"/sys/class/power_supply/{batt}/energy_now"
             e = _read_int(e_file, 0)
@@ -867,6 +868,8 @@ class BatteryCollector(MetricCollector):
         result["has_history"] = has_history
         result["energy"] = energy
         result["energy_full"] = energy_full
+        if capacity_den > 0:
+            capacity = round((capacity_num / capacity_den) * 100, 1)
         result["capacity"] = capacity
 
         # Derive human-readable fields

@@ -236,9 +236,9 @@
         var ttf = data.time_to_full;
 
         // Classify charging vs discharging vs full vs idle
-        var isCharging = data.charging || (rawState.indexOf('charging') >= 0 && rawState.indexOf('discharging') === -1);
-        var isDischarging = data.discharging || rawState.indexOf('discharging') >= 0;
-        var isFull = rawState.indexOf('full') >= 0;
+        var isCharging = data.charging || rawState === 'charging';
+        var isDischarging = data.discharging || rawState === 'discharging';
+        var isFull = rawState === 'full' || rawState === 'fully-charged';
 
         // 1. Badge & State
         var badgeEl = document.getElementById('batt-badge');
@@ -252,7 +252,7 @@
             badgeText.textContent = isCharging ? '⚡ Charging' :
                                    isDischarging ? 'Discharging' :
                                    isFull ? 'Fully Charged' :
-                                   (rawState !== 'unknown' ? (rawState.charAt(0).toUpperCase() + rawState.slice(1)) : 'Plugged In');
+                                   (rawState !== 'unknown' ? (rawState.charAt(0).toUpperCase() + rawState.slice(1)) : ((pct !== null && pct !== undefined) ? 'Plugged In' : 'No Battery'));
         }
 
         // 2. Percentage & Gauge
@@ -273,6 +273,9 @@
                 isCharging ? ' charging' :
                 (pct < 20 ? ' crit' : (pct < 50 ? ' warn' : ''))
             );
+        } else if (gaugeFill) {
+            gaugeFill.style.width = '0%';
+            gaugeFill.className = 'batt-gauge-fill';
         }
 
         // 3. Dynamic Rate (Discharge Rate vs Charge Rate)
@@ -370,8 +373,6 @@
         if (healthEl) {
             if (capacity !== null && capacity !== undefined) {
                 healthEl.textContent = typeof capacity === 'number' ? capacity.toFixed(0) + '%' : capacity;
-            } else if (data.has_history) {
-                healthEl.textContent = 'Good';
             } else {
                 healthEl.textContent = '—';
             }
@@ -789,7 +790,7 @@
     fetchJson('/api/system/logs?limit=10').then(function(d) { if (d) updateLogs(d); });
     fetchJson('/api/device/battery').then(function(d) {
         if (d) {
-            if (d.battery) { updateBattery(d.battery); updateBatteryPill(); }
+            if (d.battery && !d.battery.error) { updateBattery(d.battery); updateBatteryPill(); }
             if (d.thermal) updateThermalTop({zones: d.thermal});
         }
     });
