@@ -304,14 +304,10 @@
 
         // 5. Secondary Telemetry Grid
         var voltEl = document.getElementById('batt-voltage');
-        var voltLiveEl = document.getElementById('batt-volt-live');
         if (volt !== null && volt !== undefined) {
-            var vStr = volt.toFixed(2) + ' V';
-            if (voltEl) voltEl.textContent = vStr;
-            if (voltLiveEl) voltLiveEl.textContent = vStr;
+            if (voltEl) voltEl.textContent = volt.toFixed(2) + ' V';
         } else {
             if (voltEl) voltEl.textContent = '— V';
-            if (voltLiveEl) voltLiveEl.textContent = '— V';
         }
 
         var tempEl = document.getElementById('batt-temperature');
@@ -347,12 +343,6 @@
             } else {
                 healthEl.textContent = '—';
             }
-        }
-
-        // 6. Live Sparkline
-        if (volt !== null && volt !== undefined) {
-            pushBuf('batt', volt);
-            updateSpark('sparkpath-batt', 'batt', 'sparkarea-batt', 28);
         }
     }
 

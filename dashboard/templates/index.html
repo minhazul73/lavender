@@ -153,24 +153,6 @@
                     <span class="batt-stat-val font-mono" id="batt-health">—</span>
                 </div>
             </div>
-
-            <!-- Voltage Trend Sparkline -->
-            <div class="batt-sparkline-wrap">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span class="batt-sparkline-label">Voltage Trend</span>
-                    <span style="font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;" id="batt-volt-live">— V</span>
-                </div>
-                <svg class="sparkline sparkline-batt" id="sparkline-batt" viewBox="0 0 100 28" preserveAspectRatio="none">
-                    <defs>
-                        <linearGradient id="grad-batt" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="var(--green)" stop-opacity="0.35"/>
-                            <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
-                        </linearGradient>
-                    </defs>
-                    <path class="sparkline-area" id="sparkarea-batt" d="" fill="url(#grad-batt)"/>
-                    <path class="sparkline-line" id="sparkpath-batt" d="" stroke-width="1.2" style="stroke:var(--green);"/>
-                </svg>
-            </div>
         </div>
     </section>
 

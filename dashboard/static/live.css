@@ -1058,9 +1058,9 @@
 .card-battery .card-body {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 10px 14px 10px;
+    justify-content: space-around;
+    gap: 10px;
+    padding: 12px 14px 14px;
 }
 
 /* Dynamic State Badge in Card Header */
@@ -1279,21 +1279,6 @@
     font-size: 11.5px;
     font-weight: 600;
     color: var(--text-primary);
-}
-
-/* Sparkline area */
-.batt-sparkline-wrap {
-    margin-top: 1px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.batt-sparkline-label {
-    font-size: 9px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 /* ---- Services card — side-by-side layout ---- */
