@@ -121,10 +121,10 @@
 }
 
 /* ---- Metrics Row ---- */
-/* CPU needs more room for 8 mini-graphs; Battery is content-light so it's narrower */
+/* CPU wide for mini-graphs; Memory is slimmed to 0.95fr to give Battery 1.55fr rich telemetry */
 .metrics-row {
     display: grid;
-    grid-template-columns: 2.6fr 1.3fr 0.85fr 1.25fr;
+    grid-template-columns: 2.3fr 0.95fr 1.55fr 1.2fr;
     gap: 12px;
     margin-bottom: 14px;
     align-items: stretch;
@@ -1054,16 +1054,246 @@
     }
 }
 
-/* ---- Battery card — narrow column tweaks ---- */
-/* Battery has little content; make it feel intentional, not empty */
+/* ---- Enhanced Battery Card Styling ---- */
 .card-battery .card-body {
-    justify-content: center;
-    gap: 4px;
-    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px 10px;
 }
 
-.card-battery .stat-main {
-    font-size: 22px;
+/* Dynamic State Badge in Card Header */
+.batt-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    letter-spacing: 0.02em;
+    transition: all 0.25s ease;
+}
+
+.batt-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Badge States */
+.batt-badge.badge-charging {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+.batt-badge.badge-charging .batt-badge-dot {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    animation: batt-pulse 1.4s ease-in-out infinite;
+}
+
+.batt-badge.badge-discharging {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+.batt-badge.badge-discharging .batt-badge-dot {
+    background: #f59e0b;
+}
+
+.batt-badge.badge-full {
+    background: rgba(6, 182, 212, 0.15);
+    color: #22d3ee;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+.batt-badge.badge-full .batt-badge-dot {
+    background: #06b6d4;
+    box-shadow: 0 0 6px #06b6d4;
+}
+
+.batt-badge.badge-neutral {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-secondary);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+}
+.batt-badge.badge-neutral .batt-badge-dot {
+    background: var(--text-muted);
+}
+
+@keyframes batt-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.3); }
+}
+
+/* Hero Section: Left (Percentage + Gauge), Right (Rate + Time) */
+.batt-hero-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.batt-hero-left {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+
+.batt-pct-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
+
+.batt-pct-val {
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    font-family: 'Inter', -apple-system, sans-serif;
+    letter-spacing: -0.02em;
+    color: var(--green);
+}
+
+/* Glassmorphic Battery Gauge */
+.batt-gauge-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 130px;
+    height: 8px;
+    position: relative;
+}
+
+.batt-gauge-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    overflow: hidden;
+    padding: 1px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    position: relative;
+}
+
+.batt-gauge-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    transition: width 0.4s ease, background 0.3s ease;
+}
+
+.batt-gauge-fill.warn {
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+.batt-gauge-fill.crit {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+.batt-gauge-fill.charging {
+    background: linear-gradient(90deg, #059669, #10b981, #6ee7b7);
+    background-size: 200% 100%;
+    animation: batt-charge-shimmer 2s linear infinite;
+}
+
+@keyframes batt-charge-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+.batt-gauge-cap {
+    width: 3px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 0 2px 2px 0;
+    margin-left: 2px;
+}
+
+/* Hero Right: Dynamic Primary Metric Stack */
+.batt-hero-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.batt-rate-card,
+.batt-time-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.batt-meta-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+}
+
+.batt-meta-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+#batt-rate-val {
+    color: var(--accent);
+}
+
+#batt-time-val {
+    color: var(--text-secondary);
+}
+
+/* Secondary 2x2 Telemetry Grid */
+.batt-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px 8px;
+    padding: 7px 10px;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.batt-stat-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.batt-stat-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+.batt-stat-val {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Sparkline area */
+.batt-sparkline-wrap {
+    margin-top: 1px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.batt-sparkline-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 /* ---- Services card — side-by-side layout ---- */

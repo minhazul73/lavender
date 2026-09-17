@@ -156,7 +156,7 @@ def get_battery_info() -> dict:
                 pass
         elif "capacity" in key.lower():
             try:
-                result["capacity"] = int(value.replace("%", "").strip())
+                result["capacity"] = round(float(value.replace("%", "").strip()), 1)
             except (ValueError, AttributeError):
                 pass
         elif "temperature" in key.lower():

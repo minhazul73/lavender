@@ -651,27 +651,43 @@ class BatteryInfo:
 class BatteryCollector(MetricCollector):
     """Collects battery info from sysfs power_supply and upower.
 
-    Tries sysfs first (single file reads, no subprocess). Falls back to
-    upower only if needed for additional fields like time_to_full.
+    Tries sysfs first (single file reads, no subprocess). Supplements with
+    upower for fields like time_to_empty, time_to_full, and capacity.
     """
 
     __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
-                 "_task", "_sysfs_batteries", "_upower_available")
+                 "_task", "_sysfs_batteries", "_upower_available", "_upower_device")
 
     def __init__(self, interval_ms: int = SSE_BATTERY_INTERVAL_MS,
                  history_size: int = 20) -> None:
         super().__init__(interval_ms, history_size, "battery")
         self._sysfs_batteries: List[str] = []
         self._upower_available = False
+        self._upower_device: Optional[str] = None
 
     async def collect(self) -> dict:
         """Return aggregated battery info (dict, not BatteryInfo dataclass,
         for JSON serialization in SSE)."""
         info = self._collect_sysfs()
-        if info.get("online"):
-            # Supplement with upower for time_to_full/empty if available
-            upower_info = self._collect_upower()
-            info.update(upower_info)
+        upower_info = self._collect_upower()
+        if upower_info:
+            for k, v in upower_info.items():
+                if v is not None:
+                    if info.get(k) is None or info.get(k) == "" or info.get(k) == "unknown":
+                        info[k] = v
+                    elif k in ("time_to_empty", "time_to_full", "capacity"):
+                        info[k] = v
+                    elif k == "energy_rate" and (not info.get("energy_rate") or info.get("energy_rate") <= 0):
+                        info[k] = v
+
+        state = str(info.get("state") or "unknown").lower()
+        info["charging"] = "charging" in state and "discharging" not in state
+        info["discharging"] = "discharging" in state
+        if info.get("percentage") is not None:
+            info["battery_level"] = f"{info['percentage']}%"
+        info["battery_state"] = state
+        if info.get("capacity") is not None:
+            info["battery_capacity_str"] = f"{info['capacity']}%"
         return info
 
     def _collect_sysfs(self) -> dict:
@@ -702,27 +718,9 @@ class BatteryCollector(MetricCollector):
         }
 
         if not batteries:
-            # No battery sysfs — try to get whatever we can from upower
             up = self._collect_upower()
             if up.get("percentage") is not None:
-                result["percentage"] = up["percentage"]
-                result["state"] = up.get("state", "unknown")
-                result["temperature"] = up.get("temperature")
-                result["voltage"] = up.get("voltage")
-                result["energy_rate"] = up.get("energy_rate")
-                result["time_to_full"] = up.get("time_to_full")
-                result["time_to_empty"] = up.get("time_to_empty")
-                result["energy"] = up.get("energy")
-                result["energy_full"] = up.get("energy_full")
-                result["capacity"] = up.get("capacity")
-                result["charging"] = up.get("charging", False)
-                result["discharging"] = up.get("discharging", False)
-                result["online"] = up.get("online", False)
-                result["serial"] = up.get("serial")
-                result["vendor"] = up.get("vendor", "")
-                result["model"] = up.get("model", "")
-                result["icon_name"] = up.get("icon_name", "")
-                result["has_history"] = up.get("has_history", False)
+                result.update(up)
             return result
 
         # Aggregate from sysfs
@@ -752,16 +750,15 @@ class BatteryCollector(MetricCollector):
             status_file = f"/sys/class/power_supply/{batt}/status"
             status = _read_file(status_file)
             if status:
-                if status.lower() == "charging":
+                st = status.lower()
+                if st == "charging":
                     charge_state = "charging"
-                elif status.lower() == "discharging":
+                elif st == "discharging":
                     charge_state = "discharging"
-                elif status.lower() == "full":
+                elif st in ("full", "fully-charged"):
                     charge_state = "full"
-                elif status.lower() == "not charging":
-                    charge_state = "charging"  # plugged but not actively charging
-                elif status.lower() == "unknown":
-                    pass
+                elif st in ("not charging", "idle"):
+                    charge_state = "not charging"
 
             online_file = f"/sys/class/power_supply/{batt}/online"
             online_val = _read_int(online_file, 0)
@@ -771,9 +768,6 @@ class BatteryCollector(MetricCollector):
             temp_file = f"/sys/class/power_supply/{batt}/temp"
             tv = _read_int(temp_file, 0)
             if tv > 0:
-                # qcom-battery reports temp in decidegrees (395 = 39.5°C)
-                # hwmon reports in millidegrees (49300 = 49.3°C)
-                # Detect which: values > 1000 are likely millidegrees
                 if tv > 1000:
                     temp_c = tv / 1000.0
                 else:
@@ -794,6 +788,13 @@ class BatteryCollector(MetricCollector):
                 rate_val = er / 1_000_000.0  # uW -> W
                 if energy_rate is None or rate_val > energy_rate:
                     energy_rate = rate_val
+            elif v > 0:
+                curr_file = f"/sys/class/power_supply/{batt}/current_now"
+                cr = _read_int(curr_file, 0)
+                if cr > 0:
+                    rate_val = abs(cr * v) / 1_000_000_000_000.0
+                    if energy_rate is None or rate_val > energy_rate:
+                        energy_rate = rate_val
 
             serial_file = f"/sys/class/power_supply/{batt}/serial_number"
             s = _read_file(serial_file)
@@ -817,22 +818,40 @@ class BatteryCollector(MetricCollector):
                     if line2.startswith("POWER_SUPPLY_ICON="):
                         icon_name = line2.split("=", 1)[1].strip()
 
-            # History (energy_full_design vs energy_full)
             efd_file = f"/sys/class/power_supply/{batt}/energy_full_design"
             efd = _read_int(efd_file, 0)
             if efd > 0:
-                capacity = efd / 1_000_000.0  # uWh -> Wh
                 has_history = True
 
             ef_file = f"/sys/class/power_supply/{batt}/energy_full"
             ef = _read_int(ef_file, 0)
             if ef > 0:
                 energy_full = ef / 1_000_000.0
+            elif v > 0:
+                cf_file = f"/sys/class/power_supply/{batt}/charge_full"
+                cf = _read_int(cf_file, 0)
+                if cf > 0:
+                    energy_full = (cf * v) / 1_000_000_000_000.0
+
+            if efd > 0 and ef > 0:
+                capacity = round((ef / efd) * 100, 1)
+            else:
+                cfd_file = f"/sys/class/power_supply/{batt}/charge_full_design"
+                cfd = _read_int(cfd_file, 0)
+                cf_file = f"/sys/class/power_supply/{batt}/charge_full"
+                cf = _read_int(cf_file, 0)
+                if cfd > 0 and cf > 0:
+                    capacity = round((cf / cfd) * 100, 1)
 
             e_file = f"/sys/class/power_supply/{batt}/energy_now"
             e = _read_int(e_file, 0)
             if e > 0:
                 energy = e / 1_000_000.0
+            elif v > 0:
+                cn_file = f"/sys/class/power_supply/{batt}/charge_now"
+                cn = _read_int(cn_file, 0)
+                if cn > 0:
+                    energy = (cn * v) / 1_000_000_000_000.0
 
         if pct_count > 0:
             result["percentage"] = total_pct // pct_count
@@ -856,7 +875,7 @@ class BatteryCollector(MetricCollector):
             result["battery_level"] = f"{pct}%"
         result["battery_state"] = charge_state
         if result["capacity"] is not None:
-            result["battery_capacity_str"] = f"{result['capacity']} Wh"
+            result["battery_capacity_str"] = f"{result['capacity']}%"
         elif result["has_history"]:
             result["battery_capacity_str"] = "unknown"
         else:
@@ -864,14 +883,6 @@ class BatteryCollector(MetricCollector):
 
         result["charging"] = charge_state in ("charging", "full")
         result["discharging"] = charge_state == "discharging"
-
-        # Try upower for time_to_full/empty (not available in sysfs on all devices)
-        if result["online"]:
-            up = self._collect_upower()
-            if up.get("time_to_full") is not None:
-                result["time_to_full"] = up["time_to_full"]
-            if up.get("time_to_empty") is not None:
-                result["time_to_empty"] = up["time_to_empty"]
 
         return result
 
@@ -882,17 +893,29 @@ class BatteryCollector(MetricCollector):
         if not os.path.isdir(ps_path):
             return batteries
         for name in os.listdir(ps_path):
-            # Match bat*, qcom-battery, and any device with battery in name
             if (name.startswith("bat") or "battery" in name.lower()
                     or name.startswith("qcom-battery")):
                 batteries.append(name)
         return batteries
 
-    def _collect_upower(self) -> dict:
-        """Fallback to upower for fields not in sysfs.
+    def _get_upower_device(self) -> Optional[str]:
+        """Dynamically detect battery device path in upower."""
+        if self._upower_device:
+            return self._upower_device
+        import subprocess
+        try:
+            out = subprocess.check_output(["upower", "-e"], timeout=3).decode("utf-8")
+            for line in out.splitlines():
+                line = line.strip()
+                if "battery" in line.lower() and "line_power" not in line.lower():
+                    self._upower_device = line
+                    return self._upower_device
+        except Exception:
+            pass
+        return None
 
-        Lazily checks if upower is available (subprocess once, cached).
-        """
+    def _collect_upower(self) -> dict:
+        """Fallback and supplement via upower."""
         if not self._upower_available:
             import subprocess
             try:
@@ -904,11 +927,15 @@ class BatteryCollector(MetricCollector):
         if not self._upower_available:
             return {}
 
+        dev = self._get_upower_device()
+        if not dev:
+            return {}
+
         import subprocess
         try:
             out = subprocess.check_output(
-                ["upower", "-i", "/org/freedesktop/UPower/devices/battery_BAT0"],
-                timeout=5, stderr=subprocess.STDOUT,
+                ["upower", "-i", dev],
+                timeout=4, stderr=subprocess.STDOUT,
             ).decode("utf-8", errors="replace")
         except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
             return {}
@@ -919,18 +946,18 @@ class BatteryCollector(MetricCollector):
             if ":" not in line:
                 continue
             key, _, val = line.partition(":")
-            key = key.strip().lower().replace(" ", "_")
+            key = key.strip().lower().replace("-", " ").replace("_", " ")
             val = val.strip()
             if key == "percentage":
                 try:
-                    result["percentage"] = int(val.replace("%", "").strip())
+                    result["percentage"] = int(float(val.replace("%", "").strip()))
                 except ValueError:
                     pass
             elif key == "state":
                 result["state"] = val
             elif key == "temperature":
                 try:
-                    result["temperature"] = float(val)
+                    result["temperature"] = float(val.replace("degrees C", "").replace("°C", "").strip())
                 except ValueError:
                     pass
             elif key == "voltage":
@@ -938,54 +965,41 @@ class BatteryCollector(MetricCollector):
                     result["voltage"] = float(val.replace("V", "").strip())
                 except ValueError:
                     pass
-            elif key == "energy_rate":
+            elif key in ("energy rate", "energy_rate"):
                 try:
                     result["energy_rate"] = float(val.replace("W", "").strip())
                 except ValueError:
                     pass
-            elif key == "time to full":
-                try:
-                    ttf = val.replace("minutes", "").strip()
-                    result["time_to_full"] = int(ttf)
-                except ValueError:
-                    pass
-            elif key == "time to empty":
-                try:
-                    tte = val.replace("minutes", "").strip()
-                    result["time_to_empty"] = int(tte)
-                except ValueError:
-                    pass
+            elif key in ("time to full", "time_to_full"):
+                result["time_to_full"] = val
+            elif key in ("time to empty", "time_to_empty"):
+                result["time_to_empty"] = val
             elif key == "energy":
                 try:
                     result["energy"] = float(val.replace("Wh", "").strip())
                 except ValueError:
                     pass
-            elif key == "energy full":
+            elif key in ("energy full", "energy_full"):
                 try:
                     result["energy_full"] = float(val.replace("Wh", "").strip())
                 except ValueError:
                     pass
             elif key == "capacity":
                 try:
-                    result["capacity"] = int(val.replace("Wh", "").strip())
+                    result["capacity"] = round(float(val.replace("%", "").strip()), 1)
                 except ValueError:
                     pass
-            elif key == "charging":
-                result["charging"] = val.lower() == "yes"
-            elif key == "discharging":
-                result["discharging"] = val.lower() == "yes"
-            elif key == "online":
-                result["online"] = val.lower() == "yes"
             elif key == "serial":
                 result["serial"] = val
             elif key == "vendor":
                 result["vendor"] = val
             elif key == "model":
                 result["model"] = val
-            elif key == "icon_name":
+            elif key in ("icon name", "icon_name"):
                 result["icon_name"] = val
-            elif key == "has_history":
+            elif key == "has history":
                 result["has_history"] = val.lower() == "yes"
+
         return result
 
 

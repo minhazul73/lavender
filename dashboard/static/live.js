@@ -192,28 +192,167 @@
         updateSpark('sparkpath-ram', 'ram', 'sparkarea-ram', 32);
     }
 
+    function fmtBatteryTime(val) {
+        if (!val) return '—';
+        if (typeof val === 'number') {
+            if (val >= 60) {
+                var h = Math.floor(val / 60);
+                var m = val % 60;
+                return m > 0 ? h + 'h ' + m + 'm' : h + ' hrs';
+            }
+            return val + ' min';
+        }
+        var s = String(val).trim();
+        s = s.replace(/hours?/i, 'hrs').replace(/minutes?/i, 'min');
+        return s;
+    }
+
     function updateBattery(data) {
         latest.battery = data;
         var pct = data.percentage;
-        var state = data.state || 'Unknown';
+        var rawState = (data.state || data.battery_state || 'unknown').toLowerCase();
         var temp = data.temperature;
         var volt = data.voltage;
+        var rate = data.energy_rate;
+        var energy = data.energy;
+        var energyFull = data.energy_full;
+        var capacity = data.capacity;
+        var tte = data.time_to_empty;
+        var ttf = data.time_to_full;
 
-        var pctEl = document.getElementById('batt-pct');
-        if (pct !== null) {
-            pctEl.textContent = pct + '%';
-            pctEl.style.color = pct < 20 ? '#ef4444' : (pct < 50 ? '#f59e0b' : '#10b981');
-        } else {
-            pctEl.textContent = '—';
+        // Classify charging vs discharging vs full vs idle
+        var isCharging = data.charging || (rawState.indexOf('charging') >= 0 && rawState.indexOf('discharging') === -1);
+        var isDischarging = data.discharging || rawState.indexOf('discharging') >= 0;
+        var isFull = rawState.indexOf('full') >= 0;
+
+        // 1. Badge & State
+        var badgeEl = document.getElementById('batt-badge');
+        var badgeText = document.getElementById('batt-badge-text');
+        if (badgeEl && badgeText) {
+            badgeEl.className = 'batt-badge ' + (
+                isCharging ? 'badge-charging' :
+                isDischarging ? 'badge-discharging' :
+                isFull ? 'badge-full' : 'badge-neutral'
+            );
+            badgeText.textContent = isCharging ? '⚡ Charging' :
+                                   isDischarging ? 'Discharging' :
+                                   isFull ? 'Fully Charged' :
+                                   (rawState !== 'unknown' ? (rawState.charAt(0).toUpperCase() + rawState.slice(1)) : 'Plugged In');
         }
-        document.getElementById('batt-state').textContent = state;
-        document.getElementById('batt-temp').textContent = temp !== null ? temp.toFixed(1) + '°C' : '—°C';
-        var voltEl = document.getElementById('batt-volt-current');
-        if (voltEl) voltEl.textContent = volt !== null ? volt.toFixed(2) + ' V' : '— V';
 
-        if (volt !== null) {
+        // 2. Percentage & Gauge
+        var pctEl = document.getElementById('batt-pct');
+        var gaugeFill = document.getElementById('batt-gauge-fill');
+        if (pctEl) {
+            if (pct !== null && pct !== undefined) {
+                pctEl.textContent = pct + '%';
+                pctEl.style.color = isCharging ? '#10b981' : (pct < 20 ? '#ef4444' : (pct < 50 ? '#f59e0b' : '#10b981'));
+            } else {
+                pctEl.textContent = '—';
+                pctEl.style.color = 'var(--text-muted)';
+            }
+        }
+        if (gaugeFill && pct !== null && pct !== undefined) {
+            gaugeFill.style.width = Math.min(100, Math.max(0, pct)) + '%';
+            gaugeFill.className = 'batt-gauge-fill' + (
+                isCharging ? ' charging' :
+                (pct < 20 ? ' crit' : (pct < 50 ? ' warn' : ''))
+            );
+        }
+
+        // 3. Dynamic Rate (Discharge Rate vs Charge Rate)
+        var rateLabelEl = document.getElementById('batt-rate-label');
+        var rateValEl = document.getElementById('batt-rate-val');
+        if (rateLabelEl && rateValEl) {
+            if (isCharging) {
+                rateLabelEl.textContent = 'Charge Rate';
+                rateValEl.textContent = rate !== null && rate > 0 ? '+' + rate.toFixed(2) + ' W' : (rate !== null ? rate.toFixed(2) + ' W' : '— W');
+                rateValEl.style.color = '#34d399';
+            } else if (isDischarging) {
+                rateLabelEl.textContent = 'Discharge Rate';
+                rateValEl.textContent = rate !== null && rate > 0 ? rate.toFixed(2) + ' W' : (rate !== null ? rate.toFixed(2) + ' W' : '— W');
+                rateValEl.style.color = '#fbbf24';
+            } else if (isFull) {
+                rateLabelEl.textContent = 'Power Rate';
+                rateValEl.textContent = '0.00 W';
+                rateValEl.style.color = 'var(--text-secondary)';
+            } else {
+                rateLabelEl.textContent = 'Power Rate';
+                rateValEl.textContent = rate !== null ? rate.toFixed(2) + ' W' : '— W';
+                rateValEl.style.color = 'var(--accent)';
+            }
+        }
+
+        // 4. Dynamic Estimated Time (Time to Empty vs Time to Full)
+        var timeLabelEl = document.getElementById('batt-time-label');
+        var timeValEl = document.getElementById('batt-time-val');
+        if (timeLabelEl && timeValEl) {
+            if (isCharging) {
+                timeLabelEl.textContent = 'Time to Full';
+                timeValEl.textContent = ttf ? fmtBatteryTime(ttf) : (pct >= 99 ? 'Almost full' : 'Calculating…');
+            } else if (isDischarging) {
+                timeLabelEl.textContent = 'Time to Empty';
+                timeValEl.textContent = tte ? fmtBatteryTime(tte) : (pct !== null ? 'Calculating…' : '—');
+            } else if (isFull) {
+                timeLabelEl.textContent = 'Status';
+                timeValEl.textContent = 'On AC Power';
+            } else {
+                timeLabelEl.textContent = 'Estimated Time';
+                timeValEl.textContent = tte ? fmtBatteryTime(tte) : (ttf ? fmtBatteryTime(ttf) : '—');
+            }
+        }
+
+        // 5. Secondary Telemetry Grid
+        var voltEl = document.getElementById('batt-voltage');
+        var voltLiveEl = document.getElementById('batt-volt-live');
+        if (volt !== null && volt !== undefined) {
+            var vStr = volt.toFixed(2) + ' V';
+            if (voltEl) voltEl.textContent = vStr;
+            if (voltLiveEl) voltLiveEl.textContent = vStr;
+        } else {
+            if (voltEl) voltEl.textContent = '— V';
+            if (voltLiveEl) voltLiveEl.textContent = '— V';
+        }
+
+        var tempEl = document.getElementById('batt-temperature');
+        if (tempEl) {
+            if (temp !== null && temp !== undefined) {
+                tempEl.textContent = temp.toFixed(1) + '°C';
+                tempEl.style.color = temp > 45 ? 'var(--red)' : (temp > 38 ? 'var(--yellow)' : 'var(--text-primary)');
+            } else {
+                tempEl.textContent = '—°C';
+                tempEl.style.color = 'var(--text-primary)';
+            }
+        }
+
+        var energyEl = document.getElementById('batt-energy');
+        if (energyEl) {
+            if (energy !== null && energyFull !== null) {
+                energyEl.textContent = energy.toFixed(1) + ' / ' + energyFull.toFixed(1) + ' Wh';
+            } else if (energy !== null) {
+                energyEl.textContent = energy.toFixed(1) + ' Wh';
+            } else if (energyFull !== null) {
+                energyEl.textContent = energyFull.toFixed(1) + ' Wh';
+            } else {
+                energyEl.textContent = '— Wh';
+            }
+        }
+
+        var healthEl = document.getElementById('batt-health');
+        if (healthEl) {
+            if (capacity !== null && capacity !== undefined) {
+                healthEl.textContent = typeof capacity === 'number' ? capacity.toFixed(0) + '%' : capacity;
+            } else if (data.has_history) {
+                healthEl.textContent = 'Good';
+            } else {
+                healthEl.textContent = '—';
+            }
+        }
+
+        // 6. Live Sparkline
+        if (volt !== null && volt !== undefined) {
             pushBuf('batt', volt);
-            updateSpark('sparkpath-batt', 'batt', 'sparkarea-batt', 32);
+            updateSpark('sparkpath-batt', 'batt', 'sparkarea-batt', 28);
         }
     }
 
@@ -626,6 +765,11 @@
     fetchJson('/api/system/storage').then(function(d) { if (d) updateStorage(d); });
     fetchJson('/api/system/services').then(function(d) { if (d) updateServices(d); });
     fetchJson('/api/system/logs?limit=10').then(function(d) { if (d) updateLogs(d); });
-    fetchJson('/api/device/battery').then(function(d) { if (d && d.thermal) updateThermalTop({zones: d.thermal}); });
+    fetchJson('/api/device/battery').then(function(d) {
+        if (d) {
+            if (d.battery) { updateBattery(d.battery); updateBatteryPill(); }
+            if (d.thermal) updateThermalTop({zones: d.thermal});
+        }
+    });
     fetchJson('/api/system/processes?sort_by=mem&limit=6').then(function(d) { if (d) updateTopProcesses(d); });
 })();
