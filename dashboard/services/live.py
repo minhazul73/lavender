@@ -656,13 +656,15 @@ class BatteryCollector(MetricCollector):
     """
 
     __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
-                 "_task", "_sysfs_batteries", "_upower_available", "_upower_device")
+                 "_task", "_sysfs_batteries", "_upower_available",
+                 "_upower_checked", "_upower_device")
 
     def __init__(self, interval_ms: int = SSE_BATTERY_INTERVAL_MS,
                  history_size: int = 20) -> None:
         super().__init__(interval_ms, history_size, "battery")
         self._sysfs_batteries: List[str] = []
         self._upower_available = False
+        self._upower_checked = False
         self._upower_device: Optional[str] = None
 
     async def collect(self) -> dict:
@@ -903,8 +905,8 @@ class BatteryCollector(MetricCollector):
 
     def _get_upower_device(self) -> Optional[str]:
         """Dynamically detect battery device path in upower."""
-        if self._upower_device:
-            return self._upower_device
+        if self._upower_device is not None:
+            return self._upower_device or None
         import subprocess
         try:
             out = subprocess.check_output(["upower", "-e"], timeout=3).decode("utf-8")
@@ -915,17 +917,19 @@ class BatteryCollector(MetricCollector):
                     return self._upower_device
         except Exception:
             pass
+        self._upower_device = ""
         return None
 
     def _collect_upower(self) -> dict:
         """Fallback and supplement via upower."""
-        if not self._upower_available:
+        if not self._upower_checked:
             import subprocess
             try:
                 subprocess.run(["upower", "--version"], capture_output=True, timeout=2)
                 self._upower_available = True
             except (FileNotFoundError, subprocess.TimeoutExpired):
                 self._upower_available = False
+            self._upower_checked = True
 
         if not self._upower_available:
             return {}
