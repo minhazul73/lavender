@@ -205,17 +205,19 @@
                     <button class="preset-chip" onclick="setPingTarget('9.9.9.9')">9.9.9.9 (Quad9)</button>
                 </div>
 
-                <div class="ping-controls" style="display:flex;gap:8px;margin-bottom:12px;">
-                    <input type="text" id="ping-target" class="input" value="8.8.8.8" placeholder="IP or Hostname" style="flex:1;">
-                    <select id="ping-count" class="input" style="width:90px;">
-                        <option value="2">2 pkts</option>
-                        <option value="3" selected>3 pkts</option>
-                        <option value="5">5 pkts</option>
-                    </select>
-                    <button class="btn" id="btn-ping">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:-1px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        Ping
-                    </button>
+                <div class="ping-controls-wrap">
+                    <input type="text" id="ping-target" class="input ping-input" value="8.8.8.8" placeholder="IP or Hostname">
+                    <div class="ping-controls-actions">
+                        <select id="ping-count" class="input ping-select">
+                            <option value="2">2 pkts</option>
+                            <option value="3" selected>3 pkts</option>
+                            <option value="5">5 pkts</option>
+                        </select>
+                        <button class="btn ping-submit-btn" id="btn-ping">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:-1px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Ping
+                        </button>
+                    </div>
                 </div>
 
                 <div id="ping-result">
@@ -664,17 +666,19 @@ function renderDnsView(dnsDetails) {
                     <div class="iface-icon" style="background:var(--accent-dim);color:var(--accent);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
                     </div>
-                    <div>
-                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-                            <span class="mono" style="font-size:14px;font-weight:700;color:var(--text-primary);">${s.ip}</span>
+                    <div class="dns-server-info">
+                        <div class="dns-ip-row">
+                            <span class="mono dns-ip-text">${s.ip}</span>
                             <button class="btn-copy-chip" onclick="copyToClipboard('${s.ip}', this)" title="Copy DNS IP">
                                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                             </button>
                         </div>
-                        <span class="dns-provider-badge ${providerClass}">${escapeHtml(s.provider)}</span>
+                        <div class="dns-badges-row">
+                            <span class="dns-provider-badge ${providerClass}">${escapeHtml(s.provider)}</span>
+                        </div>
                     </div>
                 </div>
-                <div>
+                <div class="dns-server-right">
                     ${s.is_primary ? '<span class="badge-default">PRIMARY</span>' : '<span class="badge-type">SECONDARY</span>'}
                 </div>
             </div>
@@ -728,12 +732,12 @@ function doDnsQuery() {
             }
             if (data.ipv6 && data.ipv6.length > 0) {
                 recordsHtml += `<div style="margin-top:8px;"><span class="net-metric-label">IPv6 Records:</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">` +
-                    data.ipv6.map(ip => `<span class="addr-badge" style="color:var(--purple);border-color:rgba(168,85,247,0.3);background:var(--purple-dim);">${ip}</span>`).join('') + `</div></div>`;
+                    data.ipv6.map(ip => `<span class="addr-badge addr-badge-v6">${ip}</span>`).join('') + `</div></div>`;
             }
 
             container.innerHTML = `
-                <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);padding:14px;margin-top:12px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);padding:12px 14px;margin-top:12px;">
+                    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;">
                         <strong style="color:var(--green);font-size:13px;">✓ Resolved in <span class="mono ${latencyClass}">${data.time_ms} ms</span></strong>
                         <span class="badge-type">${data.count} answers</span>
                     </div>
@@ -758,47 +762,52 @@ function renderInitialHealth(data) {
     const container = document.getElementById('health-checks-list');
     const summary = data?.summary || {};
     const gw = summary.default_gateway;
-    const dns = summary.primary_dns;
 
     container.innerHTML = `
-        <div style="display:flex;flex-direction:column;gap:10px;">
-            <div class="dns-server-card" id="health-card-gw">
-                <div class="dns-server-left">
+        <div class="health-checks-list">
+            <div class="health-card" id="health-card-gw">
+                <div class="health-card-left">
                     <div class="iface-icon" style="background:var(--accent-dim);color:var(--accent);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"></path><path d="M1.42 9a16 16 0 0 1 21.16 0"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
                     </div>
-                    <div>
-                        <span class="mono" style="font-size:13px;font-weight:700;color:var(--text-primary);">Default Gateway (${gw || 'None'})</span>
-                        <div style="font-size:11px;color:var(--text-secondary);" id="health-gw-status">Click Test All to check latency</div>
+                    <div class="health-card-info">
+                        <div class="health-card-title">Default Gateway <span class="mono" style="color:var(--accent);">(${gw || 'None'})</span></div>
+                        <div class="health-card-sub" id="health-gw-status">Click Test All to check latency</div>
                     </div>
                 </div>
-                <span class="badge status-inactive" id="health-gw-badge">UNTESTED</span>
+                <div class="health-card-badge">
+                    <span class="badge status-inactive" id="health-gw-badge">UNTESTED</span>
+                </div>
             </div>
 
-            <div class="dns-server-card" id="health-card-dns">
-                <div class="dns-server-left">
+            <div class="health-card" id="health-card-dns">
+                <div class="health-card-left">
                     <div class="iface-icon" style="background:var(--purple-dim);color:var(--purple);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
                     </div>
-                    <div>
-                        <span class="mono" style="font-size:13px;font-weight:700;color:var(--text-primary);">DNS Resolution (google.com)</span>
-                        <div style="font-size:11px;color:var(--text-secondary);" id="health-dns-status">Click Test All to check resolution</div>
+                    <div class="health-card-info">
+                        <div class="health-card-title">DNS Resolution <span class="mono" style="color:var(--text-secondary);">(google.com)</span></div>
+                        <div class="health-card-sub" id="health-dns-status">Click Test All to check resolution</div>
                     </div>
                 </div>
-                <span class="badge status-inactive" id="health-dns-badge">UNTESTED</span>
+                <div class="health-card-badge">
+                    <span class="badge status-inactive" id="health-dns-badge">UNTESTED</span>
+                </div>
             </div>
 
-            <div class="dns-server-card" id="health-card-inet">
-                <div class="dns-server-left">
+            <div class="health-card" id="health-card-inet">
+                <div class="health-card-left">
                     <div class="iface-icon" style="background:var(--blue-dim);color:var(--blue);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                     </div>
-                    <div>
-                        <span class="mono" style="font-size:13px;font-weight:700;color:var(--text-primary);">Internet Reachability (1.1.1.1)</span>
-                        <div style="font-size:11px;color:var(--text-secondary);" id="health-inet-status">Click Test All to ping public server</div>
+                    <div class="health-card-info">
+                        <div class="health-card-title">Internet Connectivity <span class="mono" style="color:var(--accent);">(1.1.1.1)</span></div>
+                        <div class="health-card-sub" id="health-inet-status">Click Test All to ping public server</div>
                     </div>
                 </div>
-                <span class="badge status-inactive" id="health-inet-badge">UNTESTED</span>
+                <div class="health-card-badge">
+                    <span class="badge status-inactive" id="health-inet-badge">UNTESTED</span>
+                </div>
             </div>
         </div>
     `;
@@ -924,9 +933,9 @@ function renderPingResult(data, container) {
     const latClass = avg ? (avg < 50 ? 'good' : (avg < 150 ? 'warn' : 'crit')) : '';
 
     container.innerHTML = `
-        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);padding:14px;margin-top:10px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <h4 style="color:var(--green);font-size:14px;">✓ Reply from ${escapeHtml(data.target)}</h4>
+        <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);padding:12px 14px;margin-top:10px;">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px;margin-bottom:10px;">
+                <h4 style="color:var(--green);font-size:13.5px;word-break:break-all;">✓ Reply from ${escapeHtml(data.target)}</h4>
                 <span class="badge ${loss === 0 ? 'status-active' : 'status-inactive'}">${loss}% Loss</span>
             </div>
 

@@ -2076,10 +2076,11 @@ input[type="search"].input::-webkit-search-cancel-button {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 16px;
+    padding: 12px 14px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     margin-bottom: 10px;
     transition: var(--transition);
 }
@@ -2091,17 +2092,57 @@ input[type="search"].input::-webkit-search-cancel-button {
 .dns-server-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.dns-server-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+}
+
+.dns-ip-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.dns-ip-text {
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
+
+.dns-badges-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.dns-server-right {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
 }
 
 .dns-provider-badge {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 2px 8px;
+    padding: 2px 7px;
     border-radius: 12px;
     background: var(--accent-dim);
     color: var(--accent);
     border: 1px solid var(--border-accent);
+    white-space: nowrap;
 }
 
 .dns-provider-badge.provider-cloudflare {
@@ -2120,6 +2161,84 @@ input[type="search"].input::-webkit-search-cancel-button {
     background: var(--green-dim);
     color: var(--green);
     border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Address & Record Badges */
+.addr-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: var(--accent-dim);
+    border: 1px solid var(--border-accent);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    max-width: 100%;
+}
+
+.addr-badge.addr-badge-v6 {
+    background: var(--purple-dim);
+    border-color: rgba(168, 85, 247, 0.3);
+    color: var(--purple);
+}
+
+/* Connectivity Health Cards */
+.health-checks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.health-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    transition: var(--transition);
+}
+
+.health-card:hover {
+    border-color: var(--border-accent);
+}
+
+.health-card-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.health-card-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.health-card-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-primary);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.health-card-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    word-break: break-word;
+}
+
+.health-card-badge {
+    flex-shrink: 0;
 }
 
 /* DNS Query & Connectivity Diagnostic Tools */
@@ -2146,11 +2265,16 @@ input[type="search"].input::-webkit-search-cancel-button {
 .diag-input-row {
     display: flex;
     gap: 8px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
 }
 
 .diag-input-row .input {
     flex: 1;
+    min-width: 0;
+}
+
+.diag-input-row .btn {
+    flex-shrink: 0;
 }
 
 .presets-row {
@@ -2161,15 +2285,23 @@ input[type="search"].input::-webkit-search-cancel-button {
     align-items: center;
 }
 
+.presets-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-right: 2px;
+}
+
 .preset-chip {
     font-size: 11px;
-    padding: 3px 10px;
+    padding: 3px 9px;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border);
     color: var(--text-secondary);
     cursor: pointer;
     transition: var(--transition);
+    white-space: nowrap;
 }
 
 .preset-chip:hover {
@@ -2177,9 +2309,40 @@ input[type="search"].input::-webkit-search-cancel-button {
     color: var(--accent);
 }
 
+/* Ping Controls Form (responsive desktop & mobile) */
+.ping-controls-wrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.ping-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.ping-controls-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.ping-select {
+    width: 90px;
+    flex-shrink: 0;
+}
+
+.ping-submit-btn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Ping Results */
 .ping-results-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
     gap: 8px;
     margin: 14px 0;
 }
@@ -2188,7 +2351,7 @@ input[type="search"].input::-webkit-search-cancel-button {
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
-    padding: 8px;
+    padding: 8px 6px;
     text-align: center;
 }
 
@@ -2200,7 +2363,7 @@ input[type="search"].input::-webkit-search-cancel-button {
 }
 
 .ping-stat-box .val {
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 700;
     font-family: 'JetBrains Mono', monospace;
     color: var(--text-primary);
@@ -2210,14 +2373,133 @@ input[type="search"].input::-webkit-search-cancel-button {
     background: #020617;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 12px;
+    padding: 10px 12px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     color: #94a3b8;
     max-height: 200px;
+    overflow-x: auto;
     overflow-y: auto;
     white-space: pre-wrap;
+    word-break: break-all;
     margin-top: 10px;
+}
+
+/* ===== Responsive Phone Layout Rules (max-width: 768px & 480px) ===== */
+@media (max-width: 768px) {
+    .dns-layout {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .wifi-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .interfaces-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .net-summary-bar {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 8px;
+    }
+}
+
+@media (max-width: 600px) {
+    .content {
+        padding: 12px 14px;
+    }
+
+    .topbar {
+        padding: 0 14px;
+    }
+
+    .main {
+        margin-left: 0;
+    }
+
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+    }
+
+    .tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tab {
+        flex-shrink: 0;
+        white-space: nowrap;
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .net-summary-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .net-metric-card {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .net-metric-icon {
+        width: 34px;
+        height: 34px;
+    }
+
+    .ping-controls-wrap {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .ping-controls-actions {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+    }
+
+    .ping-select {
+        flex: 1;
+        width: auto;
+    }
+
+    .ping-submit-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .presets-label {
+        width: 100%;
+        margin-bottom: 2px;
+    }
+
+    .ping-results-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .health-card {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .health-card-title {
+        font-size: 11.5px;
+    }
+
+    .dns-server-card {
+        padding: 10px 12px;
+    }
+
+    .wifi-specs-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ===== Modal ===== */
