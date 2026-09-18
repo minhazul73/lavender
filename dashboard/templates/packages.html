@@ -48,7 +48,7 @@
                 <div class="pkg-metric-value" id="metric-installed-count">
                     <span class="pkg-spinner"></span>
                 </div>
-                <div class="pkg-metric-sub">Alpine Package Keeper (apk)</div>
+                <div class="pkg-metric-sub" id="metric-backend-name">Detecting package manager...</div>
             </div>
         </div>
 
@@ -79,10 +79,10 @@
             <div class="pkg-metric-info">
                 <div class="pkg-metric-label">System Architecture</div>
                 <div class="pkg-metric-value" style="font-size: 1.35rem;">
-                    {{ device_info.os_name or 'postmarketOS' }}
+                    {{ device_info.os_name or 'Linux' }}
                 </div>
                 <div class="pkg-metric-sub">
-                    Target: {{ device_info.model or 'Xiaomi Redmi Note 7' }}
+                    Host: {{ device_info.model or 'Linux Host' }}
                 </div>
             </div>
         </div>
@@ -118,14 +118,14 @@
                             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                         </svg>
                     </span>
-                    <input type="search" id="pkg-search-input" placeholder="Search installed packages or type query to search Alpine repos..." autocomplete="off" spellcheck="false">
+                    <input type="search" id="pkg-search-input" placeholder="Search installed packages or type query to search repositories..." autocomplete="off" spellcheck="false">
                     <button class="pkg-search-clear" id="btn-clear-search" title="Clear search">✕</button>
                 </div>
-                <button class="btn btn-primary" id="btn-search-repo" title="Search online Alpine repositories">
+                <button class="btn btn-primary" id="btn-search-repo" title="Search online distribution repositories">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     </svg>
-                    <span>Search Repositories</span>
+                    <span id="btn-search-repo-label">Search Repositories</span>
                 </button>
             </div>
 
@@ -141,7 +141,7 @@
                         <span class="pkg-pill-count" id="pill-upgradable-count">0</span>
                     </button>
                     <button class="pkg-pill" data-filter="repo" id="pill-repo" style="display:none;">
-                        <span>Alpine Repos</span>
+                        <span id="pill-repo-label">Repositories</span>
                         <span class="pkg-pill-count" id="pill-repo-count">0</span>
                     </button>
                 </div>
@@ -201,7 +201,7 @@
     <div class="modal-backdrop" onclick="closeModal('upgrade-modal')"></div>
     <div class="modal-content" style="max-width: 580px;">
         <h3>Upgrade All Packages</h3>
-        <p>This will run <code>sudo apk upgrade</code> to upgrade all installed packages to their latest versions.</p>
+        <p id="upgrade-modal-desc">This will run <code id="upgrade-modal-cmd">sudo apk upgrade</code> to upgrade all installed packages to their latest versions.</p>
         <div class="alert alert-warning" style="margin: 12px 0;">
             This may take a few minutes. Services running on updated packages may briefly restart.
         </div>
@@ -270,6 +270,9 @@ const state = {
     currentPage: 1,
     pageSize: 25,
     isLoading: false,
+    backend: 'generic',
+    backendName: 'Package Manager',
+    backendShort: 'pkg',
 };
 
 // Initial Load
@@ -392,8 +395,26 @@ async function loadPackagesData(forceRefresh = false) {
         const data = await res.json();
 
         // Populate state
+        state.backend = data.backend || 'generic';
+        state.backendName = data.backend_name || 'Package Manager';
+        state.backendShort = data.backend_short || 'pkg';
         state.installed = Array.isArray(data.installed) ? data.installed : [];
         state.upgradable = Array.isArray(data.upgradable) ? data.upgradable.filter(p => !p.error) : [];
+
+        // Update dynamic labels
+        const backendEl = document.getElementById('metric-backend-name');
+        if (backendEl) backendEl.textContent = state.backendName;
+
+        const searchInput = document.getElementById('pkg-search-input');
+        if (searchInput && !state.searchQuery) {
+            searchInput.placeholder = `Search installed packages or type query to search ${state.backendShort.toUpperCase()} repos...`;
+        }
+
+        const repoBtnLabel = document.getElementById('btn-search-repo-label');
+        if (repoBtnLabel) repoBtnLabel.textContent = `Search ${state.backendShort.toUpperCase()} Repos`;
+
+        const repoPillLabel = document.getElementById('pill-repo-label');
+        if (repoPillLabel) repoPillLabel.textContent = `${state.backendShort.toUpperCase()} Repos`;
 
         // Update metrics
         updateMetrics(data.installed_count || state.installed.length, state.upgradable);
@@ -644,7 +665,8 @@ function renderExplorer() {
             statusBadge = '<span class="pkg-badge pkg-badge-installed">Installed</span>';
             actionBtn = `<button class="btn btn-xs btn-ghost" onclick="viewPackageInfo('${name}')" title="View details">Info</button>`;
         } else {
-            statusBadge = '<span class="pkg-badge pkg-badge-repo">Alpine Repo</span>';
+            const repoBadgeLabel = (state.backendShort ? state.backendShort.toUpperCase() : 'Remote') + ' Repo';
+            statusBadge = `<span class="pkg-badge pkg-badge-repo">${escapeHtml(repoBadgeLabel)}</span>`;
             actionBtn = `<button class="btn btn-xs btn-outline-admin" onclick="promptInstallPackage('${name}')">Install</button>`;
         }
 
@@ -668,6 +690,27 @@ function renderExplorer() {
 }
 
 /**
+ * Command Helpers for Dynamic Distro Support
+ */
+function getUpgradeCmd(pkgName = null) {
+    if (state.backend === 'apt') {
+        return pkgName ? `sudo apt-get install --only-upgrade -y ${pkgName}` : 'sudo apt-get upgrade -y';
+    } else if (state.backend === 'pacman') {
+        return pkgName ? `sudo pacman -S --noconfirm ${pkgName}` : 'sudo pacman -Syu --noconfirm';
+    } else if (state.backend === 'dnf') {
+        return pkgName ? `sudo dnf upgrade -y ${pkgName}` : 'sudo dnf upgrade -y';
+    }
+    return pkgName ? `sudo apk add -u ${pkgName}` : 'sudo apk upgrade';
+}
+
+function getInstallCmd(pkgName) {
+    if (state.backend === 'apt') return `sudo apt-get install -y ${pkgName}`;
+    if (state.backend === 'pacman') return `sudo pacman -S --noconfirm ${pkgName}`;
+    if (state.backend === 'dnf') return `sudo dnf install -y ${pkgName}`;
+    return `sudo apk add ${pkgName}`;
+}
+
+/**
  * Modals & Actions
  */
 function openUpgradeModal() {
@@ -676,6 +719,10 @@ function openUpgradeModal() {
     document.getElementById('upgrade-output').innerHTML = '';
     document.getElementById('btn-confirm-upgrade').disabled = false;
     document.getElementById('btn-upgrade-cancel').disabled = false;
+
+    const cmdEl = document.getElementById('upgrade-modal-cmd');
+    if (cmdEl) cmdEl.textContent = getUpgradeCmd();
+
     openModal('upgrade-modal');
 }
 
@@ -688,7 +735,7 @@ async function executeUpgradeAll() {
     confirmBtn.disabled = true;
     cancelBtn.disabled = true;
     progress.style.display = 'block';
-    outputEl.innerHTML = '<p class="text-muted">Running <code>sudo apk upgrade</code>... Please wait.</p>';
+    outputEl.innerHTML = `<p class="text-muted">Running <code>${escapeHtml(getUpgradeCmd())}</code>... Please wait.</p>`;
 
     try {
         const res = await fetch('/api/device/packages/upgrade', { method: 'POST' });
@@ -722,7 +769,8 @@ async function executeUpgradeAll() {
 function promptSingleUpgrade(pkgName) {
     const modal = document.getElementById('action-modal');
     document.getElementById('action-modal-title').textContent = `Upgrade ${pkgName}`;
-    document.getElementById('action-modal-desc').innerHTML = `Run <code>sudo apk add -u ${escapeHtml(pkgName)}</code> to upgrade this package to the newest version?`;
+    const cmd = getUpgradeCmd(pkgName);
+    document.getElementById('action-modal-desc').innerHTML = `Run <code>${escapeHtml(cmd)}</code> to upgrade this package to the newest version?`;
     document.getElementById('action-progress').style.display = 'none';
     document.getElementById('action-output').innerHTML = '';
 
@@ -740,7 +788,8 @@ function promptSingleUpgrade(pkgName) {
 function promptInstallPackage(pkgName) {
     const modal = document.getElementById('action-modal');
     document.getElementById('action-modal-title').textContent = `Install ${pkgName}`;
-    document.getElementById('action-modal-desc').innerHTML = `Install <code>${escapeHtml(pkgName)}</code> from Alpine repositories onto this system?`;
+    const cmd = getInstallCmd(pkgName);
+    document.getElementById('action-modal-desc').innerHTML = `Install <code>${escapeHtml(cmd)}</code> onto this system?`;
     document.getElementById('action-progress').style.display = 'none';
     document.getElementById('action-output').innerHTML = '';
 

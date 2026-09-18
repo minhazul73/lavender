@@ -28,6 +28,7 @@ from dashboard.services.battery import (
     get_cpu_scaling_available,
 )
 from dashboard.services.packages import (
+    get_package_manager,
     get_installed_count,
     get_installed_packages,
     get_upgradable_packages,
@@ -126,10 +127,14 @@ async def api_packages(
     session: UserSession = Depends(require_session),
 ):
     """Get package overview (installed count, upgradable list, full installed list)."""
+    mgr = get_package_manager()
     installed = await asyncio.to_thread(get_installed_packages, force_refresh=refresh) if include_list else []
     upgradable = await asyncio.to_thread(get_upgradable_packages)
     upgradable_list = [p for p in upgradable if not p.get("error")]
     return {
+        "backend": mgr.id,
+        "backend_name": mgr.name,
+        "backend_short": mgr.short_name,
         "installed_count": len(installed) if include_list else await asyncio.to_thread(get_installed_count),
         "upgradable_count": len(upgradable_list),
         "upgradable": upgradable,
@@ -143,7 +148,10 @@ async def api_upgrade_packages(
     session: UserSession = Depends(require_admin),
 ):
     """Upgrade all packages or a single package (requires administrative privileges)."""
-    cmd = ["apk", "add", "-u", package] if package else ["apk", "upgrade"]
+    mgr = get_package_manager()
+    cmd = mgr.get_upgrade_command(package)
+    if not cmd:
+        raise HTTPException(status_code=400, detail="No upgrade command available for this system")
     code, out, err = await run_sudo_async(cmd, password=None)
     invalidate_packages_cache()
     if code != 0:
@@ -157,7 +165,11 @@ async def api_install_package(
     session: UserSession = Depends(require_admin),
 ):
     """Install a package (requires administrative privileges)."""
-    code, out, err = await run_sudo_async(["apk", "add", package], password=None)
+    mgr = get_package_manager()
+    cmd = mgr.get_install_command(package)
+    if not cmd:
+        raise HTTPException(status_code=400, detail="No install command available for this system")
+    code, out, err = await run_sudo_async(cmd, password=None)
     invalidate_packages_cache()
     if code != 0:
         raise HTTPException(status_code=500, detail=err or out or f"Failed to install {package}")
@@ -170,7 +182,11 @@ async def api_remove_package(
     session: UserSession = Depends(require_admin),
 ):
     """Remove an installed package (requires administrative privileges)."""
-    code, out, err = await run_sudo_async(["apk", "del", package], password=None)
+    mgr = get_package_manager()
+    cmd = mgr.get_remove_command(package)
+    if not cmd:
+        raise HTTPException(status_code=400, detail="No remove command available for this distribution")
+    code, out, err = await run_sudo_async(cmd, password=None)
     invalidate_packages_cache()
     if code != 0:
         raise HTTPException(status_code=500, detail=err or out or f"Failed to remove {package}")
