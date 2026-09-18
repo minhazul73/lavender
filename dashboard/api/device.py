@@ -2,6 +2,7 @@
 API routes for device-level operations.
 Protected with session authentication and privilege verification.
 """
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException, Depends
 
@@ -28,9 +29,12 @@ from dashboard.services.battery import (
 )
 from dashboard.services.packages import (
     get_installed_count,
+    get_installed_packages,
     get_upgradable_packages,
     upgrade_packages,
     search_packages,
+    get_package_info,
+    invalidate_packages_cache,
 )
 from dashboard.services.users import (
     get_users,
@@ -116,21 +120,61 @@ async def api_battery(session: Optional[UserSession] = Depends(get_current_sessi
 # ---- Packages ----
 
 @router.get("/device/packages")
-async def api_packages(session: UserSession = Depends(require_session)):
-    """Get package information."""
+async def api_packages(
+    refresh: bool = False,
+    include_list: bool = True,
+    session: UserSession = Depends(require_session),
+):
+    """Get package overview (installed count, upgradable list, full installed list)."""
+    installed = await asyncio.to_thread(get_installed_packages, force_refresh=refresh) if include_list else []
+    upgradable = await asyncio.to_thread(get_upgradable_packages)
+    upgradable_list = [p for p in upgradable if not p.get("error")]
     return {
-        "installed_count": get_installed_count(),
-        "upgradable": get_upgradable_packages(),
+        "installed_count": len(installed) if include_list else await asyncio.to_thread(get_installed_count),
+        "upgradable_count": len(upgradable_list),
+        "upgradable": upgradable,
+        "installed": installed,
     }
 
 
 @router.post("/device/packages/upgrade")
-async def api_upgrade_packages(session: UserSession = Depends(require_admin)):
-    """Upgrade all packages (requires administrative privileges)."""
-    code, out, err = await run_sudo_async(["apk", "upgrade"], password=None)
+async def api_upgrade_packages(
+    package: Optional[str] = Query(None, description="Optional single package name to upgrade"),
+    session: UserSession = Depends(require_admin),
+):
+    """Upgrade all packages or a single package (requires administrative privileges)."""
+    cmd = ["apk", "add", "-u", package] if package else ["apk", "upgrade"]
+    code, out, err = await run_sudo_async(cmd, password=None)
+    invalidate_packages_cache()
     if code != 0:
         raise HTTPException(status_code=500, detail=err or out or "Upgrade failed")
-    return {"action": "upgrade", "success": True, "output": out}
+    return {"action": "upgrade", "package": package, "success": True, "output": out}
+
+
+@router.post("/device/packages/install")
+async def api_install_package(
+    package: str = Query(..., min_length=1, description="Package name to install"),
+    session: UserSession = Depends(require_admin),
+):
+    """Install a package (requires administrative privileges)."""
+    code, out, err = await run_sudo_async(["apk", "add", package], password=None)
+    invalidate_packages_cache()
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or f"Failed to install {package}")
+    return {"action": "install", "package": package, "success": True, "output": out}
+
+
+@router.post("/device/packages/remove")
+async def api_remove_package(
+    package: str = Query(..., min_length=1, description="Package name to remove"),
+    session: UserSession = Depends(require_admin),
+):
+    """Remove an installed package (requires administrative privileges)."""
+    code, out, err = await run_sudo_async(["apk", "del", package], password=None)
+    invalidate_packages_cache()
+    if code != 0:
+        raise HTTPException(status_code=500, detail=err or out or f"Failed to remove {package}")
+    return {"action": "remove", "package": package, "success": True, "output": out}
 
 
 @router.get("/device/packages/search")
@@ -138,8 +182,19 @@ async def api_search_packages(
     query: str = Query(..., min_length=1),
     session: UserSession = Depends(require_session),
 ):
-    """Search for packages."""
-    return {"results": search_packages(query)}
+    """Search for packages in repositories."""
+    results = await asyncio.to_thread(search_packages, query)
+    return {"results": results}
+
+
+@router.get("/device/packages/info")
+async def api_package_info(
+    package: str = Query(..., min_length=1),
+    session: UserSession = Depends(require_session),
+):
+    """Get package details."""
+    info = await asyncio.to_thread(get_package_info, package)
+    return info
 
 
 # ---- Users ----

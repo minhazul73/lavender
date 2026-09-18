@@ -105,6 +105,19 @@ function formatBytes(bytes, decimals = 1) {
 }
 
 /**
+ * Escape HTML special characters
+ */
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/**
  * Sidebar toggle — collapse/expand with localStorage persistence
  */
 function sidebarToggle() {
