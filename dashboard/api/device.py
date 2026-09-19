@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, HTTPException, Depends
 
 from dashboard.auth.session import UserSession
 from dashboard.auth.deps import require_session, require_admin, get_current_session
-from dashboard.dependencies import run_command
+from dashboard.dependencies import run_command, parse_groups, parse_all_passwd_users
 from dashboard.auth.bridge import run_sudo_async
 from dashboard.services.network import (
     get_ip_addresses,
@@ -53,6 +53,8 @@ from dashboard.services.users import (
     get_user_ssh_keys,
     add_user_ssh_key,
     delete_user_ssh_key,
+    get_user_groups,
+    GROUP_METADATA,
 )
 from dashboard.services.power import (
     reboot,
@@ -332,15 +334,57 @@ async def api_update_user_groups(
     payload: dict,
     session: UserSession = Depends(require_admin),
 ):
-    """Update secondary groups for a user (Admin gated)."""
+    """Update secondary groups for a user safely (Admin gated)."""
     groups = payload.get("groups", [])
     if not isinstance(groups, list):
         raise HTTPException(status_code=400, detail="Groups must be a list of group names")
-    groups_arg = ",".join(groups)
+
+    # Verify user exists
+    all_users = parse_all_passwd_users()
+    if not any(u["name"] == username for u in all_users):
+        raise HTTPException(status_code=404, detail=f"User '{username}' does not exist")
+
+    # Query system groups so we never pass a non-existent group (e.g. 'sudo' on Alpine)
+    system_groups = {g["name"] for g in parse_groups()}
+    valid_requested = {g for g in groups if g in system_groups}
+
+    # Preserve unmanaged secondary groups that the user is already in
+    current_user_groups = set(get_user_groups(username))
+    editable_groups = {
+        "wheel", "sudo", "docker", "audio", "video",
+        "netdev", "plugdev", "dialout", "input", "camera", "disk", "kvm"
+    }
+    unmanaged_groups = {g for g in current_user_groups if g not in editable_groups and g in system_groups}
+
+    final_groups = sorted(list(unmanaged_groups | valid_requested))
+    groups_arg = ",".join(final_groups)
+
+    # 1. Try standard usermod -G
     code, out, err = await run_sudo_async(["usermod", "-G", groups_arg, username])
     if code != 0:
-        raise HTTPException(status_code=500, detail=f"Failed to update groups: {err or out}")
-    return {"success": True, "message": f"Updated groups for {username}"}
+        # Fallback for Alpine / BusyBox: addgroup and delgroup
+        to_add = valid_requested - current_user_groups
+        to_remove = (current_user_groups & editable_groups) - valid_requested
+        err_messages = []
+
+        for g in to_add:
+            c, o, e = await run_sudo_async(["addgroup", username, g])
+            if c != 0:
+                c2, o2, e2 = await run_sudo_async(["gpasswd", "-a", username, g])
+                if c2 != 0:
+                    err_messages.append(f"add to {g}: {e or e2}")
+
+        for g in to_remove:
+            c, o, e = await run_sudo_async(["delgroup", username, g])
+            if c != 0:
+                c2, o2, e2 = await run_sudo_async(["gpasswd", "-d", username, g])
+                if c2 != 0:
+                    err_messages.append(f"remove from {g}: {e or e2}")
+
+        if err_messages:
+            raise HTTPException(status_code=500, detail=f"Failed to update groups: {'; '.join(err_messages)}")
+
+    return {"success": True, "message": f"Updated groups for {username}", "groups": final_groups}
 
 
 @router.post("/device/users/{username}/password")

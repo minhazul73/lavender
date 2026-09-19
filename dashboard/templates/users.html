@@ -873,20 +873,35 @@ function terminateSession(tty) {
         return;
     }
 
-    fetch('/api/device/users/session/terminate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tty })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
+    function doTerminate() {
+        fetch('/api/device/users/session/terminate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tty })
+        })
+        .then(async r => {
+            const data = await r.json().catch(() => ({}));
+            if (r.status === 403) {
+                if (typeof openElevateModal === 'function') {
+                    openElevateModal(`Administrative privileges required to terminate session on ${tty}.`, () => {
+                        doTerminate();
+                    });
+                    return;
+                }
+            }
+            if (!r.ok) {
+                alert(data.detail || 'Failed to terminate session');
+                return;
+            }
+            if (typeof showToast === 'function') {
+                showToast(`Session on ${tty} terminated`, 'success');
+            }
             loadAllUserData();
-        } else {
-            alert(data.detail || 'Failed to terminate session');
-        }
-    })
-    .catch(err => alert('Error terminating session: ' + err));
+        })
+        .catch(err => alert('Error terminating session: ' + err));
+    }
+
+    doTerminate();
 }
 
 function openSshKeysFor(username) {
@@ -940,8 +955,12 @@ function openEditGroupsModal(username) {
 
     const userObj = state.humanUsers.find(u => u.name === username) || {};
     const currentGroups = new Set(userObj.groups || []);
+    const existingSystemGroups = new Set(state.categorizedGroups.map(g => g.name));
 
-    grid.innerHTML = COMMON_GROUPS.map(g => {
+    // Only display groups that ACTUALLY exist on this Linux machine (e.g. wheel on Alpine, sudo on Debian)
+    const availableGroups = COMMON_GROUPS.filter(g => existingSystemGroups.has(g.name));
+
+    grid.innerHTML = availableGroups.map(g => {
         const checked = currentGroups.has(g.name) ? 'checked' : '';
         return `
             <label style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.2); padding:8px 12px; border-radius:6px; cursor:pointer; font-size:12px;">
@@ -1070,31 +1089,58 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Submit edit groups
-    document.getElementById('btn-submit-edit-groups')?.addEventListener('click', () => {
+    function submitGroups() {
         const username = state.selectedEditUser;
         const selected = Array.from(document.querySelectorAll('input[name="edit_group_cb"]:checked')).map(cb => cb.value);
         const errEl = document.getElementById('modal-groups-error');
+        const submitBtn = document.getElementById('btn-submit-edit-groups');
+
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving…';
+        }
+        errEl.style.display = 'none';
 
         fetch(`/api/device/users/${encodeURIComponent(username)}/groups`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ groups: selected })
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                closeModal('modal-edit-groups');
-                loadAllUserData();
-            } else {
-                errEl.textContent = data.detail || 'Failed to update groups';
-                errEl.style.display = 'block';
+        .then(async r => {
+            const data = await r.json().catch(() => ({}));
+            if (r.status === 403) {
+                // If administrative elevation required, pop up the elevation modal seamlessly!
+                if (typeof openElevateModal === 'function') {
+                    openElevateModal(`Administrative privileges required to update groups for ${username}.`, () => {
+                        // After elevated, retry saving automatically!
+                        submitGroups();
+                    });
+                    return;
+                }
+                throw new Error(data.detail || 'Administrative access required. Please elevate.');
             }
+            if (!r.ok) {
+                throw new Error(data.detail || data.error || 'Failed to update groups');
+            }
+            closeModal('modal-edit-groups');
+            if (typeof showToast === 'function') {
+                showToast(`Updated groups for ${username}`, 'success');
+            }
+            loadAllUserData();
         })
         .catch(err => {
-            errEl.textContent = 'Error: ' + err;
+            errEl.textContent = err.message || String(err);
             errEl.style.display = 'block';
+        })
+        .finally(() => {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save Groups';
+            }
         });
-    });
+    }
+
+    document.getElementById('btn-submit-edit-groups')?.addEventListener('click', submitGroups);
 
     // Submit change password
     document.getElementById('btn-submit-change-pwd')?.addEventListener('click', () => {

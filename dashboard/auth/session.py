@@ -33,6 +33,8 @@ class UserSession:
 
     def is_elevated(self) -> bool:
         """Check if administrative access is currently active and unexpired."""
+        if self.uid == 0 or self.username == "root":
+            return True
         if not self.is_admin:
             return False
         if self.admin_until is None:
@@ -113,15 +115,16 @@ class SessionStore:
     ) -> UserSession:
         """Create and store a new user session."""
         sid = secrets.token_hex(32)
+        is_root = (username == "root" or user_info.get("uid") == 0)
         session = UserSession(
             session_id=sid,
             username=username,
-            uid=user_info.get("uid", 1000),
-            gid=user_info.get("gid", 1000),
-            home=user_info.get("home", f"/home/{username}"),
+            uid=user_info.get("uid", 0 if is_root else 1000),
+            gid=user_info.get("gid", 0 if is_root else 1000),
+            home=user_info.get("home", "/root" if is_root else f"/home/{username}"),
             shell=user_info.get("shell", "/bin/sh"),
             groups=user_info.get("groups", []),
-            is_admin=False,
+            is_admin=is_root,
         )
         self._sessions[sid] = session
         logger.info(

@@ -168,7 +168,7 @@ async def api_elevate(
         logger.warning("Administrative elevation failed for user %s: %s", session.username, err)
         raise HTTPException(
             status_code=400,
-            detail=err or "Invalid password or user not authorized in sudoers",
+            detail=f"Incorrect password for '{session.username}'. Please enter the password for user '{session.username}' (user must have wheel/sudo group permissions).",
         )
 
     session.elevate()
