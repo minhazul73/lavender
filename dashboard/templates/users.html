@@ -1,252 +1,1139 @@
 {% extends "base.html" %}
 
-{% block title %}Users — Lavender{% endblock %}
+{% block title %}Users & Permissions — Lavender{% endblock %}
 {% block page_title %}Users & Permissions{% endblock %}
+
 {% block content %}
-<div class="tabs">
-    <button class="tab active" data-tab="users">Users</button>
-    <button class="tab" data-tab="groups">Groups</button>
-    <button class="tab" data-tab="current">Current User</button>
-    <button class="tab" data-tab="sudoers">Sudoers</button>
+<div class="users-page">
+
+    <!-- Top Action Bar -->
+    <div class="users-header-strip">
+        <div class="users-header-title">
+            <h2>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                Identity & Access Control
+            </h2>
+            <p>Manage user accounts, active terminal sessions, hardware privileges, and SSH authorized keys</p>
+        </div>
+        <div class="users-actions-group">
+            <button class="btn btn-sm" id="btn-refresh-all" title="Refresh all user data">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Metrics Grid -->
+    <div class="users-metrics-grid">
+        <!-- Metric 1: Active Sessions -->
+        <div class="users-metric-card" style="--card-accent-color: var(--green); --icon-bg: var(--green-dim); --icon-color: var(--green);">
+            <div class="users-metric-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+                </svg>
+            </div>
+            <div class="users-metric-info">
+                <div class="users-metric-label">Active Logins</div>
+                <div class="users-metric-value" id="metric-sessions-count">
+                    <span class="loading-spinner-sm"></span>
+                </div>
+                <div class="users-metric-sub" id="metric-sessions-sub">Detecting active TTYs...</div>
+            </div>
+        </div>
+
+        <!-- Metric 2: Human Accounts -->
+        <div class="users-metric-card" style="--card-accent-color: var(--accent); --icon-bg: var(--accent-dim); --icon-color: var(--accent);">
+            <div class="users-metric-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <div class="users-metric-info">
+                <div class="users-metric-label">Human Accounts</div>
+                <div class="users-metric-value" id="metric-users-count">
+                    <span class="loading-spinner-sm"></span>
+                </div>
+                <div class="users-metric-sub" id="metric-users-sub">Reading /etc/passwd...</div>
+            </div>
+        </div>
+
+        <!-- Metric 3: Privilege & Sudo -->
+        <div class="users-metric-card" style="--card-accent-color: var(--purple); --icon-bg: var(--purple-dim); --icon-color: var(--purple);">
+            <div class="users-metric-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+            </div>
+            <div class="users-metric-info">
+                <div class="users-metric-label">Privilege Posture</div>
+                <div class="users-metric-value" id="metric-privilege-status">
+                    <span class="loading-spinner-sm"></span>
+                </div>
+                <div class="users-metric-sub" id="metric-privilege-sub">Checking sudoers & wheel...</div>
+            </div>
+        </div>
+
+        <!-- Metric 4: SSH Access -->
+        <div class="users-metric-card" style="--card-accent-color: var(--blue); --icon-bg: var(--blue-dim); --icon-color: var(--blue);">
+            <div class="users-metric-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </div>
+            <div class="users-metric-info">
+                <div class="users-metric-label">SSH Access</div>
+                <div class="users-metric-value" id="metric-ssh-count">
+                    <span class="loading-spinner-sm"></span>
+                </div>
+                <div class="users-metric-sub" id="metric-ssh-sub">Checking authorized keys...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+        <button class="tab active" data-tab="accounts">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            Accounts & Users
+        </button>
+        <button class="tab" data-tab="sessions">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+                <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+            </svg>
+            Active Sessions (<span id="tab-sessions-badge">0</span>)
+        </button>
+        <button class="tab" data-tab="groups">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            </svg>
+            Groups & Hardware
+        </button>
+        <button class="tab" data-tab="security">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            Security & SSH Keys
+        </button>
+    </div>
+
+    <!-- Tab 1: Accounts & Users -->
+    <div class="tab-content active" id="tab-accounts">
+        <h3 style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <span>Interactive Human Users</span>
+            <span id="human-users-count-tag" style="font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--accent-dim); color: var(--accent);">0</span>
+        </h3>
+        
+        <!-- User Cards Grid -->
+        <div class="user-cards-grid" id="user-cards-container">
+            <div class="card" style="padding: 24px; text-align: center; color: var(--text-muted); grid-column: 1 / -1;">
+                Loading accounts...
+            </div>
+        </div>
+
+        <!-- Collapsible System Accounts Drawer -->
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-header" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" id="toggle-system-users">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <h3 style="font-size: 14px; margin: 0;">System & Service Accounts</h3>
+                    <span class="badge" id="system-users-count">0</span>
+                </div>
+                <span id="system-users-icon" style="transition: transform 0.2s ease;">▼</span>
+            </div>
+            <div class="card-body" id="system-users-body" style="display: none; padding-top: 0;">
+                <div style="padding: 12px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                    <input type="search" id="system-users-search" class="input" placeholder="Search system accounts (e.g. caddy, root, nobody)..." style="max-width: 320px;" />
+                    <span style="font-size: 11.5px; color: var(--text-muted);" id="system-users-info">Showing all accounts</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>UID</th>
+                                <th>GID</th>
+                                <th>Home</th>
+                                <th>Shell</th>
+                                <th>Groups</th>
+                            </tr>
+                        </thead>
+                        <tbody id="system-users-table">
+                            <tr><td colspan="6" class="text-center text-muted">Loading system users...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 2: Active Sessions -->
+    <div class="tab-content" id="tab-sessions">
+        <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Active Terminal & Remote Logins</h3>
+                <span style="font-size: 12px; color: var(--text-muted);">Real-time logged-in TTYs & SSH sessions</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>User</th>
+                                <th>Terminal</th>
+                                <th>Remote Host / IP</th>
+                                <th>Login Time</th>
+                                <th>Idle Duration</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessions-table">
+                            <tr><td colspan="7" class="text-center text-muted">Scanning active sessions...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Login History -->
+        <div class="card">
+            <div class="card-header">
+                <h3>Recent Login History</h3>
+                <span style="font-size: 12px; color: var(--text-muted);">Last 10 system authentication sessions (from lastlog/wtmp)</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Terminal</th>
+                                <th>Host</th>
+                                <th>Time / Session Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="login-history-table">
+                            <tr><td colspan="4" class="text-center text-muted">Loading history...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 3: Groups & Hardware -->
+    <div class="tab-content" id="tab-groups">
+        <div class="filter-pills-bar">
+            <button class="filter-pill active" data-group-filter="all">All Groups (<span id="filter-count-all">0</span>)</button>
+            <button class="filter-pill" data-group-filter="Privileged">Privileged (<span id="filter-count-priv">0</span>)</button>
+            <button class="filter-pill" data-group-filter="Hardware">Phone & Hardware (<span id="filter-count-hw">0</span>)</button>
+            <button class="filter-pill" data-group-filter="Services">Services (<span id="filter-count-serv">0</span>)</button>
+            <button class="filter-pill" data-group-filter="System">System (<span id="filter-count-sys">0</span>)</button>
+            <div style="margin-left: auto; min-width: 240px;">
+                <input type="search" id="group-search" class="input" placeholder="Search groups (e.g. wheel, audio, docker)..." style="width: 100%;" />
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body" style="padding: 0;">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Group Name</th>
+                                <th>GID</th>
+                                <th>Category</th>
+                                <th>Subsystem / Permission</th>
+                                <th>Members</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="groups-table">
+                            <tr><td colspan="6" class="text-center text-muted">Loading groups...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab 4: Security & SSH Keys -->
+    <div class="tab-content" id="tab-security">
+        <!-- Security Audit Grid -->
+        <div class="security-grid">
+            <!-- Elevation Engine -->
+            <div class="security-card">
+                <div class="security-card-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--purple);">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    Privilege Elevation Engine
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Active Engine:</span>
+                    <span class="user-info-val" id="sec-engine-val" style="color: var(--accent); font-weight: 600;">Detecting...</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Sudoers Syntax (visudo):</span>
+                    <span class="user-info-val" id="sec-visudo-val">Checking...</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Current Session Elevation:</span>
+                    <span class="user-info-val" id="sec-session-elev">Checking...</span>
+                </div>
+            </div>
+
+            <!-- SSH Hardening -->
+            <div class="security-card">
+                <div class="security-card-title">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--blue);">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    SSH Daemon Posture
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">SSH Service (sshd):</span>
+                    <span class="user-info-val" id="sec-sshd-status">Detecting...</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Root Login via SSH:</span>
+                    <span class="user-info-val" id="sec-root-ssh">Detecting...</span>
+                </div>
+                <div class="user-info-row">
+                    <span class="user-info-label">Password Authentication:</span>
+                    <span class="user-info-val" id="sec-pwd-auth">Detecting...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- SSH Key Management Panel -->
+        <div class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <h3>SSH Authorized Keys Hub</h3>
+                    <span style="font-size: 12px; color: var(--text-muted);">Manage public keys in ~/.ssh/authorized_keys for remote terminal access</span>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label style="font-size: 12px; color: var(--text-secondary);">Manage Keys for:</label>
+                    <select id="ssh-key-user-select" class="select" style="min-width: 140px; padding: 4px 8px; font-size: 12px;"></select>
+                    <button class="btn btn-sm btn-primary" id="btn-open-add-ssh-modal">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        <span>Add SSH Key</span>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="ssh-keys-container">
+                    <p class="text-muted" style="text-align: center; padding: 20px;">Loading authorized keys...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<!-- Users Tab -->
-<div class="tab-content active" id="tab-users">
-    <div class="card">
-        <div class="card-header">
-            <h3>Human Users (uid ≥ 1000)</h3>
-            <button class="btn btn-sm" id="refresh-users">Refresh</button>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>UID</th>
-                            <th>GID</th>
-                            <th>Home</th>
-                            <th>Shell</th>
-                            <th>Comment</th>
-                        </tr>
-                    </thead>
-                    <tbody id="users-table">
-                        <tr><td colspan="6" class="text-center">Loading...</td></tr>
-                    </tbody>
-                </table>
-            </div>
+<!-- Modal: Add SSH Key -->
+<div id="modal-add-ssh-key" class="modal" style="display:none;">
+    <div class="modal-backdrop" onclick="closeModal('modal-add-ssh-key')"></div>
+    <div class="modal-content">
+        <h3>Add SSH Public Key</h3>
+        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+            Paste your OpenSSH public key (e.g. <code style="color:var(--accent);">ssh-ed25519 AAAAC3... user@workstation</code>) for user <strong id="modal-ssh-username" style="color: var(--text-primary);">rahat</strong>:
+        </p>
+        <textarea id="modal-ssh-key-input" class="input" rows="4" placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@device" style="width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; resize: vertical; margin-bottom: 12px;"></textarea>
+        <div id="modal-ssh-error" style="color: var(--red); font-size: 12px; margin-bottom: 10px; display: none;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('modal-add-ssh-key')">Cancel</button>
+            <button class="btn btn-primary" id="btn-submit-add-ssh">Save Key</button>
         </div>
     </div>
 </div>
 
-<!-- Groups Tab -->
-<div class="tab-content" id="tab-groups">
-    <div class="card">
-        <div class="card-header">
-            <h3>Groups</h3>
-            <button class="btn btn-sm" id="refresh-groups">Refresh</button>
+<!-- Modal: Edit Groups -->
+<div id="modal-edit-groups" class="modal" style="display:none;">
+    <div class="modal-backdrop" onclick="closeModal('modal-edit-groups')"></div>
+    <div class="modal-content modal-lg">
+        <h3>Manage Group Memberships: <span id="modal-group-user" style="color: var(--accent);"></span></h3>
+        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+            Toggle hardware permissions and administrative privileges for this account:
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; max-height: 380px; overflow-y: auto; padding-right: 4px;" id="modal-groups-checkbox-grid">
+            <!-- Dynamically populated -->
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>GID</th>
-                            <th>Members</th>
-                        </tr>
-                    </thead>
-                    <tbody id="groups-table">
-                        <tr><td colspan="3" class="text-center">Loading...</td></tr>
-                    </tbody>
-                </table>
-            </div>
+        <div id="modal-groups-error" style="color: var(--red); font-size: 12px; margin-top: 10px; display: none;"></div>
+        <div class="modal-actions" style="margin-top: 16px;">
+            <button class="btn btn-secondary" onclick="closeModal('modal-edit-groups')">Cancel</button>
+            <button class="btn btn-primary" id="btn-submit-edit-groups">Save Groups</button>
         </div>
     </div>
 </div>
 
-<!-- Current User Tab -->
-<div class="tab-content" id="tab-current">
-    <div class="card">
-        <div class="card-header">
-            <h3>Current User Info</h3>
-            <button class="btn btn-sm" id="refresh-current">Refresh</button>
-        </div>
-        <div class="card-body">
-            <div id="current-content">
-                <div class="loading">Loading...</div>
+<!-- Modal: Change Password -->
+<div id="modal-change-password" class="modal" style="display:none;">
+    <div class="modal-backdrop" onclick="closeModal('modal-change-password')"></div>
+    <div class="modal-content">
+        <h3>Change Password: <span id="modal-pwd-user" style="color: var(--accent);"></span></h3>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+            <div>
+                <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">New Password</label>
+                <input type="password" id="modal-new-pwd" class="input" style="width: 100%;" placeholder="Enter new password (min 4 chars)" />
+            </div>
+            <div>
+                <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Confirm Password</label>
+                <input type="password" id="modal-confirm-pwd" class="input" style="width: 100%;" placeholder="Repeat new password" />
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Sudoers Tab -->
-<div class="tab-content" id="tab-sudoers">
-    <div class="card">
-        <div class="card-header">
-            <h3>Sudoers Configuration</h3>
-            <button class="btn btn-sm" id="refresh-sudoers">Refresh</button>
-        </div>
-        <div class="card-body">
-            <div id="sudoers-content">
-                <div class="loading">Loading...</div>
-            </div>
+        <div id="modal-pwd-error" style="color: var(--red); font-size: 12px; margin-top: 10px; display: none;"></div>
+        <div class="modal-actions" style="margin-top: 16px;">
+            <button class="btn btn-secondary" onclick="closeModal('modal-change-password')">Cancel</button>
+            <button class="btn btn-primary" id="btn-submit-change-pwd">Update Password</button>
         </div>
     </div>
 </div>
 
 <script>
-function loadUsers() {
+// State Store
+let state = {
+    humanUsers: [],
+    systemUsers: [],
+    categorizedGroups: [],
+    activeSessions: [],
+    loginHistory: [],
+    security: {},
+    metrics: {},
+    selectedSshUser: '',
+    selectedEditUser: null,
+    currentGroupFilter: 'all',
+};
+
+// Common hardware and privilege groups for the editor
+const COMMON_GROUPS = [
+    { name: 'wheel', label: 'Admin / Wheel (sudo)', cat: 'priv' },
+    { name: 'sudo', label: 'Admin / Sudo', cat: 'priv' },
+    { name: 'docker', label: 'Docker Containers', cat: 'priv' },
+    { name: 'audio', label: 'Audio & Microphone', cat: 'hw' },
+    { name: 'video', label: 'GPU & Display Framebuffer', cat: 'hw' },
+    { name: 'netdev', label: 'Network & Cellular Data', cat: 'hw' },
+    { name: 'plugdev', label: 'USB OTG & Storage Drives', cat: 'hw' },
+    { name: 'dialout', label: 'Modem & Serial GPS', cat: 'hw' },
+    { name: 'input', label: 'Touchscreen & Hardware Buttons', cat: 'hw' },
+    { name: 'camera', label: 'Camera Hardware', cat: 'hw' },
+    { name: 'disk', label: 'Raw Storage Devices', cat: 'hw' },
+    { name: 'kvm', label: 'Hardware Virtualization', cat: 'hw' },
+];
+
+function loadAllUserData() {
+    const btn = document.getElementById('btn-refresh-all');
+    if (btn) btn.disabled = true;
+
     fetch('/api/device/users')
-        .then(r => r.json())
-        .then(data => {
-            const users = data.users || [];
-            document.getElementById('users-table').innerHTML = renderUsers(users);
+        .then(r => {
+            if (!r.ok) throw new Error('API Error ' + r.status);
+            return r.json();
         })
-        .catch(e => {
-            document.getElementById('users-table').innerHTML = 
-                '<tr><td colspan="6" class="text-center text-muted">Failed to load users</td></tr>';
+        .then(data => {
+            state.humanUsers = data.human_users || [];
+            state.systemUsers = data.system_users || [];
+            state.categorizedGroups = data.groups_categorized || [];
+            state.activeSessions = data.active_sessions || [];
+            state.loginHistory = data.login_history || [];
+            state.security = data.security || {};
+            state.metrics = data.metrics || {};
+
+            renderMetrics();
+            renderHumanUsers();
+            renderSystemUsers();
+            renderActiveSessions();
+            renderLoginHistory();
+            renderGroups();
+            renderSecurity();
+            populateSshUserSelect();
+        })
+        .catch(err => {
+            console.error('Failed to load user data:', err);
+        })
+        .finally(() => {
+            if (btn) btn.disabled = false;
         });
 }
 
-function renderUsers(users) {
-    if (!users || users.length === 0) {
-        return '<tr><td colspan="6" class="text-center">No human users found</td></tr>';
+function renderMetrics() {
+    const sessCount = state.activeSessions.length;
+    const humanCount = state.humanUsers.length;
+    const totalSsh = state.metrics.total_ssh_keys || 0;
+    const isElev = state.metrics.is_elevated;
+
+    document.getElementById('metric-sessions-count').textContent = `${sessCount} Active`;
+    document.getElementById('tab-sessions-badge').textContent = sessCount;
+    if (sessCount > 0) {
+        const topSess = state.activeSessions[0];
+        document.getElementById('metric-sessions-sub').textContent = `${topSess.user} on ${topSess.tty} (${topSess.host})`;
+    } else {
+        document.getElementById('metric-sessions-sub').textContent = 'No terminal sessions connected';
     }
-    return users.map(u => `
+
+    document.getElementById('metric-users-count').textContent = `${humanCount} Account${humanCount === 1 ? '' : 's'}`;
+    const primaryUser = state.humanUsers[0];
+    if (primaryUser && primaryUser.home_storage) {
+        document.getElementById('metric-users-sub').textContent = `Home: ${primaryUser.home_storage.used_gb} GB used (${primaryUser.home_storage.percent_used}%)`;
+    } else {
+        document.getElementById('metric-users-sub').textContent = `${state.systemUsers.length} system daemons`;
+    }
+
+    const eng = state.security.elevation_engine || 'sudo';
+    document.getElementById('metric-privilege-status').textContent = isElev ? 'Admin Active' : `${eng.toUpperCase()} Ready`;
+    document.getElementById('metric-privilege-sub').textContent = isElev ? 'Elevation ticket verified' : 'Standard user session';
+
+    document.getElementById('metric-ssh-count').textContent = `${totalSsh} Key${totalSsh === 1 ? '' : 's'}`;
+    document.getElementById('metric-ssh-sub').textContent = state.security.sshd_active ? 'sshd daemon active' : 'sshd installed';
+}
+
+function renderHumanUsers() {
+    const container = document.getElementById('user-cards-container');
+    const countTag = document.getElementById('human-users-count-tag');
+    if (countTag) countTag.textContent = state.humanUsers.length;
+
+    if (!state.humanUsers || state.humanUsers.length === 0) {
+        container.innerHTML = `
+            <div class="card" style="padding: 24px; text-align: center; color: var(--text-muted); grid-column: 1 / -1;">
+                No human users detected in /etc/passwd.
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = state.humanUsers.map(u => {
+        const initial = (u.name[0] || 'U').toUpperCase();
+        const isAdmin = u.is_admin;
+        const isCurrent = u.is_current;
+        const isActive = u.is_active;
+
+        // Group tags
+        const groupTags = (u.groups || []).map(g => {
+            let cls = '';
+            if (g === 'wheel' || g === 'sudo') cls = 'tag-wheel';
+            else if (g === 'docker') cls = 'tag-docker';
+            else if (['audio', 'video', 'netdev', 'plugdev', 'input', 'camera', 'dialout'].includes(g)) cls = 'tag-hardware';
+            return `<span class="group-tag ${cls}">${escapeHtml(g)}</span>`;
+        }).join('');
+
+        // Storage Bar
+        let storageHtml = '';
+        if (u.home_storage) {
+            const st = u.home_storage;
+            storageHtml = `
+                <div class="user-storage-container">
+                    <div class="user-storage-header">
+                        <span>Disk Usage (${escapeHtml(u.home)})</span>
+                        <span><strong>${st.used_gb} GB</strong> / ${st.total_gb} GB (${st.percent_used}%)</span>
+                    </div>
+                    <div class="user-storage-track">
+                        <div class="user-storage-fill" style="width: ${Math.min(st.percent_used, 100)}%;"></div>
+                    </div>
+                </div>`;
+        }
+
+        return `
+            <div class="user-card ${isCurrent ? 'is-current-user' : ''}">
+                <div class="user-card-header">
+                    <div class="user-avatar-lg ${isActive ? 'user-online' : ''}">
+                        ${initial}
+                    </div>
+                    <div class="user-title-wrap">
+                        <div class="user-name-title">
+                            <span>${escapeHtml(u.name)}</span>
+                            ${isCurrent ? '<span class="badge" style="background:var(--accent-dim); color:var(--accent); font-size:10px;">You</span>' : ''}
+                            ${isAdmin ? '<span class="badge" style="background:var(--purple-dim); color:var(--purple); font-size:10px;">Admin / Wheel</span>' : ''}
+                            ${isActive ? '<span class="badge" style="background:var(--green-dim); color:var(--green); font-size:10px;">● Online</span>' : ''}
+                        </div>
+                        <div class="user-subtitle">UID: ${u.uid} · GID: ${u.gid}</div>
+                    </div>
+                </div>
+
+                <div class="user-card-body">
+                    <div class="user-info-row">
+                        <span class="user-info-label">Home:</span>
+                        <span class="user-info-val" title="${escapeHtml(u.home)}">${escapeHtml(u.home)}</span>
+                    </div>
+                    <div class="user-info-row">
+                        <span class="user-info-label">Shell:</span>
+                        <span class="user-info-val">${escapeHtml(u.shell)}</span>
+                    </div>
+                    ${u.comment ? `
+                    <div class="user-info-row">
+                        <span class="user-info-label">Comment:</span>
+                        <span class="user-info-val">${escapeHtml(u.comment)}</span>
+                    </div>` : ''}
+                    <div class="user-info-row">
+                        <span class="user-info-label">SSH Keys:</span>
+                        <span class="user-info-val" style="color:var(--accent); font-weight:600;">${u.ssh_keys_count} key${u.ssh_keys_count === 1 ? '' : 's'} installed</span>
+                    </div>
+
+                    ${storageHtml}
+
+                    <div style="margin-top: 4px;">
+                        <span class="user-info-label" style="display:block; margin-bottom: 5px;">Group Memberships:</span>
+                        <div class="user-groups-tag-container">
+                            ${groupTags || '<span class="text-muted" style="font-size:11px;">Primary group only</span>'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="user-card-actions">
+                    <button class="btn btn-xs" onclick="openSshKeysFor('${escapeHtml(u.name)}')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <span>SSH Keys (${u.ssh_keys_count})</span>
+                    </button>
+                    <button class="btn btn-xs" onclick="openEditGroupsModal('${escapeHtml(u.name)}')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                        <span>Edit Groups</span>
+                    </button>
+                    <button class="btn btn-xs" onclick="openChangePasswordModal('${escapeHtml(u.name)}')">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <span>Password</span>
+                    </button>
+                    <a href="/processes" class="btn btn-xs btn-ghost" title="View processes">
+                        <span>Processes →</span>
+                    </a>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+function renderSystemUsers() {
+    const table = document.getElementById('system-users-table');
+    const countBadge = document.getElementById('system-users-count');
+    const filterText = (document.getElementById('system-users-search')?.value || '').toLowerCase().trim();
+
+    if (countBadge) countBadge.textContent = state.systemUsers.length;
+
+    let filtered = state.systemUsers;
+    if (filterText) {
+        filtered = state.systemUsers.filter(u => 
+            u.name.toLowerCase().includes(filterText) ||
+            String(u.uid).includes(filterText) ||
+            u.shell.toLowerCase().includes(filterText)
+        );
+    }
+
+    const info = document.getElementById('system-users-info');
+    if (info) info.textContent = `Showing ${filtered.length} of ${state.systemUsers.length} accounts`;
+
+    if (!filtered || filtered.length === 0) {
+        table.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No accounts match search</td></tr>';
+        return;
+    }
+
+    table.innerHTML = filtered.map(u => `
         <tr>
-            <td class="mono">${u.name}</td>
+            <td class="mono" style="font-weight: 600; color: var(--text-primary);">${escapeHtml(u.name)}</td>
             <td>${u.uid}</td>
             <td>${u.gid}</td>
-            <td class="mono small">${u.home}</td>
-            <td class="mono small">${u.shell}</td>
-            <td>${u.comment || ''}</td>
+            <td class="mono small" style="color: var(--text-muted);">${escapeHtml(u.home)}</td>
+            <td class="mono small" style="color: var(--text-secondary);">${escapeHtml(u.shell)}</td>
+            <td class="small">${(u.groups || []).slice(0, 3).map(g => `<span class="group-tag" style="font-size:10px;">${escapeHtml(g)}</span>`).join(' ') || '—'}</td>
         </tr>
     `).join('');
 }
 
-function loadGroups() {
-    fetch('/api/device/users')
-        .then(r => r.json())
-        .then(data => {
-            const groups = data.groups || [];
-            document.getElementById('groups-table').innerHTML = renderGroups(groups);
-        })
-        .catch(e => {
-            document.getElementById('groups-table').innerHTML = 
-                '<tr><td colspan="3" class="text-center text-muted">Failed to load groups</td></tr>';
-        });
-}
-
-function renderGroups(groups) {
-    if (!groups || groups.length === 0) {
-        return '<tr><td colspan="3" class="text-center">No groups found</td></tr>';
+function renderActiveSessions() {
+    const table = document.getElementById('sessions-table');
+    if (!state.activeSessions || state.activeSessions.length === 0) {
+        table.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding: 24px;">No active terminal or SSH sessions connected</td></tr>';
+        return;
     }
-    return groups.map(g => `
+
+    table.innerHTML = state.activeSessions.map(s => `
         <tr>
-            <td class="mono">${g.name}</td>
-            <td>${g.gid}</td>
-            <td>${(g.members || []).join(', ') || '—'}</td>
+            <td><span class="session-beacon"></span></td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(s.user)}</span>
+                </div>
+            </td>
+            <td class="mono" style="color: var(--accent); font-weight: 500;">${escapeHtml(s.tty)}</td>
+            <td class="mono">${escapeHtml(s.host)}</td>
+            <td>${escapeHtml(s.login_time)}</td>
+            <td style="color: var(--text-secondary);">${escapeHtml(s.idle)}</td>
+            <td>
+                <button class="btn btn-xs btn-danger" onclick="terminateSession('${escapeHtml(s.tty)}')">
+                    <span>Kick Session</span>
+                </button>
+            </td>
         </tr>
     `).join('');
 }
 
-function loadCurrentUser() {
-    fetch('/api/device/users')
-        .then(r => r.json())
-        .then(data => {
-            const cu = data.current_user || {};
-            document.getElementById('current-content').innerHTML = renderCurrentUser(cu);
+function renderLoginHistory() {
+    const table = document.getElementById('login-history-table');
+    if (!state.loginHistory || state.loginHistory.length === 0) {
+        table.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No recent logins recorded</td></tr>';
+        return;
+    }
+
+    table.innerHTML = state.loginHistory.map(h => `
+        <tr>
+            <td class="mono" style="font-weight: 600;">${escapeHtml(h.user)}</td>
+            <td class="mono small">${escapeHtml(h.tty)}</td>
+            <td class="mono small" style="color: var(--text-secondary);">${escapeHtml(h.host)}</td>
+            <td class="small" style="color: var(--text-muted);">${escapeHtml(h.time)}</td>
+        </tr>
+    `).join('');
+}
+
+function renderGroups() {
+    const table = document.getElementById('groups-table');
+    const search = (document.getElementById('group-search')?.value || '').toLowerCase().trim();
+    const filter = state.currentGroupFilter;
+
+    // Counts
+    let priv = 0, hw = 0, serv = 0, sys = 0;
+    state.categorizedGroups.forEach(g => {
+        if (g.category === 'Privileged') priv++;
+        else if (g.category === 'Hardware') hw++;
+        else if (g.category === 'Services') serv++;
+        else sys++;
+    });
+
+    document.getElementById('filter-count-all').textContent = state.categorizedGroups.length;
+    document.getElementById('filter-count-priv').textContent = priv;
+    document.getElementById('filter-count-hw').textContent = hw;
+    document.getElementById('filter-count-serv').textContent = serv;
+    document.getElementById('filter-count-sys').textContent = sys;
+
+    let filtered = state.categorizedGroups;
+    if (filter !== 'all') {
+        if (filter === 'System') {
+            filtered = state.categorizedGroups.filter(g => g.category === 'System' || g.category === 'General');
+        } else {
+            filtered = state.categorizedGroups.filter(g => g.category === filter);
+        }
+    }
+
+    if (search) {
+        filtered = filtered.filter(g => 
+            g.name.toLowerCase().includes(search) ||
+            g.description.toLowerCase().includes(search) ||
+            (g.members || []).some(m => m.toLowerCase().includes(search))
+        );
+    }
+
+    if (!filtered || filtered.length === 0) {
+        table.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No groups match filters</td></tr>';
+        return;
+    }
+
+    table.innerHTML = filtered.map(g => {
+        let catBadge = '';
+        if (g.category === 'Privileged') {
+            catBadge = '<span class="badge" style="background:var(--purple-dim); color:var(--purple);">Privileged</span>';
+        } else if (g.category === 'Hardware') {
+            catBadge = '<span class="badge" style="background:var(--green-dim); color:var(--green);">Hardware</span>';
+        } else if (g.category === 'Services') {
+            catBadge = '<span class="badge" style="background:var(--blue-dim); color:var(--blue);">Services</span>';
+        } else {
+            catBadge = '<span class="badge" style="background:rgba(255,255,255,0.05); color:var(--text-muted);">System</span>';
+        }
+
+        const memberPills = (g.members || []).map(m => {
+            const isHuman = state.humanUsers.some(u => u.name === m);
+            return `<span class="group-tag ${isHuman ? 'tag-wheel' : ''}" style="font-size:11px;">${escapeHtml(m)}</span>`;
+        }).join(' ') || '<span class="text-muted" style="font-size:11px;">—</span>';
+
+        return `
+            <tr>
+                <td class="mono" style="font-weight: 600; color: var(--text-primary);">${escapeHtml(g.name)}</td>
+                <td>${g.gid}</td>
+                <td>${catBadge}</td>
+                <td class="small" style="color: var(--text-secondary);">${escapeHtml(g.description)}</td>
+                <td>${memberPills}</td>
+                <td>
+                    ${state.humanUsers.length > 0 ? `
+                    <button class="btn btn-xs btn-ghost" onclick="openEditGroupsModal('${escapeHtml(state.humanUsers[0].name)}')">
+                        <span>Edit</span>
+                    </button>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderSecurity() {
+    const sec = state.security || {};
+    const engineVal = document.getElementById('sec-engine-val');
+    if (engineVal) {
+        engineVal.textContent = sec.elevation_engine ? sec.elevation_engine.toUpperCase() : 'None';
+    }
+
+    const visudoVal = document.getElementById('sec-visudo-val');
+    if (visudoVal) {
+        if (sec.visudo_ok) {
+            visudoVal.innerHTML = '<span style="color:var(--green); font-weight:600;">✓ Syntax OK</span>';
+        } else {
+            visudoVal.innerHTML = `<span style="color:var(--yellow); font-size:11px;">${escapeHtml(sec.visudo_msg || 'Diagnostic restricted')}</span>`;
+        }
+    }
+
+    const elevVal = document.getElementById('sec-session-elev');
+    if (elevVal) {
+        elevVal.innerHTML = state.metrics.is_elevated 
+            ? '<span style="color:var(--green); font-weight:600;">Active (Root Ticket)</span>'
+            : '<span style="color:var(--text-muted);">Not elevated</span>';
+    }
+
+    const sshdVal = document.getElementById('sec-sshd-status');
+    if (sshdVal) {
+        sshdVal.innerHTML = sec.sshd_active 
+            ? '<span style="color:var(--green); font-weight:600;">● Active (Listening)</span>'
+            : '<span style="color:var(--text-muted);">Inactive / Idle</span>';
+    }
+
+    const rootSshVal = document.getElementById('sec-root-ssh');
+    if (rootSshVal) {
+        rootSshVal.textContent = sec.root_ssh_login || 'prohibit-password';
+    }
+
+    const pwdAuthVal = document.getElementById('sec-pwd-auth');
+    if (pwdAuthVal) {
+        pwdAuthVal.textContent = sec.password_auth || 'yes';
+    }
+}
+
+function populateSshUserSelect() {
+    const sel = document.getElementById('ssh-key-user-select');
+    if (!sel) return;
+
+    if (state.humanUsers.length === 0) {
+        sel.innerHTML = '<option value="">No users</option>';
+        return;
+    }
+
+    const currentVal = sel.value || state.selectedSshUser || state.humanUsers[0].name;
+    sel.innerHTML = state.humanUsers.map(u => 
+        `<option value="${escapeHtml(u.name)}" ${u.name === currentVal ? 'selected' : ''}>${escapeHtml(u.name)} (${u.ssh_keys_count} keys)</option>`
+    ).join('');
+
+    state.selectedSshUser = sel.value;
+    loadUserSshKeys(state.selectedSshUser);
+}
+
+function loadUserSshKeys(username) {
+    if (!username) return;
+    const container = document.getElementById('ssh-keys-container');
+    container.innerHTML = '<p class="text-muted" style="text-align:center; padding:16px;">Loading keys...</p>';
+
+    fetch(`/api/device/users/${encodeURIComponent(username)}/ssh-keys`)
+        .then(r => {
+            if (!r.ok) throw new Error('Failed to load keys');
+            return r.json();
         })
-        .catch(e => {
-            document.getElementById('current-content').innerHTML = '<p class="text-muted">Failed to load</p>';
+        .then(data => {
+            const keys = data.keys || [];
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 24px; color: var(--text-muted);">
+                        <p style="margin-bottom: 8px;">No authorized SSH keys installed for <strong>${escapeHtml(username)}</strong>.</p>
+                        <button class="btn btn-sm btn-primary" onclick="openAddSshModalFor('${escapeHtml(username)}')">Add First Public Key</button>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = keys.map(k => `
+                <div class="ssh-key-row">
+                    <div class="ssh-key-info">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="ssh-key-type">${escapeHtml(k.type)}</span>
+                            <span class="ssh-key-comment">${escapeHtml(k.comment)}</span>
+                        </div>
+                        <div class="ssh-key-fingerprint">${escapeHtml(k.preview)}</div>
+                    </div>
+                    <button class="btn btn-xs btn-danger" onclick="deleteSshKey('${escapeHtml(username)}', ${k.index})">
+                        <span>Remove</span>
+                    </button>
+                </div>
+            `).join('');
+        })
+        .catch(err => {
+            container.innerHTML = '<p class="text-muted" style="text-align:center;">Failed to retrieve SSH keys</p>';
         });
 }
 
-function renderCurrentUser(cu) {
-    return `
-        <div class="info-grid">
-            <div class="info-item">
-                <span class="label">UID:</span>
-                <span class="value">${cu.uid}</span>
-            </div>
-            <div class="info-item">
-                <span class="label">GID:</span>
-                <span class="value">${cu.gid}</span>
-            </div>
-            <div class="info-item">
-                <span class="label">Groups:</span>
-                <span class="value">${(cu.groups || []).join(', ') || '—'}</span>
-            </div>
-            ${cu.id_output ? `
-            <div class="info-item">
-                <span class="label">id output:</span>
-                <pre class="mono small">${escapeHtml(cu.id_output)}</pre>
-            </div>` : ''}
-        </div>
-    `;
+function terminateSession(tty) {
+    if (!confirm(`Are you sure you want to terminate the active session on terminal ${tty}?`)) {
+        return;
+    }
+
+    fetch('/api/device/users/session/terminate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tty })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            loadAllUserData();
+        } else {
+            alert(data.detail || 'Failed to terminate session');
+        }
+    })
+    .catch(err => alert('Error terminating session: ' + err));
 }
 
-function loadSudoers() {
-    fetch('/api/device/users')
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('sudoers-content').innerHTML = renderSudoers(data.sudoers || {});
-        })
-        .catch(e => {
-            document.getElementById('sudoers-content').innerHTML = '<p class="text-muted">Failed to load</p>';
-        });
+function openSshKeysFor(username) {
+    // Switch to Security tab and select this user
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+    
+    const secTabBtn = document.querySelector('.tab[data-tab="security"]');
+    if (secTabBtn) secTabBtn.classList.add('active');
+    document.getElementById('tab-security').classList.add('active');
+
+    const sel = document.getElementById('ssh-key-user-select');
+    if (sel) {
+        sel.value = username;
+        state.selectedSshUser = username;
+        loadUserSshKeys(username);
+    }
 }
 
-function renderSudoers(sudoers) {
-    return `
-        <div class="sudoers-info">
-            <div class="info-item">
-                <span class="label">Sudoers file exists:</span>
-                <span class="value">${sudoers.sudoers_available ? 'Yes' : 'No'}</span>
-            </div>
-            <div class="info-item">
-                <span class="label">visudo -c:</span>
-                <span class="value ${sudoers.visudo_ok ? 'good' : 'crit'}">${sudoers.visudo_ok ? '✓ OK' : '✗ Error'}</span>
-            </div>
-            ${sudoers.visudo_msg ? `
-            <div class="info-item">
-                <span class="label">Check output:</span>
-                <pre class="mono small">${escapeHtml(sudoers.visudo_msg)}</pre>
-            </div>` : ''}
-            ${sudoers.sudoers_content ? `
-            <div class="info-item">
-                <span class="label">Content (first 2000 chars):</span>
-                <pre class="sudoers-content mono small">${escapeHtml(sudoers.sudoers_content.substring(0, 2000))}</pre>
-            </div>` : '<p class="text-muted">Sudoers file not readable (expected on postmarketOS)</p>'}
-        </div>
-    `;
+function openAddSshModalFor(username) {
+    state.selectedSshUser = username;
+    document.getElementById('modal-ssh-username').textContent = username;
+    document.getElementById('modal-ssh-key-input').value = '';
+    document.getElementById('modal-ssh-error').style.display = 'none';
+    document.getElementById('modal-add-ssh-key').style.display = 'flex';
+}
+
+function deleteSshKey(username, index) {
+    if (!confirm('Are you sure you want to delete this SSH authorized key?')) return;
+
+    fetch(`/api/device/users/${encodeURIComponent(username)}/ssh-keys/${index}`, {
+        method: 'DELETE'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            loadAllUserData();
+            loadUserSshKeys(username);
+        } else {
+            alert(data.detail || 'Failed to delete key');
+        }
+    })
+    .catch(err => alert('Error: ' + err));
+}
+
+function openEditGroupsModal(username) {
+    state.selectedEditUser = username;
+    document.getElementById('modal-group-user').textContent = username;
+    const grid = document.getElementById('modal-groups-checkbox-grid');
+    document.getElementById('modal-groups-error').style.display = 'none';
+
+    const userObj = state.humanUsers.find(u => u.name === username) || {};
+    const currentGroups = new Set(userObj.groups || []);
+
+    grid.innerHTML = COMMON_GROUPS.map(g => {
+        const checked = currentGroups.has(g.name) ? 'checked' : '';
+        return `
+            <label style="display:flex; align-items:center; gap:8px; background:rgba(0,0,0,0.2); padding:8px 12px; border-radius:6px; cursor:pointer; font-size:12px;">
+                <input type="checkbox" name="edit_group_cb" value="${g.name}" ${checked} />
+                <div>
+                    <span style="font-weight:600; color:var(--text-primary);">${g.name}</span>
+                    <span style="display:block; font-size:10.5px; color:var(--text-muted);">${g.label}</span>
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    document.getElementById('modal-edit-groups').style.display = 'flex';
+}
+
+function openChangePasswordModal(username) {
+    state.selectedEditUser = username;
+    document.getElementById('modal-pwd-user').textContent = username;
+    document.getElementById('modal-new-pwd').value = '';
+    document.getElementById('modal-confirm-pwd').value = '';
+    document.getElementById('modal-pwd-error').style.display = 'none';
+    document.getElementById('modal-change-password').style.display = 'flex';
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
 }
 
 function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
-document.getElementById('refresh-users').addEventListener('click', loadUsers);
-document.getElementById('refresh-groups').addEventListener('click', loadGroups);
-document.getElementById('refresh-current').addEventListener('click', loadCurrentUser);
-document.getElementById('refresh-sudoers').addEventListener('click', loadSudoers);
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    loadAllUserData();
 
-// Tab switching
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', function() {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-        this.classList.add('active');
-        document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+    // Tab switcher
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+            this.classList.add('active');
+            const targetId = 'tab-' + this.dataset.tab;
+            const targetEl = document.getElementById(targetId);
+            if (targetEl) targetEl.classList.add('active');
+        });
+    });
+
+    // Refresh
+    document.getElementById('btn-refresh-all')?.addEventListener('click', loadAllUserData);
+
+    // Toggle System Users
+    document.getElementById('toggle-system-users')?.addEventListener('click', () => {
+        const body = document.getElementById('system-users-body');
+        const icon = document.getElementById('system-users-icon');
+        if (body.style.display === 'none') {
+            body.style.display = 'block';
+            icon.textContent = '▲';
+        } else {
+            body.style.display = 'none';
+            icon.textContent = '▼';
+        }
+    });
+
+    // System accounts search
+    document.getElementById('system-users-search')?.addEventListener('input', renderSystemUsers);
+
+    // Group search & filter pills
+    document.getElementById('group-search')?.addEventListener('input', renderGroups);
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+        pill.addEventListener('click', function() {
+            document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+            this.classList.add('active');
+            state.currentGroupFilter = this.dataset.groupFilter;
+            renderGroups();
+        });
+    });
+
+    // SSH user dropdown
+    document.getElementById('ssh-key-user-select')?.addEventListener('change', (e) => {
+        state.selectedSshUser = e.target.value;
+        loadUserSshKeys(state.selectedSshUser);
+    });
+
+    // Open add SSH modal
+    document.getElementById('btn-open-add-ssh-modal')?.addEventListener('click', () => {
+        const u = state.selectedSshUser || (state.humanUsers[0] ? state.humanUsers[0].name : 'rahat');
+        openAddSshModalFor(u);
+    });
+
+    // Submit add SSH key
+    document.getElementById('btn-submit-add-ssh')?.addEventListener('click', () => {
+        const key = document.getElementById('modal-ssh-key-input').value.trim();
+        const errEl = document.getElementById('modal-ssh-error');
+        if (!key) {
+            errEl.textContent = 'Key content cannot be empty';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        fetch(`/api/device/users/${encodeURIComponent(state.selectedSshUser)}/ssh-keys`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('modal-add-ssh-key');
+                loadAllUserData();
+                loadUserSshKeys(state.selectedSshUser);
+            } else {
+                errEl.textContent = data.detail || 'Failed to add SSH key';
+                errEl.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            errEl.textContent = 'Error: ' + err;
+            errEl.style.display = 'block';
+        });
+    });
+
+    // Submit edit groups
+    document.getElementById('btn-submit-edit-groups')?.addEventListener('click', () => {
+        const username = state.selectedEditUser;
+        const selected = Array.from(document.querySelectorAll('input[name="edit_group_cb"]:checked')).map(cb => cb.value);
+        const errEl = document.getElementById('modal-groups-error');
+
+        fetch(`/api/device/users/${encodeURIComponent(username)}/groups`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groups: selected })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('modal-edit-groups');
+                loadAllUserData();
+            } else {
+                errEl.textContent = data.detail || 'Failed to update groups';
+                errEl.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            errEl.textContent = 'Error: ' + err;
+            errEl.style.display = 'block';
+        });
+    });
+
+    // Submit change password
+    document.getElementById('btn-submit-change-pwd')?.addEventListener('click', () => {
+        const username = state.selectedEditUser;
+        const p1 = document.getElementById('modal-new-pwd').value;
+        const p2 = document.getElementById('modal-confirm-pwd').value;
+        const errEl = document.getElementById('modal-pwd-error');
+
+        if (!p1 || p1.length < 4) {
+            errEl.textContent = 'Password must be at least 4 characters';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (p1 !== p2) {
+            errEl.textContent = 'Passwords do not match';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        fetch(`/api/device/users/${encodeURIComponent(username)}/password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: p1 })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                closeModal('modal-change-password');
+                alert(`Password updated successfully for ${username}`);
+            } else {
+                errEl.textContent = data.detail || 'Failed to change password';
+                errEl.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            errEl.textContent = 'Error: ' + err;
+            errEl.style.display = 'block';
+        });
     });
 });
-
-// Initial load
-loadUsers();
-loadGroups();
-loadCurrentUser();
-loadSudoers();
 </script>
 {% endblock %}

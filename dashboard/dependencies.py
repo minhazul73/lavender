@@ -98,7 +98,17 @@ def which(program: str) -> Optional[str]:
     return shutil.which(program)
 
 
-def parse_passwd_users(min_uid: int = 1000) -> list[dict]:
+NON_LOGIN_SHELLS = {
+    "/sbin/nologin",
+    "/usr/sbin/nologin",
+    "/bin/false",
+    "/usr/bin/false",
+    "/bin/sync",
+    "/dev/null",
+}
+
+
+def parse_passwd_users(min_uid: int = 1000, exclude_nologin: bool = True) -> list[dict]:
     """Parse /etc/passwd and return human users (uid >= min_uid)."""
     users = []
     try:
@@ -107,15 +117,45 @@ def parse_passwd_users(min_uid: int = 1000) -> list[dict]:
                 parts = line.strip().split(":")
                 if len(parts) >= 7:
                     uid = int(parts[2])
+                    shell = parts[6]
+                    # Filter out nobody (65534) and system nologin users for human accounts
                     if uid >= min_uid:
+                        if exclude_nologin:
+                            if uid == 65534 or shell in NON_LOGIN_SHELLS:
+                                continue
                         users.append({
                             "name": parts[0],
                             "uid": uid,
                             "gid": int(parts[3]),
                             "home": parts[5],
-                            "shell": parts[6],
+                            "shell": shell,
                             "comment": parts[4],
                         })
+    except Exception:
+        pass
+    return users
+
+
+def parse_all_passwd_users() -> list[dict]:
+    """Parse /etc/passwd and return all users with is_human flag."""
+    users = []
+    try:
+        with open("/etc/passwd", "r") as f:
+            for line in f:
+                parts = line.strip().split(":")
+                if len(parts) >= 7:
+                    uid = int(parts[2])
+                    shell = parts[6]
+                    is_human = (uid >= 1000 and uid != 65534 and shell not in NON_LOGIN_SHELLS) or uid == 0
+                    users.append({
+                        "name": parts[0],
+                        "uid": uid,
+                        "gid": int(parts[3]),
+                        "home": parts[5],
+                        "shell": shell,
+                        "comment": parts[4],
+                        "is_human": is_human,
+                    })
     except Exception:
         pass
     return users
@@ -132,11 +172,71 @@ def parse_groups() -> list[dict]:
                     groups.append({
                         "name": parts[0],
                         "gid": int(parts[2]),
-                        "members": parts[3].split(",") if parts[3] else [],
+                        "members": [m.strip() for m in parts[3].split(",") if m.strip()] if parts[3] else [],
                     })
     except Exception:
         pass
     return groups
+
+
+def parse_active_sessions() -> list[dict]:
+    """Parse active terminal and SSH sessions via who or loginctl."""
+    sessions = []
+    try:
+        result = subprocess.run(["who", "-u"], capture_output=True, text=True, timeout=5)
+        out = result.stdout.strip()
+        if not out:
+            # Fallback to plain who
+            result = subprocess.run(["who"], capture_output=True, text=True, timeout=5)
+            out = result.stdout.strip()
+
+        for line in out.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split()
+            if len(parts) >= 4:
+                user = parts[0]
+                tty = parts[1]
+                login_time = f"{parts[2]} {parts[3]}"
+                host = parts[-1].strip("()") if "(" in parts[-1] else "Local"
+                idle = parts[4] if len(parts) >= 6 and parts[4] != "." else "Active"
+                sessions.append({
+                    "user": user,
+                    "tty": tty,
+                    "host": host,
+                    "login_time": login_time,
+                    "idle": idle,
+                })
+    except Exception:
+        pass
+    return sessions
+
+
+def parse_login_history(limit: int = 10) -> list[dict]:
+    """Parse recent login history via last."""
+    history = []
+    try:
+        result = subprocess.run(["last", "-n", str(limit)], capture_output=True, text=True, timeout=5)
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if not line or line.startswith("wtmp begins") or line.startswith("reboot"):
+                continue
+            parts = line.split()
+            if len(parts) >= 5:
+                user = parts[0]
+                tty = parts[1]
+                host = parts[2]
+                duration = " ".join(parts[3:])
+                history.append({
+                    "user": user,
+                    "tty": tty,
+                    "host": host,
+                    "time": duration,
+                })
+    except Exception:
+        pass
+    return history
 
 
 def get_current_user_info() -> dict:
@@ -165,6 +265,6 @@ def read_sudoers() -> str:
 
 
 def visudo_check() -> tuple[bool, str]:
-    """Run visudo -c to check sudoers syntax."""
-    code, out, err = run_command(["sudo", "visudo", "-c"], timeout=10)
-    return code == 0, out + err
+    """Run visudo -c to check sudoers syntax safely without blocking."""
+    code, out, err = run_command(["sudo", "-n", "visudo", "-c"], timeout=2)
+    return code == 0, (out or err or ("Requires elevated password" if code != 0 else "OK"))

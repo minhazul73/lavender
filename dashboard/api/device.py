@@ -3,6 +3,7 @@ API routes for device-level operations.
 Protected with session authentication and privilege verification.
 """
 import asyncio
+import os
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException, Depends
 
@@ -43,6 +44,15 @@ from dashboard.services.users import (
     get_groups,
     get_current_user,
     get_sudoers_info,
+    get_human_users,
+    get_system_users,
+    get_categorized_groups,
+    get_active_sessions,
+    get_login_history,
+    get_security_posture,
+    get_user_ssh_keys,
+    add_user_ssh_key,
+    delete_user_ssh_key,
 )
 from dashboard.services.power import (
     reboot,
@@ -213,18 +223,160 @@ async def api_package_info(
     return info
 
 
-# ---- Users ----
+# ---- Users & Sessions ----
 
 @router.get("/device/users")
 async def api_users(session: UserSession = Depends(require_session)):
-    """Get user and group information."""
+    """Get user, session, group, and access control information."""
+    username = session.username if session else None
+    human_users = await asyncio.to_thread(get_human_users, username)
+    system_users = await asyncio.to_thread(get_system_users)
+    categorized_groups = await asyncio.to_thread(get_categorized_groups)
+    active_sessions = await asyncio.to_thread(get_active_sessions)
+    login_history = await asyncio.to_thread(get_login_history, 10)
+    security_posture = await asyncio.to_thread(get_security_posture)
+    current_user_info = await asyncio.to_thread(get_current_user)
+    sudoers_info = await asyncio.to_thread(get_sudoers_info)
+
+    active_sessions_count = len(active_sessions)
+    human_users_count = len(human_users)
+    total_ssh_keys = sum(u.get("ssh_keys_count", 0) for u in human_users)
+    is_elevated = session.is_elevated() if session else False
+
     return {
-        "users": get_users(),
-        "all_users": get_all_users(),
-        "groups": get_groups(),
-        "current_user": get_current_user(),
-        "sudoers": get_sudoers_info(),
+        "human_users": human_users,
+        "system_users": system_users,
+        "groups_categorized": categorized_groups,
+        "active_sessions": active_sessions,
+        "login_history": login_history,
+        "security": security_posture,
+        "metrics": {
+            "active_sessions_count": active_sessions_count,
+            "human_users_count": human_users_count,
+            "total_ssh_keys": total_ssh_keys,
+            "is_elevated": is_elevated,
+        },
+        # Backwards compatibility
+        "users": human_users,
+        "all_users": system_users,
+        "groups": categorized_groups,
+        "current_user": current_user_info,
+        "sudoers": sudoers_info,
     }
+
+
+@router.post("/device/users/session/terminate")
+async def api_terminate_session(
+    payload: dict,
+    session: UserSession = Depends(require_admin),
+):
+    """Terminate an active terminal or SSH session (Admin gated)."""
+    tty = payload.get("tty", "").strip()
+    if not tty:
+        raise HTTPException(status_code=400, detail="Missing TTY name")
+    clean_tty = os.path.basename(tty)
+    code, out, err = await run_sudo_async(["pkill", "-9", "-t", clean_tty])
+    if code != 0 and "No such process" in (out + err):
+        await run_sudo_async(["loginctl", "terminate-session", clean_tty])
+    return {"success": True, "message": f"Session on {clean_tty} terminated"}
+
+
+@router.get("/device/users/{username}/ssh-keys")
+async def api_get_ssh_keys(
+    username: str,
+    session: UserSession = Depends(require_session),
+):
+    """Get installed public SSH keys for a user."""
+    if session.username != username and not session.is_elevated():
+        raise HTTPException(status_code=403, detail="Admin privileges required to view other users' keys")
+    keys = await asyncio.to_thread(get_user_ssh_keys, username)
+    return {"username": username, "keys": keys}
+
+
+@router.post("/device/users/{username}/ssh-keys")
+async def api_add_ssh_key(
+    username: str,
+    payload: dict,
+    session: UserSession = Depends(require_session),
+):
+    """Add a public SSH key to a user's authorized_keys."""
+    if session.username != username and not session.is_elevated():
+        raise HTTPException(status_code=403, detail="Admin privileges required to modify other users' keys")
+    key = payload.get("key", "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="Key content is required")
+    success = await asyncio.to_thread(add_user_ssh_key, username, key)
+    if not success:
+        raise HTTPException(status_code=400, detail="Invalid public key format or failed to write")
+    return {"success": True, "message": "SSH key added successfully"}
+
+
+@router.delete("/device/users/{username}/ssh-keys/{key_index}")
+async def api_delete_ssh_key(
+    username: str,
+    key_index: int,
+    session: UserSession = Depends(require_session),
+):
+    """Delete a public SSH key by index."""
+    if session.username != username and not session.is_elevated():
+        raise HTTPException(status_code=403, detail="Admin privileges required to modify other users' keys")
+    success = await asyncio.to_thread(delete_user_ssh_key, username, key_index)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to delete key")
+    return {"success": True, "message": "SSH key removed"}
+
+
+@router.post("/device/users/{username}/groups")
+async def api_update_user_groups(
+    username: str,
+    payload: dict,
+    session: UserSession = Depends(require_admin),
+):
+    """Update secondary groups for a user (Admin gated)."""
+    groups = payload.get("groups", [])
+    if not isinstance(groups, list):
+        raise HTTPException(status_code=400, detail="Groups must be a list of group names")
+    groups_arg = ",".join(groups)
+    code, out, err = await run_sudo_async(["usermod", "-G", groups_arg, username])
+    if code != 0:
+        raise HTTPException(status_code=500, detail=f"Failed to update groups: {err or out}")
+    return {"success": True, "message": f"Updated groups for {username}"}
+
+
+@router.post("/device/users/{username}/password")
+async def api_change_password(
+    username: str,
+    payload: dict,
+    session: UserSession = Depends(require_session),
+):
+    """Change user password (Self or Admin gated)."""
+    if session.username != username and not session.is_elevated():
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    new_pass = payload.get("new_password", "").strip()
+    if not new_pass or len(new_pass) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+
+    # Update password via chpasswd using run_sudo_async with password
+    # On Linux: echo 'username:new_pass' | sudo chpasswd
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "sudo", "-n", "chpasswd",
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(
+            proc.communicate(input=f"{username}:{new_pass}\n".encode()),
+            timeout=10,
+        )
+        if proc.returncode != 0:
+            err = stderr.decode().strip() or stdout.decode().strip()
+            raise HTTPException(status_code=500, detail=f"Failed to change password: {err}")
+        return {"success": True, "message": f"Password successfully updated for {username}"}
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Password update error: {str(e)}")
 
 
 # ---- Power Controls (Admin Gated) ----
