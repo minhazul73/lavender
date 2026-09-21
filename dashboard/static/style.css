@@ -3142,40 +3142,444 @@ input[type="search"].input::-webkit-search-cancel-button {
     border-color: var(--border-accent);
 }
 
-/* ===== Power ===== */
-.power-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 14px;
+/* ===== Power Management ===== */
+.power-page {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    animation: fade-in-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.power-action {
+.power-header-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.power-header-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.power-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.power-header-title h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.power-header-title p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 2px 0 0 0;
+}
+
+/* Power Section Cards */
+.power-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.power-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.power-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.power-section-title svg {
+    color: var(--accent);
+}
+
+/* Warning Banner & Admin Chip */
+.power-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.power-warning-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.power-warning-content {
+    flex: 1;
+}
+
+.power-warning-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--red);
+    margin-bottom: 3px;
+}
+
+.power-warning-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.power-privilege-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.power-privilege-chip.active {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--green);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.power-privilege-chip.inactive {
+    background: rgba(245, 158, 11, 0.12);
+    color: var(--yellow);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    cursor: pointer;
+}
+
+/* Lifecycle Operations Grid */
+.power-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.power-action-card {
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 24px 16px;
-    text-align: center;
-    cursor: pointer;
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
     transition: var(--transition-bounce);
+    position: relative;
 }
 
-.power-action:hover {
-    border-color: var(--border-accent);
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+.power-action-card:hover {
+    border-color: var(--action-border, var(--border-accent));
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px var(--action-glow, rgba(0, 0, 0, 0.3));
 }
 
-.power-icon {
-    font-size: 36px;
-    margin-bottom: 12px;
-    display: block;
+.power-action-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
 }
 
-.power-label {
+.power-action-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    background: var(--action-bg, rgba(255, 255, 255, 0.05));
+    color: var(--action-color, var(--text-primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.power-action-info h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 4px 0;
+}
+
+.power-action-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.power-action-btn-wrap {
+    margin-top: auto;
+}
+
+.power-action-btn {
+    width: 100%;
+    padding: 10px 16px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition);
 }
+
+.power-action-btn.btn-reboot {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+}
+
+.power-action-btn.btn-reboot:hover {
+    background: rgba(56, 189, 248, 0.22);
+    border-color: #38bdf8;
+    box-shadow: 0 4px 16px rgba(56, 189, 248, 0.25);
+}
+
+.power-action-btn.btn-poweroff {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--red);
+}
+
+.power-action-btn.btn-poweroff:hover {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: var(--red);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.3);
+}
+
+.power-action-btn.btn-suspend {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--yellow);
+}
+
+.power-action-btn.btn-suspend:hover {
+    background: rgba(245, 158, 11, 0.22);
+    border-color: var(--yellow);
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+}
+
+/* Power Profiles Section */
+.power-profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.power-profile-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+    transition: var(--transition);
+    position: relative;
+    cursor: pointer;
+}
+
+.power-profile-card:hover {
+    border-color: var(--border-accent);
+    transform: translateY(-2px);
+}
+
+.power-profile-card.active {
+    border-color: var(--profile-color, var(--accent));
+    background: rgba(255, 255, 255, 0.03);
+    box-shadow: 0 0 16px var(--profile-glow, rgba(56, 189, 248, 0.15));
+}
+
+.power-profile-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.power-profile-badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.power-profile-badge.active-badge {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--green);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.power-profile-info h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 6px 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.power-profile-info p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.power-profile-btn {
+    width: 100%;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: var(--transition);
+}
+
+/* Scheduled Power Actions */
+.power-schedule-box {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.power-schedule-status {
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.power-schedule-status-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.power-schedule-quick {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.power-schedule-quick-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.power-schedule-quick-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.power-schedule-form {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.power-schedule-input {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    width: 100px;
+    outline: none;
+}
+
+.power-schedule-input:focus {
+    border-color: var(--accent);
+}
+
+/* Spinner & Poller */
+.power-reconnect-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    text-align: center;
+    gap: 12px;
+}
+
+.power-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(56, 189, 248, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+
 
 /* ===== Animations ===== */
 @keyframes fade-in-up {

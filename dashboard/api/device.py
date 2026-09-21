@@ -27,6 +27,8 @@ from dashboard.services.battery import (
     get_thermal_zones,
     get_cpu_frequencies,
     get_cpu_scaling_available,
+    get_uptime,
+    set_cpu_governor,
 )
 from dashboard.services.packages import (
     get_package_manager,
@@ -60,6 +62,9 @@ from dashboard.services.power import (
     reboot,
     poweroff,
     suspend,
+    get_scheduled_shutdown,
+    schedule_power_action,
+    cancel_scheduled_action,
 )
 from dashboard.services.device_info import get_system_info
 
@@ -127,6 +132,7 @@ async def api_battery(session: Optional[UserSession] = Depends(get_current_sessi
         "thermal": get_thermal_zones(),
         "cpu_freq": get_cpu_frequencies(),
         "cpu_scaling": get_cpu_scaling_available(),
+        "uptime": get_uptime(),
     }
 
 
@@ -450,3 +456,72 @@ async def api_suspend(session: UserSession = Depends(require_admin)):
     if code != 0:
         raise HTTPException(status_code=500, detail=err or out or "Suspend failed")
     return {"action": "suspend", "success": True, "output": out}
+
+
+@router.post("/device/power/governor")
+async def api_set_governor(
+    governor: str = Query(..., min_length=1, description="Target CPU governor name"),
+    session: UserSession = Depends(require_admin),
+):
+    """Set CPU frequency governor across all CPU cores (Admin gated)."""
+    res = await asyncio.to_thread(set_cpu_governor, governor)
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error", "Failed to set CPU governor"))
+    return res
+
+
+@router.get("/device/power/state")
+async def api_power_state(session: Optional[UserSession] = Depends(get_current_session)):
+    """Get active CPU power profile and pending scheduled power actions."""
+    gov_file = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+    current_gov = "unknown"
+    if os.path.isfile(gov_file):
+        try:
+            with open(gov_file, "r") as f:
+                current_gov = f.read().strip()
+        except Exception:
+            pass
+
+    scaling = get_cpu_scaling_available()
+    scheduled = get_scheduled_shutdown()
+
+    return {
+        "active_governor": current_gov,
+        "available_governors": scaling.get("governors", []),
+        "scheduled": scheduled,
+    }
+
+
+@router.post("/device/power/schedule")
+async def api_schedule_power(
+    payload: dict,
+    session: UserSession = Depends(require_admin),
+):
+    """Schedule a timed reboot or shutdown (Admin gated)."""
+    action = payload.get("action", "").lower().strip()
+    if action not in ("reboot", "poweroff"):
+        raise HTTPException(status_code=400, detail="Action must be 'reboot' or 'poweroff'")
+
+    try:
+        minutes = int(payload.get("minutes", 0))
+        if minutes < 1 or minutes > 1440:
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Minutes must be an integer between 1 and 1440")
+
+    message = payload.get("message", "Scheduled from Lavender dashboard")
+    res = await asyncio.to_thread(schedule_power_action, action, minutes, message)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Failed to schedule action"))
+    return res
+
+
+@router.post("/device/power/cancel-scheduled")
+async def api_cancel_scheduled_power(session: UserSession = Depends(require_admin)):
+    """Cancel any pending scheduled shutdown or reboot (Admin gated)."""
+    res = await asyncio.to_thread(cancel_scheduled_action)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Failed to cancel scheduled action"))
+    return res
+
+

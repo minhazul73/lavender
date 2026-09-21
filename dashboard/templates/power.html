@@ -1,161 +1,748 @@
 {% extends "base.html" %}
 
-{% block title %}Power — Lavender{% endblock %}
-{% block page_title %}Power Control{% endblock %}
+{% block title %}Power Management — Lavender{% endblock %}
+{% block page_title %}Power Management{% endblock %}
+
 {% block content %}
-<div class="power-controls">
-    <div class="power-warning">
-        <div class="warning-icon">⚠</div>
-        <div>
-            <h3>Destructive Actions</h3>
-            <p>These actions will affect the entire system. Confirm each action before proceeding.</p>
+<div class="power-page">
+
+    <!-- Top Header Strip -->
+    <div class="power-header-strip">
+        <div class="power-header-title">
+            <div class="power-header-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                    <line x1="12" y1="2" x2="12" y2="12"/>
+                </svg>
+            </div>
+            <div>
+                <h2>Power Management</h2>
+                <p>System lifecycle operations, CPU energy profiles, and scheduled power actions</p>
+            </div>
+        </div>
+        <div class="power-header-actions">
+            {% if session and session.is_elevated() %}
+            <span class="power-privilege-chip active" title="Administrative privileges active">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Admin Active
+            </span>
+            {% else %}
+            <button class="btn btn-sm btn-outline-admin" onclick="openElevateModal()" title="Elevate administrative privileges to perform power actions">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Elevate to Admin</span>
+            </button>
+            {% endif %}
         </div>
     </div>
 
-    <div class="power-grid">
-        <!-- Reboot -->
-        <div class="power-card">
-            <div class="power-icon reboot">🔄</div>
-            <h3>Reboot</h3>
-            <p>Restart the system. All running services will be stopped and restarted.</p>
-            <button class="btn btn-danger" id="btn-reboot">Reboot System</button>
+    <!-- Section 1: Immediate System Power Operations -->
+    <div class="power-section">
+        <div class="power-warning-banner">
+            <div class="power-warning-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+            </div>
+            <div class="power-warning-content">
+                <div class="power-warning-title">Destructive Lifecycle Actions</div>
+                <p class="power-warning-text">
+                    These operations immediately affect the operating system. All running background services, terminal sessions, and network sockets will be terminated.
+                </p>
+            </div>
         </div>
 
-        <!-- Power Off -->
-        <div class="power-card">
-            <div class="power-icon poweroff">⏻</div>
-            <h3>Power Off</h3>
-            <p>Shut down the system completely. The device will lose power.</p>
-            <button class="btn btn-danger" id="btn-poweroff">Power Off</button>
-        </div>
+        <div class="power-actions-grid">
+            <!-- Reboot Card -->
+            <div class="power-action-card" style="--action-border: rgba(56, 189, 248, 0.4); --action-glow: rgba(56, 189, 248, 0.15); --action-bg: rgba(56, 189, 248, 0.12); --action-color: #38bdf8;">
+                <div class="power-action-top">
+                    <div class="power-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </div>
+                    <div class="power-action-info">
+                        <h4>System Reboot</h4>
+                        <p class="power-action-desc">Restart the operating system. All systemd services will stop cleanly and automatically restart upon boot.</p>
+                    </div>
+                </div>
+                <div class="power-action-btn-wrap">
+                    <button class="power-action-btn btn-reboot" id="btn-reboot">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                        </svg>
+                        <span>Reboot System</span>
+                    </button>
+                </div>
+            </div>
 
-        <!-- Suspend -->
-        <div class="power-card">
-            <div class="power-icon suspend">💤</div>
-            <h3>Suspend</h3>
-            <p>Suspend the system to RAM. The device will appear off but retain state in memory.</p>
-            <button class="btn btn-warning" id="btn-suspend">Suspend</button>
+            <!-- Power Off Card -->
+            <div class="power-action-card" style="--action-border: rgba(239, 68, 68, 0.4); --action-glow: rgba(239, 68, 68, 0.15); --action-bg: rgba(239, 68, 68, 0.12); --action-color: var(--red);">
+                <div class="power-action-top">
+                    <div class="power-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+                            <line x1="12" y1="2" x2="12" y2="12"/>
+                        </svg>
+                    </div>
+                    <div class="power-action-info">
+                        <h4>Power Off</h4>
+                        <p class="power-action-desc">Halt the kernel and completely power down all hardware. Turning the device back on requires physical access to press the hardware button.</p>
+                    </div>
+                </div>
+                <div class="power-action-btn-wrap">
+                    <button class="power-action-btn btn-poweroff" id="btn-poweroff">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
+                        </svg>
+                        <span>Power Off Device</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Suspend Card -->
+            <div class="power-action-card" style="--action-border: rgba(245, 158, 11, 0.4); --action-glow: rgba(245, 158, 11, 0.15); --action-bg: rgba(245, 158, 11, 0.12); --action-color: var(--yellow);">
+                <div class="power-action-top">
+                    <div class="power-action-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                    </div>
+                    <div class="power-action-info">
+                        <h4>Suspend to RAM</h4>
+                        <p class="power-action-desc">Put device into low-power sleep state. ⚠️ WiFi and network interface will disconnect; physical power button press required to wake up.</p>
+                    </div>
+                </div>
+                <div class="power-action-btn-wrap">
+                    <button class="power-action-btn btn-suspend" id="btn-suspend">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                        </svg>
+                        <span>Suspend to RAM</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Section 2: CPU Power Profiles -->
+    <div class="power-section">
+        <div class="power-section-header">
+            <div class="power-section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span>CPU Power Profiles</span>
+            </div>
+            <span class="badge badge-info" id="active-profile-badge">Reading profile...</span>
+        </div>
+
+        <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 4px 0;">
+            Adjust the CPU frequency scaling governor to balance energy efficiency, battery longevity, and processor responsiveness.
+        </p>
+
+        <div class="power-profiles-grid">
+            <!-- Profile 1: Power Saver -->
+            <div class="power-profile-card" id="profile-card-powersave" style="--profile-color: var(--green); --profile-glow: rgba(34, 197, 94, 0.15);" onclick="selectGovernor('powersave')">
+                <div class="power-profile-top">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(34, 197, 94, 0.12); color: var(--green); display: flex; align-items: center; justify-content: center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22v-9M12 13a7 7 0 0 0-7-7c0 4 3 7 7 7zm0 0a7 7 0 0 1 7-7c0 4-3 7-7 7z"/>
+                        </svg>
+                    </div>
+                    <span class="power-profile-badge" id="badge-powersave">Available</span>
+                </div>
+                <div class="power-profile-info">
+                    <h4>Power Saver <span>(powersave)</span></h4>
+                    <p>Clamps CPU clock speeds to minimum operating frequencies to reduce power draw, extend battery life, and minimize heat.</p>
+                </div>
+                <button class="power-profile-btn btn btn-sm btn-secondary" id="btn-profile-powersave">
+                    Activate Power Saver
+                </button>
+            </div>
+
+            <!-- Profile 2: Balanced / Dynamic -->
+            <div class="power-profile-card" id="profile-card-balanced" style="--profile-color: var(--accent); --profile-glow: rgba(56, 189, 248, 0.15);" onclick="selectGovernor('schedutil')">
+                <div class="power-profile-top">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(56, 189, 248, 0.12); color: var(--accent); display: flex; align-items: center; justify-content: center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/>
+                        </svg>
+                    </div>
+                    <span class="power-profile-badge" id="badge-balanced">Available</span>
+                </div>
+                <div class="power-profile-info">
+                    <h4>Balanced <span>(schedutil / ondemand)</span></h4>
+                    <p>Dynamically scales frequencies based on scheduler load. Delivers responsive performance when needed while conserving power at idle.</p>
+                </div>
+                <button class="power-profile-btn btn btn-sm btn-secondary" id="btn-profile-balanced">
+                    Activate Balanced
+                </button>
+            </div>
+
+            <!-- Profile 3: Performance -->
+            <div class="power-profile-card" id="profile-card-performance" style="--profile-color: var(--yellow); --profile-glow: rgba(245, 158, 11, 0.15);" onclick="selectGovernor('performance')">
+                <div class="power-profile-top">
+                    <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(245, 158, 11, 0.12); color: var(--yellow); display: flex; align-items: center; justify-content: center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                    </div>
+                    <span class="power-profile-badge" id="badge-performance">Available</span>
+                </div>
+                <div class="power-profile-info">
+                    <h4>High Performance <span>(performance)</span></h4>
+                    <p>Locks CPU cores to maximum clock frequencies. Eliminates frequency ramp latency for compiling, heavy workloads, or benchmarks.</p>
+                </div>
+                <button class="power-profile-btn btn btn-sm btn-secondary" id="btn-profile-performance">
+                    Activate Performance
+                </button>
+            </div>
+        </div>
+
+        <div id="profile-feedback" style="font-size: 12px; display: none; padding: 8px 12px; border-radius: var(--radius-sm);"></div>
+    </div>
+
+    <!-- Section 3: Scheduled Power Actions -->
+    <div class="power-section">
+        <div class="power-section-header">
+            <div class="power-section-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span>Scheduled Power Actions</span>
+            </div>
+            <span class="badge" id="scheduled-badge">No Actions</span>
+        </div>
+
+        <div class="power-schedule-box">
+            <!-- Pending Schedule Status -->
+            <div class="power-schedule-status" id="schedule-status-banner">
+                <div class="power-schedule-status-text">
+                    <span id="schedule-icon">ℹ️</span>
+                    <span id="schedule-details-text">No power operations currently scheduled.</span>
+                </div>
+                <button class="btn btn-sm btn-danger" id="btn-cancel-schedule" style="display: none;" onclick="cancelScheduledPower()">
+                    Cancel Scheduled Action
+                </button>
+            </div>
+
+            <!-- Quick Schedule Buttons -->
+            <div class="power-schedule-quick">
+                <span class="power-schedule-quick-label">Quick Timers:</span>
+                <div class="power-schedule-quick-btns">
+                    <button class="btn btn-sm btn-secondary" onclick="quickSchedule('reboot', 5)">Reboot in 5m</button>
+                    <button class="btn btn-sm btn-secondary" onclick="quickSchedule('reboot', 15)">Reboot in 15m</button>
+                    <button class="btn btn-sm btn-secondary" onclick="quickSchedule('reboot', 30)">Reboot in 30m</button>
+                    <button class="btn btn-sm btn-secondary" onclick="quickSchedule('reboot', 60)">Reboot in 1h</button>
+                    <button class="btn btn-sm btn-secondary" onclick="quickSchedule('poweroff', 15)">Power Off in 15m</button>
+                </div>
+            </div>
+
+            <!-- Custom Schedule Form -->
+            <form class="power-schedule-form" onsubmit="event.preventDefault(); submitCustomSchedule();">
+                <span class="power-schedule-quick-label">Custom Schedule:</span>
+                <select class="power-schedule-input" id="sched-action" style="width: auto;">
+                    <option value="reboot">Reboot</option>
+                    <option value="poweroff">Power Off</option>
+                </select>
+                <span>in</span>
+                <input type="number" class="power-schedule-input" id="sched-minutes" min="1" max="1440" placeholder="15" value="15" required>
+                <span>minutes</span>
+                <button type="submit" class="btn btn-sm btn-primary" id="btn-submit-schedule">Schedule</button>
+            </form>
+            <div id="schedule-feedback" style="font-size: 12px; display: none; padding: 6px 10px; border-radius: var(--radius-sm);"></div>
+        </div>
+    </div>
+
 </div>
 
-<!-- Confirm Modals -->
+<!-- Confirm Reboot Modal with Live Reconnect Poller -->
 <div id="reboot-modal" class="modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-        <h3>⚠ Confirm Reboot</h3>
-        <p>Are you sure you want to reboot the system?</p>
-        <div class="alert alert-warning">
-            All running services will be stopped. Unsaved data may be lost.
+    <div class="modal-backdrop" onclick="closeModal('reboot-modal')"></div>
+    <div class="modal-content" style="max-width: 440px;">
+        <div id="reboot-dialog-prompt">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: flex; align-items: center; justify-content: center;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                </div>
+                <h3 style="margin: 0; font-size: 16px;">Confirm System Reboot</h3>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.5; margin: 0 0 14px 0;">
+                Are you sure you want to reboot the system? All active processes and network connections will be terminated.
+            </p>
+            <div class="alert alert-warning" style="margin-bottom: 16px;">
+                Lavender will reconnect automatically as soon as the kernel finishes booting.
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('reboot-modal')">Cancel</button>
+                <button class="btn btn-danger" id="confirm-reboot-btn">Proceed with Reboot</button>
+            </div>
         </div>
-        <div class="modal-actions">
-            <button class="btn btn-secondary" onclick="closeModal('reboot-modal')">Cancel</button>
-            <button class="btn btn-danger" id="confirm-reboot">Reboot</button>
+
+        <div id="reboot-dialog-progress" style="display: none;">
+            <div class="power-reconnect-box">
+                <div class="power-spinner"></div>
+                <h3 style="margin: 0; font-size: 16px; color: var(--text-primary);" id="reboot-status-text">Rebooting System...</h3>
+                <p style="margin: 0; font-size: 12px; color: var(--text-secondary);" id="reboot-status-sub">
+                    Waiting for device to come back online. Lavender is polling the server...
+                </p>
+            </div>
         </div>
     </div>
 </div>
 
+<!-- Confirm Power Off Modal -->
 <div id="poweroff-modal" class="modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-        <h3>⚠ Confirm Power Off</h3>
-        <p>Are you sure you want to power off the system?</p>
-        <div class="alert alert-warning">
-            The device will shut down completely. This action cannot be undone.
+    <div class="modal-backdrop" onclick="closeModal('poweroff-modal')"></div>
+    <div class="modal-content" style="max-width: 440px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(239, 68, 68, 0.15); color: var(--red); display: flex; align-items: center; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
+                </svg>
+            </div>
+            <h3 style="margin: 0; font-size: 16px;">Confirm Power Off</h3>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.5; margin: 0 0 14px 0;">
+            The device will shut down completely. To turn it back on, you will need <strong>physical access</strong> to press the hardware power button.
+        </p>
+        <div class="alert alert-error" style="margin-bottom: 16px;">
+            This action cannot be undone remotely over the network.
         </div>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="closeModal('poweroff-modal')">Cancel</button>
-            <button class="btn btn-danger" id="confirm-poweroff">Power Off</button>
+            <button class="btn btn-danger" id="confirm-poweroff-btn">Power Off Completely</button>
         </div>
     </div>
 </div>
 
+<!-- Confirm Suspend Modal -->
 <div id="suspend-modal" class="modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-        <h3>⚠ Confirm Suspend</h3>
-        <p>Are you sure you want to suspend the system?</p>
-        <div class="alert alert-warning">
-            The device will enter a low-power state. Press the power button to resume.
+    <div class="modal-backdrop" onclick="closeModal('suspend-modal')"></div>
+    <div class="modal-content" style="max-width: 440px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); color: var(--yellow); display: flex; align-items: center; justify-content: center;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+            </div>
+            <h3 style="margin: 0; font-size: 16px;">Confirm Suspend to RAM</h3>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.5; margin: 0 0 14px 0;">
+            The device will enter a low-power suspend state.
+        </p>
+        <div class="alert alert-warning" style="margin-bottom: 16px;">
+            ⚠️ <strong>Network Warning:</strong> Suspending puts the WiFi and modem subsystems to sleep. You will lose remote access until someone physically presses the hardware power button.
         </div>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="closeModal('suspend-modal')">Cancel</button>
-            <button class="btn btn-warning" id="confirm-suspend">Suspend</button>
+            <button class="btn btn-warning" id="confirm-suspend-btn">Suspend to RAM</button>
         </div>
     </div>
 </div>
 
 <!-- Action Result Modal -->
 <div id="action-result-modal" class="modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
+    <div class="modal-backdrop" onclick="closeModal('action-result-modal')"></div>
+    <div class="modal-content" style="max-width: 440px;">
         <h3 id="result-title">Action Result</h3>
         <div id="result-body"></div>
         <div class="modal-actions">
-            <button class="btn" id="result-close">Close</button>
+            <button class="btn btn-secondary" id="result-close">Close</button>
         </div>
     </div>
 </div>
 
 <script>
-function showPowerModal(modalId, action, confirmBtnId) {
-    document.getElementById(confirmBtnId).onclick = function() {
-        this.disabled = true;
-        this.textContent = '...';
-        
-        fetch(`/api/device/power/${action}`, { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('result-title').textContent = '✓ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' Initiated';
-                    document.getElementById('result-body').innerHTML = 
-                        '<div class="alert alert-success">The ' + action + ' command has been sent to the system.</div>' +
-                        (data.output ? '<pre class="logs-output">' + escapeHtml(data.output) + '</pre>' : '') +
-                        '<p class="text-muted">Note: If this was a reboot or poweroff, the dashboard may become unavailable momentarily.</p>';
-                } else {
-                    document.getElementById('result-title').textContent = '✗ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' Failed';
-                    document.getElementById('result-body').innerHTML = 
-                        '<div class="alert alert-error">Failed to ' + action + '.</div>' +
-                        '<pre class="logs-output">' + escapeHtml(data.error || 'Unknown error') + '</pre>' +
-                        '<p class="text-muted">This may be due to insufficient sudo permissions.</p>';
-                }
-                document.getElementById('result-close').onclick = function() {
-                    closeModal('action-result-modal');
-                    closeModal(modalId);
-                };
-                openModal('action-result-modal');
+(function() {
+    'use strict';
+
+    var powerState = {
+        activeGovernor: 'unknown',
+        availableGovernors: [],
+        scheduled: { scheduled: false, details: null }
+    };
+
+    function loadPowerState() {
+        fetch('/api/device/power/state')
+            .then(function(res) {
+                if (!res.ok) throw new Error('Failed to load power state');
+                return res.json();
             })
-            .catch(e => {
-                document.getElementById('result-title').textContent = '✗ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' Failed';
-                document.getElementById('result-body').innerHTML = 
-                    '<div class="alert alert-error">Failed to ' + action + '.</div>' +
-                    '<pre class="logs-output">' + escapeHtml(e.message || 'Unknown error') + '</pre>' +
-                    '<p class="text-muted">Network error.</p>';
-                document.getElementById('result-close').onclick = function() {
-                    closeModal('action-result-modal');
-                    closeModal(modalId);
-                };
-                openModal('action-result-modal');
+            .then(function(data) {
+                powerState = data;
+                renderPowerProfiles(data.active_governor, data.available_governors);
+                renderScheduledStatus(data.scheduled);
+            })
+            .catch(function(err) {
+                console.warn('Power state fetch failed:', err);
+            });
+    }
+
+    function renderPowerProfiles(activeGov, availableGovs) {
+        var activeBadge = document.getElementById('active-profile-badge');
+        if (activeBadge) {
+            activeBadge.textContent = 'Active: ' + (activeGov || 'unknown').toUpperCase();
+            activeBadge.className = 'badge ' + (activeGov === 'performance' ? 'badge-danger' : (activeGov === 'powersave' ? 'badge-success' : 'badge-info'));
+        }
+
+        var isPowersaveAvail = availableGovs.indexOf('powersave') !== -1;
+        var isPerfAvail = availableGovs.indexOf('performance') !== -1;
+        var balancedGov = availableGovs.indexOf('schedutil') !== -1 ? 'schedutil' : (availableGovs.indexOf('ondemand') !== -1 ? 'ondemand' : null);
+
+        // Powersave card
+        updateProfileCard('powersave', activeGov === 'powersave', isPowersaveAvail);
+
+        // Balanced card
+        updateProfileCard('balanced', activeGov === balancedGov, balancedGov !== null);
+
+        // Performance card
+        updateProfileCard('performance', activeGov === 'performance', isPerfAvail);
+    }
+
+    function updateProfileCard(type, isActive, isAvailable) {
+        var card = document.getElementById('profile-card-' + type);
+        var badge = document.getElementById('badge-' + type);
+        var btn = document.getElementById('btn-profile-' + type);
+
+        if (!card || !badge || !btn) return;
+
+        if (isActive) {
+            card.classList.add('active');
+            badge.className = 'power-profile-badge active-badge';
+            badge.textContent = 'Active';
+            btn.className = 'power-profile-btn btn btn-sm btn-primary';
+            btn.textContent = 'Currently Active';
+            btn.disabled = true;
+        } else if (isAvailable) {
+            card.classList.remove('active');
+            badge.className = 'power-profile-badge';
+            badge.textContent = 'Available';
+            btn.className = 'power-profile-btn btn btn-sm btn-secondary';
+            btn.textContent = 'Select Profile';
+            btn.disabled = false;
+        } else {
+            card.classList.remove('active');
+            badge.className = 'power-profile-badge';
+            badge.textContent = 'Unavailable';
+            badge.style.opacity = '0.5';
+            btn.className = 'power-profile-btn btn btn-sm btn-secondary';
+            btn.textContent = 'Not Supported';
+            btn.disabled = true;
+            card.style.opacity = '0.6';
+            card.style.cursor = 'default';
+        }
+    }
+
+    window.selectGovernor = function(gov) {
+        if (!gov) return;
+        var feedback = document.getElementById('profile-feedback');
+        if (feedback) {
+            feedback.style.display = 'block';
+            feedback.style.background = 'rgba(56, 189, 248, 0.1)';
+            feedback.style.color = '#38bdf8';
+            feedback.textContent = 'Applying governor ' + gov + '...';
+        }
+
+        fetch('/api/device/power/governor?governor=' + encodeURIComponent(gov), { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (feedback) {
+                    if (data.success) {
+                        feedback.style.background = 'rgba(34, 197, 94, 0.12)';
+                        feedback.style.color = 'var(--green)';
+                        feedback.textContent = '✓ Successfully applied ' + gov + ' power profile.';
+                        loadPowerState();
+                    } else {
+                        feedback.style.background = 'rgba(239, 68, 68, 0.12)';
+                        feedback.style.color = 'var(--red)';
+                        feedback.textContent = '✗ ' + (data.error || 'Failed to switch profile. (Requires Admin elevation)');
+                    }
+                }
+            })
+            .catch(function(err) {
+                if (feedback) {
+                    feedback.style.background = 'rgba(239, 68, 68, 0.12)';
+                    feedback.style.color = 'var(--red)';
+                    feedback.textContent = '✗ Error: Admin elevation required to change power profile.';
+                }
             });
     };
-    openModal(modalId);
-}
 
-document.getElementById('btn-reboot').addEventListener('click', function() {
-    showPowerModal('reboot-modal', 'reboot', 'confirm-reboot');
-});
+    function renderScheduledStatus(scheduled) {
+        var badge = document.getElementById('scheduled-badge');
+        var banner = document.getElementById('schedule-status-banner');
+        var icon = document.getElementById('schedule-icon');
+        var text = document.getElementById('schedule-details-text');
+        var cancelBtn = document.getElementById('btn-cancel-schedule');
 
-document.getElementById('btn-poweroff').addEventListener('click', function() {
-    showPowerModal('poweroff-modal', 'poweroff', 'confirm-poweroff');
-});
+        if (!badge || !banner || !text || !cancelBtn) return;
 
-document.getElementById('btn-suspend').addEventListener('click', function() {
-    showPowerModal('suspend-modal', 'suspend', 'confirm-suspend');
-});
+        if (scheduled && scheduled.scheduled && scheduled.details) {
+            badge.className = 'badge badge-warning';
+            badge.textContent = 'Pending Action';
+            banner.style.background = 'rgba(245, 158, 11, 0.08)';
+            banner.style.borderColor = 'rgba(245, 158, 11, 0.25)';
+            icon.textContent = '⚠️';
+            text.innerHTML = '<strong style="color: var(--yellow);">' + escapeHtml(scheduled.details) + '</strong>';
+            cancelBtn.style.display = 'inline-flex';
+        } else {
+            badge.className = 'badge';
+            badge.textContent = 'No Actions';
+            banner.style.background = 'rgba(255, 255, 255, 0.02)';
+            banner.style.borderColor = 'var(--border)';
+            icon.textContent = 'ℹ️';
+            text.textContent = 'No power operations currently scheduled.';
+            cancelBtn.style.display = 'none';
+        }
+    }
 
-function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+    window.quickSchedule = function(action, minutes) {
+        doSchedule(action, minutes);
+    };
+
+    window.submitCustomSchedule = function() {
+        var action = document.getElementById('sched-action').value;
+        var mins = parseInt(document.getElementById('sched-minutes').value, 10);
+        if (isNaN(mins) || mins < 1) return;
+        doSchedule(action, mins);
+    };
+
+    function doSchedule(action, minutes) {
+        var feedback = document.getElementById('schedule-feedback');
+        if (feedback) {
+            feedback.style.display = 'block';
+            feedback.style.background = 'rgba(56, 189, 248, 0.1)';
+            feedback.style.color = '#38bdf8';
+            feedback.textContent = 'Scheduling ' + action + ' in ' + minutes + ' minutes...';
+        }
+
+        fetch('/api/device/power/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action, minutes: minutes })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (feedback) {
+                if (data.success) {
+                    feedback.style.background = 'rgba(34, 197, 94, 0.12)';
+                    feedback.style.color = 'var(--green)';
+                    feedback.textContent = '✓ ' + action.charAt(0).toUpperCase() + action.slice(1) + ' scheduled in ' + minutes + ' minutes.';
+                    loadPowerState();
+                } else {
+                    feedback.style.background = 'rgba(239, 68, 68, 0.12)';
+                    feedback.style.color = 'var(--red)';
+                    feedback.textContent = '✗ ' + (data.error || 'Failed to schedule action. (Requires Admin elevation)');
+                }
+            }
+        })
+        .catch(function(err) {
+            if (feedback) {
+                feedback.style.background = 'rgba(239, 68, 68, 0.12)';
+                feedback.style.color = 'var(--red)';
+                feedback.textContent = '✗ Error: Admin elevation required.';
+            }
+        });
+    }
+
+    window.cancelScheduledPower = function() {
+        fetch('/api/device/power/cancel-scheduled', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var feedback = document.getElementById('schedule-feedback');
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    if (data.success) {
+                        feedback.style.background = 'rgba(34, 197, 94, 0.12)';
+                        feedback.style.color = 'var(--green)';
+                        feedback.textContent = '✓ Scheduled power action canceled.';
+                    } else {
+                        feedback.style.background = 'rgba(239, 68, 68, 0.12)';
+                        feedback.style.color = 'var(--red)';
+                        feedback.textContent = '✗ ' + (data.error || 'Failed to cancel scheduled action.');
+                    }
+                }
+                loadPowerState();
+            })
+            .catch(function() {
+                loadPowerState();
+            });
+    };
+
+    function setupLifecycleActions() {
+        var btnReboot = document.getElementById('btn-reboot');
+        var btnPoweroff = document.getElementById('btn-poweroff');
+        var btnSuspend = document.getElementById('btn-suspend');
+
+        if (btnReboot) {
+            btnReboot.addEventListener('click', function() {
+                document.getElementById('reboot-dialog-prompt').style.display = 'block';
+                document.getElementById('reboot-dialog-progress').style.display = 'none';
+                openModal('reboot-modal');
+            });
+        }
+
+        if (btnPoweroff) {
+            btnPoweroff.addEventListener('click', function() {
+                openModal('poweroff-modal');
+            });
+        }
+
+        if (btnSuspend) {
+            btnSuspend.addEventListener('click', function() {
+                openModal('suspend-modal');
+            });
+        }
+
+        // Confirm reboot
+        var confirmRebootBtn = document.getElementById('confirm-reboot-btn');
+        if (confirmRebootBtn) {
+            confirmRebootBtn.addEventListener('click', function() {
+                this.disabled = true;
+                this.textContent = 'Rebooting...';
+
+                fetch('/api/device/power/reboot', { method: 'POST' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            document.getElementById('reboot-dialog-prompt').style.display = 'none';
+                            document.getElementById('reboot-dialog-progress').style.display = 'block';
+                            startRebootWatcher();
+                        } else {
+                            closeModal('reboot-modal');
+                            showResultModal('Reboot Failed', data.error || 'Check sudo permissions or elevate to admin', false);
+                        }
+                    })
+                    .catch(function() {
+                        document.getElementById('reboot-dialog-prompt').style.display = 'none';
+                        document.getElementById('reboot-dialog-progress').style.display = 'block';
+                        startRebootWatcher();
+                    });
+            });
+        }
+
+        // Confirm poweroff
+        var confirmPoweroffBtn = document.getElementById('confirm-poweroff-btn');
+        if (confirmPoweroffBtn) {
+            confirmPoweroffBtn.addEventListener('click', function() {
+                this.disabled = true;
+                this.textContent = 'Powering off...';
+
+                fetch('/api/device/power/poweroff', { method: 'POST' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        closeModal('poweroff-modal');
+                        if (data.success) {
+                            showResultModal('Shutdown Initiated', 'Device is powering off completely. Lavender will become unreachable.', true);
+                        } else {
+                            showResultModal('Power Off Failed', data.error || 'Check sudo permissions or elevate to admin', false);
+                        }
+                    })
+                    .catch(function() {
+                        closeModal('poweroff-modal');
+                        showResultModal('Shutdown Command Sent', 'Device has powered down or connection closed.', true);
+                    });
+            });
+        }
+
+        // Confirm suspend
+        var confirmSuspendBtn = document.getElementById('confirm-suspend-btn');
+        if (confirmSuspendBtn) {
+            confirmSuspendBtn.addEventListener('click', function() {
+                this.disabled = true;
+                this.textContent = 'Suspending...';
+
+                fetch('/api/device/power/suspend', { method: 'POST' })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        closeModal('suspend-modal');
+                        if (data.success) {
+                            showResultModal('Suspend Initiated', 'Device has entered low-power sleep state. Network interfaces are sleeping.', true);
+                        } else {
+                            showResultModal('Suspend Failed', data.error || 'Check sudo permissions or elevate to admin', false);
+                        }
+                    })
+                    .catch(function() {
+                        closeModal('suspend-modal');
+                        showResultModal('Suspend Command Sent', 'Device has entered low-power sleep state.', true);
+                    });
+            });
+        }
+    }
+
+    function startRebootWatcher() {
+        var statusTxt = document.getElementById('reboot-status-text');
+        var statusSub = document.getElementById('reboot-status-sub');
+        var attempts = 0;
+        var maxAttempts = 60;
+
+        setTimeout(function() {
+            var checkInterval = setInterval(function() {
+                attempts++;
+                if (statusSub) statusSub.textContent = 'Attempt ' + attempts + ' of ' + maxAttempts + ' — pinging Lavender...';
+
+                fetch('/api/device/info', { cache: 'no-store' })
+                    .then(function(res) {
+                        if (res.ok) {
+                            clearInterval(checkInterval);
+                            if (statusTxt) {
+                                statusTxt.textContent = '✓ Device Online!';
+                                statusTxt.style.color = 'var(--green)';
+                            }
+                            if (statusSub) statusSub.textContent = 'Reloading dashboard...';
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 1500);
+                        }
+                    })
+                    .catch(function() {});
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    if (statusSub) statusSub.textContent = 'Device taking longer than expected. Please check device manually.';
+                }
+            }, 2500);
+        }, 6000);
+    }
+
+    function showResultModal(title, message, isSuccess) {
+        var modal = document.getElementById('action-result-modal');
+        var titleEl = document.getElementById('result-title');
+        var bodyEl = document.getElementById('result-body');
+        var closeBtn = document.getElementById('result-close');
+
+        if (titleEl) titleEl.textContent = (isSuccess ? '✓ ' : '✗ ') + title;
+        if (bodyEl) {
+            bodyEl.innerHTML = '<div class="alert alert-' + (isSuccess ? 'success' : 'error') + '">' +
+                escapeHtml(message) +
+                '</div>';
+        }
+        if (closeBtn) {
+            closeBtn.onclick = function() {
+                closeModal('action-result-modal');
+            };
+        }
+        openModal('action-result-modal');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadPowerState();
+        setupLifecycleActions();
+    });
+})();
 </script>
 {% endblock %}

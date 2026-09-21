@@ -102,10 +102,12 @@
         <header class="topbar">
             <h2 class="page-title">{% block page_title %}Overview{% endblock %}</h2>
             <div class="topbar-actions">
+                {% if request.url.path == '/' %}
                 <span id="sse-status" class="">
                     <span class="status-indicator status-inactive"></span>
                     <span id="sse-status-text">Connecting…</span>
                 </span>
+                {% endif %}
                 {% if session %}
                 <div class="user-chip" id="user-chip">
                     <div class="user-avatar" title="Logged in as {{ session.username }}">

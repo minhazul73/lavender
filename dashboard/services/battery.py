@@ -4,7 +4,7 @@ Battery, thermal, and CPU frequency management.
 import subprocess
 import os
 
-from dashboard.dependencies import run_command
+from dashboard.dependencies import run_command, run_sudo_command
 
 
 # Thermal zone type-to-display-name mapping for readable labels
@@ -306,3 +306,76 @@ def get_cpu_scaling_available() -> dict:
             pass
 
     return result
+
+
+def get_uptime() -> dict:
+    """Get system uptime from /proc/uptime."""
+    uptime_sec = 0.0
+    uptime_str = "Unknown"
+    try:
+        with open("/proc/uptime", "r") as f:
+            uptime_sec = float(f.read().strip().split()[0])
+            days = int(uptime_sec // 86400)
+            hours = int((uptime_sec % 86400) // 3600)
+            minutes = int((uptime_sec % 3600) // 60)
+            parts = []
+            if days > 0:
+                parts.append(f"{days}d")
+            if hours > 0 or days > 0:
+                parts.append(f"{hours}h")
+            parts.append(f"{minutes}m")
+            uptime_str = " ".join(parts)
+    except Exception:
+        pass
+    return {
+        "seconds": uptime_sec,
+        "formatted": uptime_str,
+    }
+
+
+def set_cpu_governor(governor: str) -> dict:
+    """
+    Set CPU frequency scaling governor across all CPU cores (requires sudo).
+    """
+    clean_gov = governor.strip().lower()
+    avail = get_cpu_scaling_available().get("governors", [])
+    if avail and clean_gov not in avail:
+        return {
+            "success": False,
+            "error": f"Governor '{clean_gov}' not supported. Available: {', '.join(avail)}",
+        }
+
+    # 1. Try cpupower command
+    code, out, err = run_sudo_command(["cpupower", "frequency-set", "-g", clean_gov], timeout=10)
+    if code == 0:
+        return {"success": True, "governor": clean_gov, "output": out.strip()}
+
+    # 2. Fallback to direct sysfs write
+    cpu_dir = "/sys/devices/system/cpu"
+    success_count = 0
+    errors = []
+    if os.path.isdir(cpu_dir):
+        for entry in sorted(os.listdir(cpu_dir)):
+            if entry.startswith("cpu") and entry[3:].isdigit():
+                gov_file = os.path.join(cpu_dir, entry, "cpufreq", "scaling_governor")
+                if os.path.isfile(gov_file):
+                    c, o, e = run_sudo_command(
+                        ["sh", "-c", f"echo {clean_gov} > {gov_file}"], timeout=5
+                    )
+                    if c == 0:
+                        success_count += 1
+                    else:
+                        errors.append(f"{entry}: {e or o}")
+
+    if success_count > 0:
+        return {
+            "success": True,
+            "governor": clean_gov,
+            "output": f"Governor '{clean_gov}' set on {success_count} CPU cores",
+        }
+
+    return {
+        "success": False,
+        "error": "; ".join(errors) or err or "Failed to set CPU governor",
+    }
+
