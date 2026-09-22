@@ -71,13 +71,31 @@
     --shadow-glow: 0 0 20px var(--accent-glow);
     --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(99, 179, 237, 0.07) inset;
 
+    /* Lavender Theme Palette */
+    --lavender-50: #f5f3ff;
+    --lavender-100: #ede9fe;
+    --lavender-200: #ddd6fe;
+    --lavender-300: #c4b5fd;
+    --lavender-400: #a78bfa;
+    --lavender-500: #8b5cf6;
+    --lavender-600: #7c3aed;
+    --lavender-700: #6d28d9;
+    --lavender-primary: #7058df;
+    --lavender-glow: rgba(115, 96, 223, 0.32);
+    --lavender-glow-hover: rgba(115, 96, 223, 0.48);
+    --lavender-border: rgba(196, 181, 253, 0.28);
+    --lavender-border-hover: rgba(196, 181, 253, 0.5);
+
     /* Gradients */
-    --grad-accent: linear-gradient(135deg, #06b6d4, #a855f7);
+    --grad-lavender: linear-gradient(135deg, #6653d4 0%, #7e69e5 50%, #917de9 100%);
+    --grad-lavender-hover: linear-gradient(135deg, #715ee0 0%, #8974ee 50%, #9b88f2 100%);
+    --grad-lavender-active: linear-gradient(135deg, #5b46cc 0%, #735edc 50%, #8671e1 100%);
+    --grad-accent: var(--grad-lavender);
     --grad-blue: linear-gradient(135deg, #3b82f6, #06b6d4);
     --grad-green: linear-gradient(135deg, #10b981, #06b6d4);
     --grad-warm: linear-gradient(135deg, #f59e0b, #ef4444);
     --grad-purple: linear-gradient(135deg, #8b5cf6, #ec4899);
-    --grad-sidebar: linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, transparent 100%);
+    --grad-sidebar: linear-gradient(180deg, rgba(115, 96, 223, 0.06) 0%, transparent 100%);
 
     /* Radius */
     --radius-sm: 6px;
@@ -656,16 +674,57 @@ body::before {
 }
 
 .btn-primary {
-    background: var(--grad-accent);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 4px 12px var(--accent-glow);
+    background: var(--grad-lavender);
+    border: 1px solid var(--lavender-border);
+    color: #ffffff;
+    font-weight: 550;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 3px 12px var(--lavender-glow);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .btn-primary:hover {
-    box-shadow: 0 6px 20px var(--accent-glow);
-    border-color: transparent;
-    transform: translateY(-2px);
+    background: var(--grad-lavender-hover);
+    border-color: var(--lavender-border-hover);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 5px 18px var(--lavender-glow-hover);
+    transform: translateY(-1.5px);
+    color: #ffffff;
+}
+
+.btn-primary:active {
+    background: var(--grad-lavender-active);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 6px var(--lavender-glow);
+    transform: translateY(0);
+}
+
+.btn-primary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 3px 12px var(--lavender-glow);
+}
+
+.btn-primary:disabled,
+.btn-primary.disabled {
+    opacity: 0.5;
+    background: linear-gradient(135deg, #4d4474 0%, #5d538c 100%);
+    border-color: rgba(196, 181, 253, 0.12);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-xs.btn-primary {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 2px 8px var(--lavender-glow);
+}
+
+.btn-xs.btn-primary:hover {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 4px 14px var(--lavender-glow-hover);
+}
+
+.btn-sm.btn-primary {
+    padding: 5px 14px;
+    font-weight: 600;
 }
 
 .btn-danger {
