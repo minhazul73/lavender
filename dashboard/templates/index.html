@@ -250,33 +250,37 @@
     </section>
 
     <!-- Top Processes Card -->
-    <section class="card">
-        <div class="card-header">
-            <span class="card-icon" style="background:rgba(249,115,22,0.12); color:var(--orange);">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-                    <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-                    <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-                </svg>
-            </span>
-            <span class="card-title">Top Processes</span>
-            <a href="/processes" class="card-link">All →</a>
-        </div>
-        <div class="card-body" style="padding: 0;">
-            <table class="proc-table">
-                <thead>
-                    <tr>
-                        <th>Process</th>
-                        <th>CPU</th>
-                        <th>MEM</th>
-                    </tr>
-                </thead>
-                <tbody id="top-processes">
-                    <tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:16px 0; font-size:12px;">Loading…</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </section>
+    <div class="procs-cell-wrap">
+        <section class="card card-procs">
+            <div class="card-header">
+                <span class="card-icon" style="background:rgba(249,115,22,0.12); color:var(--orange);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+                        <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
+                        <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                    </svg>
+                </span>
+                <span class="card-title">Top Processes</span>
+                <a href="/processes" class="card-link">All →</a>
+            </div>
+            <div class="card-body proc-card-body" style="padding: 0;">
+                <div class="proc-table-wrap">
+                    <table class="proc-table">
+                        <thead>
+                            <tr>
+                                <th>Process</th>
+                                <th>CPU</th>
+                                <th>MEM</th>
+                            </tr>
+                        </thead>
+                        <tbody id="top-processes">
+                            <tr><td colspan="3" style="text-align:center; color:var(--text-muted); padding:16px 0; font-size:12px;">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
 
 </div><!-- /middle-row -->
 

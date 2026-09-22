@@ -794,5 +794,11 @@
             if (d.thermal) updateThermalTop({zones: d.thermal});
         }
     });
-    fetchJson('/api/system/processes?sort_by=mem&limit=6').then(function(d) { if (d) updateTopProcesses(d); });
+    function loadTopProcesses() {
+        fetchJson('/api/system/processes?sort_by=mem&limit=10').then(function(d) { if (d) updateTopProcesses(d); });
+    }
+    loadTopProcesses();
+    setInterval(function() {
+        if (!document.hidden) loadTopProcesses();
+    }, 5000);
 })();
