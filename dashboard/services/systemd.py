@@ -64,9 +64,11 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
     cmd = ["systemctl", "--user", "status", service_name, "--no-pager"] if user else ["systemctl", "status", service_name, "--no-pager"]
     code, out, err = run_command(cmd, timeout=15)
     
-    # Try with sudo for system services only if direct failed
-    if code != 0 and not user:
-        code, out, err = run_sudo_command(cmd, timeout=15)
+    # Try with sudo for system services only if direct failed completely (no output returned)
+    if not out.strip() and not user:
+        sudo_code, sudo_out, sudo_err = run_sudo_command(cmd, timeout=15)
+        if sudo_out.strip():
+            code, out, err = sudo_code, sudo_out, sudo_err
     
     # Parse key info
     info = {
@@ -75,28 +77,59 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
         "output": out,
         "error": err,
         "active": False,
+        "active_state": "inactive",
         "sub_state": "",
+        "description": "",
+        "unit_file_state": "",
+        "since": "",
+        "tasks": "",
         "main_pid": None,
+        "process_name": "",
         "memory": "",
         "cpu": "",
+        "docs": "",
     }
+    
+    if out.strip():
+        first_line = out.strip().split("\n")[0]
+        desc_m = re.search(r"^[●○×*]?\s*[\w\.\@\-]+\s*-\s*(.+)$", first_line)
+        if desc_m:
+            info["description"] = desc_m.group(1).strip()
     
     # Parse from output
     for line in out.split("\n"):
-        if "Active:" in line:
-            info["active"] = "active" in line.lower()
-            m = re.search(r"Active:\s+(\w+)", line)
+        if "Loaded:" in line:
+            m = re.search(r";\s*(enabled|disabled|static|masked|indirect|generated)\b", line)
             if m:
-                info["sub_state"] = m.group(1)
-        m = re.search(r"Main\s+PID:\s+(\d+)", line)
+                info["unit_file_state"] = m.group(1)
+        if "Active:" in line:
+            m = re.search(r"Active:\s+([a-zA-Z\-]+)(?:\s+\(([^)]+)\))?(?:;\s*(.+)|(?:\s+since\s+(.+)))?", line)
+            if m:
+                primary_state = m.group(1).lower()
+                info["active_state"] = primary_state
+                info["active"] = primary_state == "active"
+                if m.group(2):
+                    info["sub_state"] = m.group(2).strip()
+                since_val = m.group(3) or m.group(4)
+                if since_val:
+                    info["since"] = since_val.strip()
+        m = re.search(r"Main\s+PID:\s+(\d+)(?:\s+\(([^)]+)\))?", line)
         if m:
             info["main_pid"] = int(m.group(1))
+            if m.group(2):
+                info["process_name"] = m.group(2).strip()
+        m = re.search(r"Tasks:\s+(\d+)", line)
+        if m:
+            info["tasks"] = m.group(1).strip()
         m = re.search(r"Memory:\s+(.+)", line)
         if m:
             info["memory"] = m.group(1).strip()
         m = re.search(r"CPU:\s+(.+)", line)
         if m:
             info["cpu"] = m.group(1).strip()
+        m = re.search(r"Docs:\s+(.+)", line)
+        if m:
+            info["docs"] = m.group(1).strip()
     
     return info
 
