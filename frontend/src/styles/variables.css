@@ -1,0 +1,107 @@
+:root {
+  /* ===== Core Color Palette ===== */
+  --bg-base: #030712;
+  --bg-primary: #060f1e;
+  --bg-secondary: #0c1a2e;
+  --bg-card: rgba(12, 26, 46, 0.7);
+  --bg-card-hover: rgba(16, 34, 60, 0.88);
+  --bg-elevated: rgba(20, 40, 70, 0.85);
+  --bg-input: rgba(10, 20, 40, 0.85);
+  --bg-modal-overlay: rgba(3, 7, 18, 0.75);
+
+  /* ===== Borders ===== */
+  --border: rgba(99, 179, 237, 0.12);
+  --border-subtle: rgba(99, 179, 237, 0.06);
+  --border-accent: rgba(139, 92, 246, 0.35);
+
+  /* ===== Typography & Text ===== */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+
+  /* ===== Accent Colors ===== */
+  --accent: #06b6d4;
+  --accent-dim: rgba(6, 182, 212, 0.15);
+  --accent-hover: #22d3ee;
+  --accent-glow: rgba(6, 182, 212, 0.4);
+
+  /* Purple / Lavender */
+  --purple: #8b5cf6;
+  --purple-dim: rgba(139, 92, 246, 0.15);
+  --purple-glow: rgba(139, 92, 246, 0.4);
+
+  --lavender-50: #f5f3ff;
+  --lavender-100: #ede9fe;
+  --lavender-200: #ddd6fe;
+  --lavender-300: #c4b5fd;
+  --lavender-400: #a78bfa;
+  --lavender-500: #8b5cf6;
+  --lavender-600: #7c3aed;
+  --lavender-700: #6d28d9;
+  --lavender-primary: #7c3aed;
+  --lavender-glow: rgba(124, 58, 237, 0.35);
+  --lavender-glow-hover: rgba(124, 58, 237, 0.5);
+  --lavender-border: rgba(167, 139, 250, 0.28);
+  --lavender-border-hover: rgba(167, 139, 250, 0.5);
+
+  /* Status Colors */
+  --blue: #3b82f6;
+  --blue-dim: rgba(59, 130, 246, 0.15);
+  --blue-glow: rgba(59, 130, 246, 0.4);
+
+  --green: #10b981;
+  --green-dim: rgba(16, 185, 129, 0.15);
+  --green-glow: rgba(16, 185, 129, 0.4);
+
+  --yellow: #f59e0b;
+  --yellow-dim: rgba(245, 158, 11, 0.15);
+  --yellow-glow: rgba(245, 158, 11, 0.4);
+
+  --red: #ef4444;
+  --red-dim: rgba(239, 68, 68, 0.15);
+  --red-glow: rgba(239, 68, 68, 0.4);
+
+  --orange: #f97316;
+  --orange-dim: rgba(249, 115, 22, 0.15);
+
+  /* ===== Shadows ===== */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px var(--lavender-glow);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+
+  /* ===== Gradients ===== */
+  --grad-lavender: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%);
+  --grad-lavender-hover: linear-gradient(135deg, #8b5cf6 0%, #9b74f7 50%, #b89efc 100%);
+  --grad-lavender-active: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #8b5cf6 100%);
+  --grad-blue: linear-gradient(135deg, #3b82f6, #06b6d4);
+  --grad-green: linear-gradient(135deg, #10b981, #06b6d4);
+  --grad-warm: linear-gradient(135deg, #f59e0b, #ef4444);
+  --grad-purple: linear-gradient(135deg, #8b5cf6, #ec4899);
+  --grad-card: linear-gradient(145deg, rgba(16, 26, 46, 0.75) 0%, rgba(9, 16, 30, 0.85) 100%);
+  --grad-sidebar: linear-gradient(180deg, rgba(124, 58, 237, 0.08) 0%, transparent 100%);
+
+  /* ===== Border Radii ===== */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ===== Transitions ===== */
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease;
+  --transition-bounce: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ===== Layout Dimensions ===== */
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 72px;
+  --topbar-height: 64px;
+}

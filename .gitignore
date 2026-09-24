@@ -4,6 +4,10 @@ __pycache__/
 .env.local
 .venv/
 venv/
-*.egg-info/
 dist/
 build/
+node_modules/
+frontend/node_modules/
+.pytest_cache/
+coverage/
+*.egg-info/
