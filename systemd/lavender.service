@@ -8,7 +8,7 @@ Type=simple
 User=rahat
 Group=rahat
 WorkingDirectory=/home/rahat/hermes-device-dashboard
-ExecStart=/home/rahat/.local/share/uv/tools/hermes-agent/bin/python -m uvicorn dashboard.main:app --host 0.0.0.0 --port 8080 --log-level info
+ExecStart=/home/rahat/.local/share/uv/tools/hermes-agent/bin/python -m uvicorn server.main:app --host 0.0.0.0 --port 8080 --log-level info
 Restart=on-failure
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1

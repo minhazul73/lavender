@@ -1,3 +1,6 @@
+"""
+Integration tests for SPA serving, static assets, and fallback routing.
+"""
 import pytest
 
 
@@ -32,6 +35,23 @@ async def test_protected_pages_render_for_authenticated_user(auth_client):
         res = await auth_client.get(page)
         assert res.status_code == 200, f"Page {page} failed to render: status {res.status_code}"
         assert "text/html" in res.headers.get("content-type", "")
+
+
+@pytest.mark.asyncio
+async def test_spa_fallback_and_api_404(client):
+    # Any frontend SPA subroute returns index.html
+    res_spa = await client.get("/services/deep/route")
+    assert res_spa.status_code == 200
+    assert "text/html" in res_spa.headers.get("content-type", "")
+    assert "Lavender" in res_spa.text
+
+    # Unhandled API endpoints must return 404, not index.html
+    res_api = await client.get("/api/nonexistent-endpoint")
+    assert res_api.status_code == 404
+
+    # Unhandled auth endpoints must return 404, not index.html
+    res_auth = await client.get("/auth/nonexistent")
+    assert res_auth.status_code == 404
 
 
 @pytest.mark.asyncio

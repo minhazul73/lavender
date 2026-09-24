@@ -51,8 +51,8 @@ Originally designed for postmarketOS on ARM64 mobile devices (such as the Redmi 
 
 ## Tech Stack
 
-- **Backend:** FastAPI (async) + Uvicorn
-- **Frontend:** Vanilla JavaScript (ES6+, no frameworks) + Jinja2 templates
+- **Backend:** FastAPI (async) + Uvicorn + Pydantic v2
+- **Frontend:** React 18 + TypeScript + Vite + Bun (zero runtime node requirement on production SBCs)
 - **Styling:** Custom responsive CSS, dark theme, Lavender theme palette (`--lavender-*`, `--grad-lavender`, glassmorphism, accent glow effects, micro-animations)
 - **Real-time:** Server-Sent Events (SSE) via FastAPI `StreamingResponse` and background `MetricCollector` ring buffers
 - **Package Management:** Multi-backend adapter architecture (`apk`, `apt`, `pacman`, `dnf`) with in-memory TTL caching
@@ -84,9 +84,13 @@ pip install -r requirements.txt
 
 ### Running
 
-**Manual / Development:**
+**Manual / Production:**
 ```bash
-python -m uvicorn dashboard.main:app --host 0.0.0.0 --port 8080 --reload
+python -m uvicorn server.main:app --host 0.0.0.0 --port 8080
+```
+Or directly using the installed CLI entry point:
+```bash
+lavender
 ```
 
 **As a systemd service:**

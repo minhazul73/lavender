@@ -1,0 +1,35 @@
+name: Frontend Build & Test
+
+on:
+  push:
+    branches: [main, react-migration]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Type check (TypeScript)
+        working-directory: frontend
+        run: bun run typecheck
+
+      - name: Run frontend unit tests
+        working-directory: frontend
+        run: bun run test
+
+      - name: Build production bundle
+        working-directory: frontend
+        run: bun run build

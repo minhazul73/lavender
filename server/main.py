@@ -1,62 +1,21 @@
 """
 FastAPI application for Lavender.
+Provides REST APIs, SSE telemetry, and serves the production React SPA bundle.
 """
 import os
 import asyncio
-import subprocess
 from contextlib import asynccontextmanager
-from typing import Optional
 
-from fastapi import FastAPI, Request, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from server.core.config import SESSION_COOKIE_NAME, APP_VERSION
+from server.core.config import APP_VERSION
 from server.auth.session import UserSession, session_store
-from server.auth.deps import get_current_session, require_session
-from server.services.device_info import get_system_info
-
-
-def _get_git_hash() -> str:
-    """Get the short git hash for cache-busting static assets."""
-    try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            stderr=subprocess.DEVNULL,
-            text=True,
-        ).strip()
-    except Exception:
-        return "dev"
-
-
-_GIT_HASH = _get_git_hash()
-
-
-class Templates:
-    """Jinja2 template renderer with autoescape=False so script blocks
-    and JS template literals are emitted as raw HTML."""
-
-    def __init__(self, directory: str):
-        from jinja2 import Environment, FileSystemLoader
-        self._env = Environment(
-            loader=FileSystemLoader(directory),
-            autoescape=False,
-        )
-
-    def TemplateResponse(self, request: Request, name: str, context: dict) -> HTMLResponse:
-        """Render a template. Signature matches Jinja2Templates for drop-in use."""
-        tmpl = self._env.get_template(name)
-        session = getattr(request.state, "session", None)
-        context.setdefault("session", session)
-        context.setdefault("request", request)
-        context.setdefault("app_version", APP_VERSION)
-        context.setdefault("device_info", get_system_info())
-        body = tmpl.render(**context, git_hash=_GIT_HASH)
-        return HTMLResponse(content=body, status_code=200, media_type="text/html")
+from server.auth.deps import get_current_session
 
 
 async def _periodic_session_cleanup():
@@ -75,10 +34,9 @@ async def _periodic_session_cleanup():
 async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_periodic_session_cleanup())
 
-    # Pre-seed active session for current local user for localhost access
+    # Pre-seed active session for current local user for localhost development access
     try:
         import getpass, pwd
-        from server.auth.session import UserSession
         cur_user = getpass.getuser()
         pw = pwd.getpwnam(cur_user)
         dev_sid = "dev-session-active"
@@ -118,33 +76,32 @@ from server.api.auth import limiter as auth_limiter  # noqa: E402
 app.state.limiter = auth_limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Static files
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.isdir(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Frontend production dist directory
+dist_dir = os.path.join(os.path.dirname(__file__), "dist")
+assets_dir = os.path.join(dist_dir, "assets")
+
+if os.path.isdir(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 
-# Middleware: no-cache on static files & session resolution on requests
+# Middleware: session resolution and cache control
 @app.middleware("http")
 async def _app_middleware(request: Request, call_next):
     # Resolve session from cookie and attach to request.state
     await get_current_session(request)
 
     response = await call_next(request)
-    if request.url.path.startswith("/static/"):
+    if request.url.path.startswith("/assets/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif request.url.path == "/" or request.url.path.endswith(".html"):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     return response
 
 
-# Templates — use autoescape=False so <script> blocks render as raw HTML
-templates_dir = os.path.join(os.path.dirname(__file__), "templates")
-templates = Templates(templates_dir)
-
-
-# Import route modules after app creation to avoid circular imports
+# Import route modules after app creation
 from server.api import auth, device, live, network, packages, power, storage, system, users  # noqa: E402
 
-# Register API routers (clean routes)
+# Register domain API routers
 app.include_router(auth.router)
 app.include_router(device.router, prefix="/api/device", tags=["Device"])
 app.include_router(system.router, prefix="/api/system", tags=["System"])
@@ -155,7 +112,7 @@ app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(storage.router, prefix="/api/storage", tags=["Storage"])
 app.include_router(live.router, prefix="/api", tags=["Live"])
 
-# Backward-compatibility aliases for legacy Jinja2 templates
+# Backward-compatibility aliases for legacy scripts and tools
 app.include_router(network.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
 app.include_router(packages.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
 app.include_router(power.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
@@ -163,61 +120,64 @@ app.include_router(users.router, prefix="/api/device", tags=["Legacy"], include_
 app.include_router(system.router, prefix="/api", tags=["Legacy"], include_in_schema=False)
 
 
-# Login page route (public)
-@app.get("/login", response_class=HTMLResponse, summary="Sign in page")
-async def page_login(request: Request) -> HTMLResponse:
+def _serve_spa_index() -> Response:
+    """Serve the compiled React SPA index.html or a fallback instructions page."""
+    index_file = os.path.join(dist_dir, "index.html")
+    if os.path.isfile(index_file):
+        response = FileResponse(index_file, media_type="text/html")
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        return response
+
+    return HTMLResponse(
+        content="""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lavender — Build Required</title>
+</head>
+<body style="font-family: sans-serif; background: #0d0d14; color: #f1f5f9; padding: 40px; text-align: center;">
+  <h1 style="color: #a78bfa;">Lavender Dashboard</h1>
+  <p>Frontend production bundle not found in <code>server/dist</code>.</p>
+  <p>Run <code>bun run build</code> inside the <code>frontend/</code> directory to compile the React SPA.</p>
+</body>
+</html>""",
+        status_code=200,
+        media_type="text/html",
+    )
+
+
+# Root dashboard view
+@app.get("/", response_class=FileResponse, summary="Root dashboard view")
+async def root_view() -> Response:
+    return _serve_spa_index()
+
+
+# Login page view (redirects to home if already authenticated)
+@app.get("/login", response_class=FileResponse, summary="Sign in view")
+async def login_view(request: Request) -> Response:
     session = getattr(request.state, "session", None)
     if session:
         next_url = request.query_params.get("next", "/")
         return RedirectResponse(url=next_url if next_url.startswith("/") else "/")
-    return templates.TemplateResponse(
-        request=request,
-        name="login.html",
-        context={"request": request},
-    )
+    return _serve_spa_index()
 
 
-# Page routes — protected by require_session
-PAGES: dict[str, tuple[str, str]] = {
-    "/": ("index.html", "Landing page with overview"),
-    "/services": ("services.html", "Systemd services"),
-    "/processes": ("processes.html", "Running processes"),
-    "/storage": ("storage.html", "Storage and disks"),
-    "/network": ("network.html", "Network interfaces"),
-    "/packages": ("packages.html", "Package management"),
-    "/users": ("users.html", "User management"),
-    "/power": ("power.html", "Power controls"),
-}
+# Catch-all SPA fallback route for client-side React Router navigation
+@app.get("/{path:path}", response_class=FileResponse, include_in_schema=False)
+async def spa_fallback(path: str) -> Response:
+    # Do not intercept API, auth, or asset routes that 404
+    if path.startswith("api/") or path.startswith("auth/") or path.startswith("assets/"):
+        raise HTTPException(status_code=404, detail="Endpoint not found")
+
+    # Serve raw static files from dist root if they exist (e.g. favicon, robots.txt)
+    file_path = os.path.join(dist_dir, path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+
+    return _serve_spa_index()
 
 
-def _register_page(path: str, template_name: str, summary: str) -> None:
-    if path == "/":
-        # Homepage is public — accessible without authentication
-        async def page(
-            request: Request,
-            session: Optional[UserSession] = Depends(get_current_session),
-        ) -> HTMLResponse:
-            return templates.TemplateResponse(
-                request=request, name=template_name, context={"request": request, "session": session}
-            )
-    else:
-        # All other pages require authentication
-        async def page(
-            request: Request,
-            session: UserSession = Depends(require_session),
-        ) -> HTMLResponse:
-            return templates.TemplateResponse(
-                request=request, name=template_name, context={"request": request, "session": session}
-            )
-
-    page.__name__ = f"page_{template_name.removesuffix('.html')}"
-    app.get(path, response_class=HTMLResponse, summary=summary)(page)
-
-
-for _path, (_template, _summary) in PAGES.items():
-    _register_page(_path, _template, _summary)
-
-
-@app.get("/battery", response_class=RedirectResponse, summary="Redirect to live overview")
-async def page_battery_redirect() -> RedirectResponse:
-    return RedirectResponse(url="/", status_code=307)
+def run():
+    """CLI entry point for running the Lavender server."""
+    import uvicorn
+    uvicorn.run("server.main:app", host="0.0.0.0", port=8080, reload=False)
