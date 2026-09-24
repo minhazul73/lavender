@@ -1,15 +1,15 @@
 .PHONY: install dev-backend dev-frontend build test test-frontend clean
 
+# Install all backend (uv) and frontend (bun) dependencies
 install:
-	python3 -m venv .venv
-	. .venv/bin/activate && pip install -r requirements.txt
+	uv sync --extra dev
 	cd frontend && bun install
 
-# Run backend only (serves compiled dist/ or API)
+# Run backend only (FastAPI with auto-reload via uv)
 dev-backend:
-	. .venv/bin/activate && uvicorn server.main:app --reload --port 8080
+	uv run uvicorn server.main:app --reload --port 8080
 
-# Run frontend dev server only (Vite with HMR proxying API to :8080)
+# Run frontend dev server only (Vite HMR proxying API to :8080)
 dev-frontend:
 	cd frontend && bun run dev
 
@@ -17,13 +17,13 @@ dev-frontend:
 build:
 	cd frontend && bun run build
 
-# Run all backend tests
+# Run all backend tests with uv
 test:
-	. .venv/bin/activate && pytest -v
+	uv run pytest -v
 
-# Run frontend tests
+# Run frontend tests with bun
 test-frontend:
 	cd frontend && bun test
 
 clean:
-	rm -rf server/dist frontend/node_modules .venv
+	rm -rf server/dist frontend/node_modules .venv uv.lock
