@@ -7,6 +7,7 @@ import {
   ServicesListResponse,
   ProcessesOverviewResponse,
   ThermalZone,
+  SystemLogItem,
 } from '../../api/types';
 import { Sparkline } from '../../components/common/Sparkline';
 import { formatRate, formatMemKb, formatBatteryTime } from '../../utils/formatters';
@@ -36,7 +37,7 @@ export const OverviewPage: React.FC = () => {
   const [storageData, setStorageData] = useState<StorageOverviewResponse | null>(null);
   const [servicesData, setServicesData] = useState<ServicesListResponse | null>(null);
   const [topProcesses, setTopProcesses] = useState<ProcessesOverviewResponse | null>(null);
-  const [recentLogs, setRecentLogs] = useState<string[]>([]);
+  const [recentLogs, setRecentLogs] = useState<SystemLogItem[]>([]);
 
   // Telemetry buffer updater
   useEffect(() => {
@@ -77,7 +78,7 @@ export const OverviewPage: React.FC = () => {
       const [storage, services, logs, procs] = await Promise.allSettled([
         api.get<StorageOverviewResponse>('/api/system/storage'),
         api.get<ServicesListResponse>('/api/system/services'),
-        api.get<{ logs: string[] }>('/api/system/logs?limit=8'),
+        api.get<{ logs: SystemLogItem[] }>('/api/system/logs?limit=8'),
         api.get<ProcessesOverviewResponse>('/api/system/processes?sort_by=mem&limit=6'),
       ]);
 
@@ -632,24 +633,55 @@ export const OverviewPage: React.FC = () => {
           <div className="card-body" style={{ padding: 0 }}>
             <div style={{ maxHeight: '180px', overflowY: 'auto', padding: '8px 12px' }}>
               {recentLogs.length > 0 ? (
-                recentLogs.map((log, idx) => (
-                  <div
-                    key={idx}
-                    className="log-entry"
-                    style={{
-                      fontSize: '0.78rem',
-                      fontFamily: "'JetBrains Mono', monospace",
-                      padding: '4px 0',
-                      borderBottom: '1px solid rgba(255,255,255,0.03)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    <span style={{ color: 'var(--purple)', marginRight: '8px' }}>•</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>{log}</span>
-                  </div>
-                ))
+                recentLogs.map((log, idx) => {
+                  const timestamp = typeof log === 'object' && log !== null ? log.timestamp : '';
+                  const service = typeof log === 'object' && log !== null ? log.service : '';
+                  const message =
+                    typeof log === 'object' && log !== null
+                      ? log.message || ''
+                      : String(log);
+                  const level = typeof log === 'object' && log !== null ? log.level : 'info';
+                  const dotColor =
+                    level === 'error'
+                      ? 'var(--red)'
+                      : level === 'warning'
+                      ? 'var(--yellow)'
+                      : 'var(--purple)';
+
+                  return (
+                    <div
+                      key={idx}
+                      className="log-entry"
+                      style={{
+                        fontSize: '0.78rem',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        padding: '4px 0',
+                        borderBottom: '1px solid rgba(255,255,255,0.03)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span style={{ color: dotColor, flexShrink: 0 }}>•</span>
+                      {timestamp && (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', flexShrink: 0 }}>
+                          [{timestamp}]
+                        </span>
+                      )}
+                      {service && (
+                        <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: '0.74rem', flexShrink: 0 }}>
+                          {service}:
+                        </span>
+                      )}
+                      <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {message}
+                      </span>
+                    </div>
+                  );
+                })
               ) : (
                 <div style={{ color: 'var(--text-muted)', fontSize: '12px', padding: '12px' }}>
                   No recent system warnings.

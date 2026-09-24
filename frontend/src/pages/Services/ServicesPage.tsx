@@ -125,14 +125,29 @@ export const ServicesPage: React.FC = () => {
     }
   };
 
-  // View Service Logs
   const handleOpenLogs = async (unit: string) => {
     setSelectedLogsUnit(unit);
     setLogsLoading(true);
     setLogs([]);
     try {
-      const res = await api.get<{ logs?: string[] }>(`/api/system/logs?service=${encodeURIComponent(unit)}&limit=100`);
-      setLogs(res.logs || ['No journal entries found for this service.']);
+      const res = await api.get<{ logs?: unknown }>(
+        `/api/system/logs?service=${encodeURIComponent(unit)}&limit=100`
+      );
+      if (typeof res.logs === 'string') {
+        setLogs(res.logs.trim().split('\n').filter(Boolean));
+      } else if (Array.isArray(res.logs)) {
+        setLogs(
+          res.logs.map((item) =>
+            typeof item === 'object' && item !== null
+              ? (item as Record<string, unknown>).message
+                ? String((item as Record<string, unknown>).message)
+                : JSON.stringify(item)
+              : String(item)
+          )
+        );
+      } else {
+        setLogs(['No journal entries found for this service.']);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to fetch service logs';
       setLogs([`Error reading journalctl logs: ${msg}`]);
@@ -469,7 +484,11 @@ export const ServicesPage: React.FC = () => {
             ) : logs.length > 0 ? (
               logs.map((line, idx) => (
                 <div key={idx} style={{ padding: '2px 0' }}>
-                  {line}
+                  {typeof line === 'object' && line !== null
+                    ? (line as Record<string, unknown>).message
+                      ? String((line as Record<string, unknown>).message)
+                      : JSON.stringify(line)
+                    : String(line)}
                 </div>
               ))
             ) : (

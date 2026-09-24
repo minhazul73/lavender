@@ -189,8 +189,15 @@ async def api_memory(session: Optional[UserSession] = Depends(get_current_sessio
 @router.get("/system/logs", include_in_schema=False)
 async def api_recent_logs(
     lines: int = Query(20, ge=1, le=200),
+    limit: Optional[int] = Query(None, ge=1, le=200),
+    service: Optional[str] = Query(None),
     session: Optional[UserSession] = Depends(get_current_session),
 ):
     """Get recent system journal logs."""
-    logs = get_recent_logs(lines=lines)
+    effective_lines = limit if limit is not None else lines
+    if service:
+        service_logs = get_service_logs(service, lines=effective_lines)
+        log_lines = service_logs.strip().split("\n") if service_logs else []
+        return {"logs": log_lines, "count": len(log_lines), "service": service}
+    logs = get_recent_logs(lines=effective_lines)
     return {"logs": logs, "count": len(logs)}

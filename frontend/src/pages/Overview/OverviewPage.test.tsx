@@ -157,4 +157,37 @@ describe('OverviewPage', () => {
     expect(await screen.findByText('/data')).toBeInTheDocument();
     expect(screen.getByText(/120G \/ 500G \(24%\)/i)).toBeInTheDocument();
   });
+
+  it('renders structured log objects without throwing React child error', async () => {
+    (useSSE as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: null,
+      status: 'connected',
+    });
+
+    (api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/logs')) {
+        return Promise.resolve({
+          logs: [
+            {
+              timestamp: '23:59:01',
+              message: 'Session created for user admin',
+              service: 'lavender',
+              level: 'info',
+            },
+          ],
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(
+      <MemoryRouter>
+        <OverviewPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Session created for user admin/i)).toBeInTheDocument();
+    expect(screen.getByText(/lavender:/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[23:59:01\]/i)).toBeInTheDocument();
+  });
 });
