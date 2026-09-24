@@ -13,6 +13,7 @@ import { PackagesPage } from './pages/Packages/PackagesPage';
 import { UsersPage } from './pages/Users/UsersPage';
 import { PowerPage } from './pages/Power/PowerPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session, loading } = useAuth();
@@ -43,36 +44,38 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <ToastProvider>
-        <AuthProvider>
-          <Routes>
-            {/* Standalone public login route */}
-            <Route path="/login" element={<LoginPage />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <ToastProvider>
+          <AuthProvider>
+            <Routes>
+              {/* Standalone public login route */}
+              <Route path="/login" element={<LoginPage />} />
 
-            {/* Authenticated dashboard shell */}
-            <Route
-              element={
-                <RequireAuth>
-                  <AppShell />
-                </RequireAuth>
-              }
-            >
-              <Route path="/" element={<OverviewPage />} />
-              <Route path="/services" element={<ServicesPage />} />
-              <Route path="/processes" element={<ProcessesPage />} />
-              <Route path="/storage" element={<StoragePage />} />
-              <Route path="/network" element={<NetworkPage />} />
-              <Route path="/packages" element={<PackagesPage />} />
-              <Route path="/users" element={<UsersPage />} />
-              <Route path="/power" element={<PowerPage />} />
-            </Route>
+              {/* Authenticated dashboard shell */}
+              <Route
+                element={
+                  <RequireAuth>
+                    <AppShell />
+                  </RequireAuth>
+                }
+              >
+                <Route path="/" element={<OverviewPage />} />
+                <Route path="/services" element={<ServicesPage />} />
+                <Route path="/processes" element={<ProcessesPage />} />
+                <Route path="/storage" element={<StoragePage />} />
+                <Route path="/network" element={<NetworkPage />} />
+                <Route path="/packages" element={<PackagesPage />} />
+                <Route path="/users" element={<UsersPage />} />
+                <Route path="/power" element={<PowerPage />} />
+              </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AuthProvider>
-      </ToastProvider>
-    </BrowserRouter>
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AuthProvider>
+        </ToastProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };

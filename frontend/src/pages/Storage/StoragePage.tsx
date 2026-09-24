@@ -38,12 +38,13 @@ export const StoragePage: React.FC = () => {
   const handleConfirmUnmount = async () => {
     if (!pendingUnmount) return;
     setUnmountLoading(true);
+    const mountTarget = pendingUnmount.mount_point || pendingUnmount.mount || '';
     try {
       const res = await api.post<{ success: boolean; message?: string }>(
-        `/api/storage/unmount?mount_point=${encodeURIComponent(pendingUnmount.mount_point)}`
+        `/api/storage/unmount?mount_point=${encodeURIComponent(mountTarget)}`
       );
       if (res.success) {
-        addToast(`Successfully unmounted ${pendingUnmount.mount_point}`, 'success');
+        addToast(`Successfully unmounted ${mountTarget}`, 'success');
         setPendingUnmount(null);
         await loadStorage(true);
       } else {
@@ -91,14 +92,20 @@ export const StoragePage: React.FC = () => {
             No storage devices detected.
           </div>
         ) : (
-          disks.map((d) => {
-            const pct = parseInt(d.use_percent.replace('%', ''), 10) || 0;
-            const isRoot = d.mount_point === '/' || d.mount_point === '/boot';
+          disks.map((d, idx) => {
+            const pct =
+              typeof d.pct_num === 'number'
+                ? d.pct_num
+                : parseInt(String(d.use_percent || d.use_pct || '0').replace('%', ''), 10) || 0;
+            const mount = d.mount_point || d.mount || '/';
+            const filesystem = d.filesystem || d.fs || 'unknown';
+            const available = d.available || d.avail || '—';
+            const isRoot = mount === '/' || mount === '/boot';
             const isCrit = pct > 85;
             const isWarn = pct > 70;
 
             return (
-              <div key={d.mount_point} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div key={mount || idx} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div
@@ -116,9 +123,9 @@ export const StoragePage: React.FC = () => {
                       <Disc size={20} />
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>{d.mount_point}</h4>
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>{mount}</h4>
                       <span className="font-mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {d.filesystem}
+                        {filesystem}
                       </span>
                     </div>
                   </div>
@@ -127,7 +134,7 @@ export const StoragePage: React.FC = () => {
                     <button
                       className="btn btn-xs btn-ghost"
                       title="Unmount Partition"
-                      onClick={() => setPendingUnmount(d)}
+                      onClick={() => setPendingUnmount({ ...d, mount_point: mount, filesystem })}
                       style={{ color: '#f87171' }}
                     >
                       <Unplug size={14} style={{ marginRight: '4px' }} />
@@ -139,7 +146,7 @@ export const StoragePage: React.FC = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: '6px' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>
-                      Used: <strong style={{ color: 'var(--text-primary)' }}>{d.used}</strong> / {d.size}
+                      Used: <strong style={{ color: 'var(--text-primary)' }}>{d.used || '—'}</strong> / {d.size || '—'}
                     </span>
                     <span
                       className="font-mono"
@@ -155,7 +162,7 @@ export const StoragePage: React.FC = () => {
                   <div className="progress-bar-outer" style={{ height: '7px' }}>
                     <div
                       className={`progress-bar-inner ${isCrit ? 'crit' : isWarn ? 'warn' : ''}`}
-                      style={{ width: `${Math.min(100, pct)}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
                     />
                   </div>
                 </div>
@@ -170,8 +177,8 @@ export const StoragePage: React.FC = () => {
                     borderTop: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <span>Free space: <strong style={{ color: 'var(--text-secondary)' }}>{d.available}</strong></span>
-                  <span>Type: {d.filesystem.startsWith('/dev') ? 'Physical Block' : 'Virtual / Pseudo'}</span>
+                  <span>Free space: <strong style={{ color: 'var(--text-secondary)' }}>{available}</strong></span>
+                  <span>Type: {filesystem.startsWith('/dev') ? 'Physical Block' : 'Virtual / Pseudo'}</span>
                 </div>
               </div>
             );
@@ -198,20 +205,27 @@ export const StoragePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {disks.map((d) => (
-                  <tr key={d.mount_point}>
-                    <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.mount_point}</td>
-                    <td className="font-mono" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                      {d.filesystem}
-                    </td>
-                    <td className="font-mono">{d.size}</td>
-                    <td className="font-mono" style={{ color: 'var(--purple)' }}>{d.used}</td>
-                    <td className="font-mono" style={{ color: 'var(--green)' }}>{d.available}</td>
-                    <td>
-                      <span className="badge badge-lavender">{d.use_percent}</span>
-                    </td>
-                  </tr>
-                ))}
+                {disks.map((d, idx) => {
+                  const mount = d.mount_point || d.mount || '/';
+                  const filesystem = d.filesystem || d.fs || 'unknown';
+                  const available = d.available || d.avail || '—';
+                  const usePercent =
+                    d.use_percent || d.use_pct || (typeof d.pct_num === 'number' ? `${d.pct_num}%` : '—');
+                  return (
+                    <tr key={mount || idx}>
+                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mount}</td>
+                      <td className="font-mono" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                        {filesystem}
+                      </td>
+                      <td className="font-mono">{d.size || '—'}</td>
+                      <td className="font-mono" style={{ color: 'var(--purple)' }}>{d.used || '—'}</td>
+                      <td className="font-mono" style={{ color: 'var(--green)' }}>{available}</td>
+                      <td>
+                        <span className="badge badge-lavender">{usePercent}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -227,7 +241,7 @@ export const StoragePage: React.FC = () => {
           isLoading={unmountLoading}
           isDanger={true}
           title="Unmount Filesystem"
-          message={`Are you sure you want to unmount '${pendingUnmount.mount_point}' (${pendingUnmount.filesystem})? Any open files on this drive will be terminated.`}
+          message={`Are you sure you want to unmount '${pendingUnmount.mount_point || pendingUnmount.mount || ''}' (${pendingUnmount.filesystem || pendingUnmount.fs || 'device'})? Any open files on this drive will be terminated.`}
           confirmLabel="Unmount Partition"
         />
       )}

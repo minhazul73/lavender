@@ -77,11 +77,15 @@ def _run_df() -> List[Dict[str, Any]]:
             use_pct_str = parts[4]
             entries.append({
                 "fs": fs,
+                "filesystem": fs,
                 "size": parts[1],
                 "used": parts[2],
                 "avail": parts[3],
+                "available": parts[3],
                 "use_pct": use_pct_str,
+                "use_percent": use_pct_str,
                 "mount": mount,
+                "mount_point": mount,
                 "is_external": _is_external_mount(mount),
                 "pct_num": _parse_pct(use_pct_str),
             })
@@ -90,10 +94,13 @@ def _run_df() -> List[Dict[str, Any]]:
         seen: Dict[str, Dict[str, Any]] = {}
         for e in entries:
             device = e["fs"]
+            mount_path = e.get("mount") or e.get("mount_point") or ""
             if device not in seen:
                 seen[device] = e
-            elif len(e["mount"]) < len(seen[device]["mount"]):
-                seen[device] = e
+            else:
+                prev_mount = seen[device].get("mount") or seen[device].get("mount_point") or ""
+                if len(mount_path) < len(prev_mount):
+                    seen[device] = e
 
         return list(seen.values())
     except Exception:

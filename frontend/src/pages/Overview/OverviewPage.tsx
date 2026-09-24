@@ -373,19 +373,24 @@ export const OverviewPage: React.FC = () => {
           <div className="card-body" style={{ padding: '10px 14px', flex: 1, overflowY: 'auto', maxHeight: '200px' }}>
             {storageData?.disks && storageData.disks.length > 0 ? (
               storageData.disks.slice(0, 4).map((d) => {
-                const pct = parseInt(d.use_percent.replace('%', ''), 10) || 0;
+                const pct =
+                  typeof d.pct_num === 'number'
+                    ? d.pct_num
+                    : parseInt(String(d.use_percent || d.use_pct || '0').replace('%', ''), 10) || 0;
+                const mount = d.mount_point || d.mount || '/';
+                const key = mount || d.filesystem || d.fs || String(Math.random());
                 return (
-                  <div key={d.mount_point} style={{ marginBottom: '10px' }}>
+                  <div key={key} style={{ marginBottom: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '3px' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.mount_point}</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{mount}</span>
                       <span className="font-mono" style={{ color: 'var(--text-muted)' }}>
-                        {d.used} / {d.size} ({pct}%)
+                        {d.used || '—'} / {d.size || '—'} ({pct}%)
                       </span>
                     </div>
                     <div className="progress-bar-outer" style={{ height: '5px' }}>
                       <div
                         className={`progress-bar-inner ${pct > 85 ? 'crit' : pct > 70 ? 'warn' : ''}`}
-                        style={{ width: `${Math.min(100, pct)}%` }}
+                        style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
                       />
                     </div>
                   </div>

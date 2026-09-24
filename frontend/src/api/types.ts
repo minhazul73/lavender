@@ -114,12 +114,18 @@ export interface LiveTelemetryData {
 }
 
 export interface StorageDiskItem {
-  filesystem: string;
+  filesystem?: string;
   size: string;
   used: string;
-  available: string;
-  use_percent: string;
-  mount_point: string;
+  available?: string;
+  use_percent?: string;
+  mount_point?: string;
+  fs?: string;
+  avail?: string;
+  use_pct?: string;
+  mount?: string;
+  is_external?: boolean;
+  pct_num?: number;
 }
 
 export interface StorageOverviewResponse {

@@ -95,4 +95,32 @@ describe('StoragePage', () => {
       );
     });
   });
+
+  it('correctly handles legacy backend storage responses without error', async () => {
+    (api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      disks: [
+        {
+          mount: '/media/sdcard',
+          fs: '/dev/mmcblk1p1',
+          size: '64G',
+          used: '10G',
+          avail: '54G',
+          use_pct: '16%',
+          pct_num: 16,
+        },
+      ],
+    });
+
+    render(
+      <ToastProvider>
+        <MemoryRouter>
+          <StoragePage />
+        </MemoryRouter>
+      </ToastProvider>
+    );
+
+    expect((await screen.findAllByText('/media/sdcard')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('/dev/mmcblk1p1').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('16%').length).toBeGreaterThan(0);
+  });
 });

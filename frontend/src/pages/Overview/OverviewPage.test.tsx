@@ -122,4 +122,39 @@ describe('OverviewPage', () => {
     expect(await screen.findByText('python3')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
   });
+
+  it('renders correctly with legacy disk keys without throwing replace error', async () => {
+    (useSSE as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: null,
+      status: 'connected',
+    });
+
+    (api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+      if (url.includes('/storage')) {
+        return Promise.resolve({
+          disks: [
+            {
+              mount: '/data',
+              fs: '/dev/nvme0n1p1',
+              size: '500G',
+              used: '120G',
+              avail: '380G',
+              use_pct: '24%',
+              pct_num: 24,
+            },
+          ],
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    render(
+      <MemoryRouter>
+        <OverviewPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('/data')).toBeInTheDocument();
+    expect(screen.getByText(/120G \/ 500G \(24%\)/i)).toBeInTheDocument();
+  });
 });
