@@ -11,6 +11,7 @@ export interface ToastItem {
 
 interface ToastContextValue {
   showToast: (message: string, type?: ToastType) => void;
+  addToast: (message: string, type?: ToastType) => void;
   success: (message: string) => void;
   error: (message: string) => void;
   info: (message: string) => void;
@@ -39,7 +40,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const info = useCallback((message: string) => showToast(message, 'info'), [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast, success, error, info }}>
+    <ToastContext.Provider value={{ showToast, addToast: showToast, success, error, info }}>
       {children}
       <div className="toast-container" role="region" aria-label="Notifications">
         {toasts.map((t) => (

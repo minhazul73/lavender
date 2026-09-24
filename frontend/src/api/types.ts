@@ -40,63 +40,90 @@ export interface SystemInfo {
   total_memory?: string;
 }
 
-export interface BatteryInfo {
-  present: boolean;
-  status?: string;
+export interface CpuCoreUsage {
+  core: number;
+  usage: number | null;
+}
+
+export interface CpuInfo {
+  count: number;
+  load1?: number;
+  load5?: number;
+  load15?: number;
+  per_core_usage?: CpuCoreUsage[];
+  cpus?: Array<{
+    core: number;
+    frequency_mhz: number | null;
+  }>;
+}
+
+export interface RamInfo {
+  total?: number;
+  used?: number;
+  available?: number;
+  free?: number;
+  used_pct?: number;
+  cached?: number;
+  buffers?: number;
+  swap_total?: number;
+  swap_used?: number;
+  swap_pct?: number;
+}
+
+export interface BatteryTelemetry {
+  present?: boolean;
+  percentage?: number;
+  state?: string;
+  battery_state?: string;
+  charging?: boolean;
+  discharging?: boolean;
+  voltage?: number;
+  energy_rate?: number;
+  energy?: number;
+  energy_full?: number;
+  temperature?: number;
   capacity?: number;
   health?: string;
-  technology?: string;
-  voltage_now?: number;
-  current_now?: number;
-  power_now?: number;
+  time_to_empty?: number | string;
+  time_to_full?: number | string;
 }
 
-export interface DeviceStats {
-  battery: Record<string, unknown>;
-  thermal: Array<Record<string, unknown>>;
-  cpu_freq: Array<Record<string, unknown>>;
-  cpu_scaling: Record<string, unknown>;
-  uptime: Record<string, unknown>;
+export interface ThermalZone {
+  name: string;
+  temp: number;
+  type?: string;
+  crit?: number;
 }
 
-export interface NetworkSummary {
-  summary: Record<string, unknown>;
-  interfaces: Array<Record<string, unknown>>;
-  wifi: Record<string, unknown>;
-  dns: string[];
-  dns_details: Record<string, unknown>;
-  gateways: Array<Record<string, unknown>>;
+export interface NetworkTelemetry {
+  interface: string;
+  rx_bytes_sec?: number;
+  tx_bytes_sec?: number;
+  rx_rate?: number;
+  tx_rate?: number;
 }
 
-export interface PackagesOverview {
-  backend: string;
-  backend_name: string;
-  backend_short: string;
-  installed_count: number;
-  upgradable_count: number;
-  upgradable: Array<Record<string, unknown>>;
-  installed: Array<Record<string, unknown>>;
+export interface LiveTelemetryData {
+  cpu?: CpuInfo;
+  ram?: RamInfo;
+  battery?: BatteryTelemetry;
+  thermal?: {
+    zones?: ThermalZone[];
+  } | ThermalZone[];
+  network?: NetworkTelemetry;
 }
 
-export interface PowerState {
-  active_governor: string;
-  available_governors: string[];
-  scheduled?: Record<string, unknown> | null;
+export interface StorageDiskItem {
+  filesystem: string;
+  size: string;
+  used: string;
+  available: string;
+  use_percent: string;
+  mount_point: string;
 }
 
-export interface UsersOverview {
-  human_users: Array<Record<string, unknown>>;
-  system_users: Array<Record<string, unknown>>;
-  groups_categorized: Record<string, unknown>;
-  active_sessions: Array<Record<string, unknown>>;
-  login_history: Array<Record<string, unknown>>;
-  security: Record<string, unknown>;
-  metrics: {
-    active_sessions_count: number;
-    human_users_count: number;
-    total_ssh_keys: number;
-    is_elevated: boolean;
-  };
+export interface StorageOverviewResponse {
+  disks: StorageDiskItem[];
 }
 
 export interface ServiceItem {
@@ -108,6 +135,11 @@ export interface ServiceItem {
   scope?: string;
 }
 
+export interface ServicesListResponse {
+  services: ServiceItem[];
+  count: number;
+}
+
 export interface ProcessItem {
   pid: number;
   user: string;
@@ -117,11 +149,122 @@ export interface ProcessItem {
   name: string;
 }
 
-export interface DiskItem {
-  filesystem: string;
-  size: string;
-  used: string;
-  available: string;
-  use_percent: string;
-  mount_point: string;
+export interface ProcessesOverviewResponse {
+  processes: ProcessItem[];
+  load: Record<string, unknown>;
+  memory: Record<string, unknown>;
+}
+
+export interface WifiNetworkItem {
+  ssid: string;
+  bssid?: string;
+  signal?: number;
+  frequency?: string;
+  security?: string;
+}
+
+export interface NetworkInterfaceItem {
+  name: string;
+  ip?: string;
+  mac?: string;
+  state?: string;
+  rx_bytes?: number;
+  tx_bytes?: number;
+  speed?: string;
+}
+
+export interface NetworkSummaryResponse {
+  summary: Record<string, unknown>;
+  interfaces: NetworkInterfaceItem[];
+  wifi: {
+    connected?: boolean;
+    ssid?: string;
+    signal?: number;
+    networks?: WifiNetworkItem[];
+  };
+  dns: string[];
+  dns_details: Record<string, unknown>;
+  gateways: Array<Record<string, unknown>>;
+}
+
+export interface PingResponse {
+  target: string;
+  transmitted: number;
+  received: number;
+  packet_loss: number;
+  avg_latency_ms?: number;
+  output?: string;
+  success: boolean;
+}
+
+export interface DnsQueryResponse {
+  domain: string;
+  resolved_ip?: string;
+  latency_ms?: number;
+  success: boolean;
+  error?: string;
+}
+
+export interface PackageItem {
+  name: string;
+  version?: string;
+  description?: string;
+  installed?: boolean;
+  upgradable?: boolean;
+  new_version?: string;
+}
+
+export interface PackagesOverviewResponse {
+  backend: string;
+  backend_name: string;
+  backend_short: string;
+  installed_count: number;
+  upgradable_count: number;
+  upgradable: PackageItem[];
+  installed: PackageItem[];
+}
+
+export interface UserSessionItem {
+  user: string;
+  tty: string;
+  from?: string;
+  login_time?: string;
+  idle?: string;
+}
+
+export interface UserItem {
+  username: string;
+  uid: number;
+  gid: number;
+  home: string;
+  shell: string;
+  groups: string[];
+  is_human: boolean;
+  has_ssh_keys?: boolean;
+}
+
+export interface UsersOverviewResponse {
+  human_users: UserItem[];
+  system_users: UserItem[];
+  groups_categorized: Record<string, string[]>;
+  active_sessions: UserSessionItem[];
+  login_history: Array<Record<string, unknown>>;
+  security: Record<string, unknown>;
+  metrics: {
+    active_sessions_count: number;
+    human_users_count: number;
+    total_ssh_keys: number;
+    is_elevated: boolean;
+  };
+  current_user: UserProfile;
+}
+
+export interface PowerStateResponse {
+  active_governor: string;
+  available_governors: string[];
+  scheduled?: {
+    action: string;
+    time: string;
+    remaining_minutes: number;
+  } | null;
 }
