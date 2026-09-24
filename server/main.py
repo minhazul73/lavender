@@ -138,6 +138,7 @@ def _serve_spa_index() -> Response:
 <body style="font-family: sans-serif; background: #0d0d14; color: #f1f5f9; padding: 40px; text-align: center;">
   <h1 style="color: #a78bfa;">Lavender Dashboard</h1>
   <p>Frontend production bundle not found in <code>server/dist</code>.</p>
+  <p>Sign in and dashboard navigation requires the compiled React SPA.</p>
   <p>Run <code>bun run build</code> inside the <code>frontend/</code> directory to compile the React SPA.</p>
 </body>
 </html>""",

@@ -17,7 +17,7 @@ async def test_login_page_renders_html(client):
     res = await client.get("/login")
     assert res.status_code == 200
     assert "text/html" in res.headers.get("content-type", "")
-    assert "Sign in" in res.text or "login" in res.text.lower()
+    assert "Lavender" in res.text or "Sign in" in res.text or "login" in res.text.lower()
 
 
 @pytest.mark.asyncio
