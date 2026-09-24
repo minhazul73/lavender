@@ -16,8 +16,18 @@ import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { session, loading } = useAuth();
+  const { session, loading, refreshProfile } = useAuth();
   const location = useLocation();
+  const [tookTooLong, setTookTooLong] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!loading) {
+      setTookTooLong(false);
+      return;
+    }
+    const timer = setTimeout(() => setTookTooLong(true), 6000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   if (loading) {
     return (
@@ -25,12 +35,38 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         style={{
           minHeight: '100vh',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           background: 'var(--bg-base)',
+          gap: '16px',
         }}
       >
         <LoadingSpinner size={36} label="Initializing Lavender..." />
+        {tookTooLong && (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            <p style={{ margin: '0 0 10px' }}>Waiting for response from FastAPI backend (port 8080)...</p>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              <button
+                className="btn btn-xs btn-secondary"
+                onClick={() => {
+                  setTookTooLong(false);
+                  refreshProfile();
+                }}
+              >
+                Retry
+              </button>
+              <button
+                className="btn btn-xs btn-primary"
+                onClick={() => {
+                  window.location.href = `/login?next=${encodeURIComponent(location.pathname)}`;
+                }}
+              >
+                Go to Login
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshProfile = useCallback(async () => {
     try {
-      const profile = await api.get<UserProfile>('/auth/me');
+      const profile = await api.get<UserProfile>('/auth/me', { timeoutMs: 6000 });
       setSession(profile);
     } catch {
       setSession(null);

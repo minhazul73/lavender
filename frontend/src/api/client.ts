@@ -24,10 +24,11 @@ export function unregisterElevationHandler() {
 
 interface RequestOptions extends RequestInit {
   retryOnElevation?: boolean;
+  timeoutMs?: number;
 }
 
 export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { retryOnElevation = true, ...fetchOptions } = options;
+  const { retryOnElevation = true, timeoutMs = 15000, signal, ...fetchOptions } = options;
 
   const headers = new Headers(fetchOptions.headers || {});
   if (!headers.has('Accept')) {
@@ -39,9 +40,16 @@ export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}
     headers.set('Content-Type', 'application/json');
   }
 
+  // Use timeout signal if caller did not supply one
+  let requestSignal = signal;
+  if (!requestSignal && typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    requestSignal = AbortSignal.timeout(timeoutMs);
+  }
+
   const config: RequestInit = {
     ...fetchOptions,
     headers,
+    signal: requestSignal,
     credentials: 'include', // Ensures lavender_session cookie is sent
   };
 
