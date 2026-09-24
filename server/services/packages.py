@@ -9,7 +9,7 @@ import time
 import shutil
 from typing import Optional, List, Dict, Any
 
-from dashboard.dependencies import run_command, run_sudo_command
+from server.dependencies import run_command, run_sudo_command
 
 # In-memory cache for installed packages list (reduces CPU/disk load on host)
 _PACKAGES_CACHE: dict = {

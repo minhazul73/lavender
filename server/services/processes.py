@@ -6,7 +6,7 @@ import os
 import time
 from datetime import datetime
 
-from dashboard.dependencies import run_command, run_sudo_command
+from server.dependencies import run_command, run_sudo_command
 
 
 def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:

@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from typing import Optional
 
-from dashboard.dependencies import (
+from server.dependencies import (
     parse_passwd_users,
     parse_all_passwd_users,
     parse_groups,

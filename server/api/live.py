@@ -12,7 +12,7 @@ import logging
 from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
-from dashboard.services.live import get_live_monitor
+from server.services.live import get_live_monitor
 
 
 logger = logging.getLogger(__name__)
@@ -70,12 +70,13 @@ async def sse_generator(metrics: list[str] | None):
         await monitor.remove_client()
 
 
-from dashboard.auth.deps import get_current_session
-from dashboard.auth.session import UserSession
+from server.auth.deps import get_current_session
+from server.auth.session import UserSession
 from fastapi import HTTPException, Depends
 
 
 @router.get("/device/live")
+@router.get("/live")
 async def live_sse(
     metrics: list[str] | None = Query(None, description="Comma-separated metric names"),
     session: UserSession | None = Depends(get_current_session),

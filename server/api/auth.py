@@ -9,19 +9,19 @@ from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from dashboard.config import (
+from server.core.config import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_IDLE_MINUTES,
     LOGIN_RATE_LIMIT,
 )
-from dashboard.auth.session import UserSession, session_store
-from dashboard.auth.bridge import (
+from server.auth.session import UserSession, session_store
+from server.auth.bridge import (
     authenticate_user,
     verify_sudo_password,
     drop_sudo_ticket,
     AuthError,
 )
-from dashboard.auth.deps import get_current_session, require_session
+from server.auth.deps import get_current_session, require_session
 
 logger = logging.getLogger(__name__)
 
@@ -122,14 +122,7 @@ async def api_login(
     return res
 
 
-@router.api_route("/logout", methods=["GET", "POST"])
-async def api_logout(
-    request: Request,
-    session: Optional[UserSession] = Depends(get_current_session),
-):
-    """
-    Log out user, drop sudo ticket, and clear session cookie.
-    """
+async def _do_logout(request: Request, session: Optional[UserSession]):
     if session:
         await drop_sudo_ticket()
         await session_store.delete(session.session_id)
@@ -142,6 +135,22 @@ async def api_logout(
 
     res.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
     return res
+
+
+@router.get("/logout", summary="Log out user via GET")
+async def api_logout_get(
+    request: Request,
+    session: Optional[UserSession] = Depends(get_current_session),
+):
+    return await _do_logout(request, session)
+
+
+@router.post("/logout", summary="Log out user via POST")
+async def api_logout_post(
+    request: Request,
+    session: Optional[UserSession] = Depends(get_current_session),
+):
+    return await _do_logout(request, session)
 
 
 @router.get("/me")

@@ -10,7 +10,7 @@ import subprocess
 import time
 from typing import Optional
 
-from dashboard.dependencies import run_command, which
+from server.dependencies import run_command, which
 
 
 def format_bytes(bytes_count: int) -> str:

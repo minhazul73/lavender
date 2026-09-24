@@ -2,42 +2,44 @@
 API routes for system-related operations.
 Protected with session authentication and privilege verification.
 """
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
-from dashboard.auth.session import UserSession
-from dashboard.auth.deps import require_session, require_admin, get_current_session
-from dashboard.dependencies import (
+from server.auth.session import UserSession
+from server.auth.deps import require_session, require_admin, get_current_session
+from server.dependencies import (
     run_command,
     parse_passwd_users,
     parse_groups,
 )
-from dashboard.auth.bridge import (
+from server.auth.bridge import (
     run_user_service_async,
     run_sudo_async,
 )
-from dashboard.services.systemd import (
+from server.services.systemd import (
     list_services,
     get_service_status,
     get_service_logs,
     service_action,
     get_recent_logs,
 )
-from dashboard.services.processes import (
+from server.services.processes import (
     get_top_processes,
     get_system_load,
     kill_process,
     get_memory_info,
     get_memory_human,
 )
-from dashboard.services.storage import get_disk_usage
+from server.services.storage import get_disk_usage, unmount
 
 router = APIRouter()
 
 
 # ---- Systemd Services ----
 
-@router.get("/system/services")
+@router.get("/services", summary="List systemd services")
+@router.get("/system/services", include_in_schema=False)
 async def api_list_services(
     scope: str = Query(None, description="Filter by scope: user, system, or all"),
     session: Optional[UserSession] = Depends(get_current_session),
@@ -49,7 +51,8 @@ async def api_list_services(
     return {"services": services, "count": len(services)}
 
 
-@router.get("/system/services/{service_name}")
+@router.get("/services/{service_name}", summary="Get service status")
+@router.get("/system/services/{service_name}", include_in_schema=False)
 async def api_service_status(
     service_name: str,
     user: bool = Query(False),
@@ -60,7 +63,8 @@ async def api_service_status(
     return status
 
 
-@router.get("/system/services/{service_name}/logs")
+@router.get("/services/{service_name}/logs", summary="Get service logs")
+@router.get("/system/services/{service_name}/logs", include_in_schema=False)
 async def api_service_logs(
     service_name: str,
     lines: int = Query(50, ge=1, le=200),
@@ -72,7 +76,8 @@ async def api_service_logs(
     return {"logs": logs, "service": service_name}
 
 
-@router.post("/system/services/{service_name}/{action}")
+@router.post("/services/{service_name}/{action}", summary="Execute action on service")
+@router.post("/system/services/{service_name}/{action}", include_in_schema=False)
 async def api_service_action(
     service_name: str,
     action: str,
@@ -116,7 +121,8 @@ async def api_service_action(
 
 # ---- Storage / Disk ----
 
-@router.get("/system/storage")
+@router.get("/storage", summary="Get storage usage")
+@router.get("/system/storage", include_in_schema=False)
 async def api_storage(session: Optional[UserSession] = Depends(get_current_session)):
     """Get disk usage information."""
     return {
@@ -124,9 +130,23 @@ async def api_storage(session: Optional[UserSession] = Depends(get_current_sessi
     }
 
 
+@router.post("/storage/unmount", summary="Unmount disk")
+@router.post("/system/storage/unmount", include_in_schema=False)
+async def api_unmount(
+    mount_point: str = Query(..., description="Mount point to unmount"),
+    session: UserSession = Depends(require_admin),
+):
+    """Unmount a filesystem (requires administrative privileges)."""
+    res = await asyncio.to_thread(unmount, mount_point)
+    if not res.get("success"):
+        raise HTTPException(status_code=500, detail=res.get("error", "Unmount failed"))
+    return res
+
+
 # ---- Processes ----
 
-@router.get("/system/processes")
+@router.get("/processes", summary="Get processes and load stats")
+@router.get("/system/processes", include_in_schema=False)
 async def api_processes(
     sort_by: str = Query("mem", pattern="^(cpu|mem|pid|user|name)$"),
     limit: int = Query(0, ge=0, le=2000, description="0 returns all processes"),
@@ -140,7 +160,8 @@ async def api_processes(
     }
 
 
-@router.post("/system/processes/kill")
+@router.post("/processes/kill", summary="Kill process by PID")
+@router.post("/system/processes/kill", include_in_schema=False)
 async def api_kill_process(
     pid: int = Query(..., ge=1, description="PID to kill"),
     session: UserSession = Depends(require_admin),
@@ -152,7 +173,8 @@ async def api_kill_process(
     return {"action": "kill", "pid": pid, "success": True, "output": out}
 
 
-@router.get("/system/memory")
+@router.get("/memory", summary="Get system memory info")
+@router.get("/system/memory", include_in_schema=False)
 async def api_memory(session: Optional[UserSession] = Depends(get_current_session)):
     """Get detailed memory info."""
     return {
@@ -163,7 +185,8 @@ async def api_memory(session: Optional[UserSession] = Depends(get_current_sessio
 
 # ---- Recent System Logs ----
 
-@router.get("/system/logs")
+@router.get("/logs", summary="Get recent journal logs")
+@router.get("/system/logs", include_in_schema=False)
 async def api_recent_logs(
     lines: int = Query(20, ge=1, le=200),
     session: Optional[UserSession] = Depends(get_current_session),

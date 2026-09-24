@@ -4,7 +4,7 @@ Battery, thermal, and CPU frequency management.
 import subprocess
 import os
 
-from dashboard.dependencies import run_command, run_sudo_command
+from server.dependencies import run_command, run_sudo_command
 
 
 # Thermal zone type-to-display-name mapping for readable labels

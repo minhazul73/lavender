@@ -5,7 +5,7 @@ import subprocess
 import re
 from typing import Optional
 
-from dashboard.dependencies import run_command, run_sudo_command
+from server.dependencies import run_command, run_sudo_command
 
 
 def list_services(user_only: bool = False, system_only: bool = False) -> list[dict]:

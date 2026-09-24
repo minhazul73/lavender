@@ -18,13 +18,14 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from dashboard.config import (
+from server.core.config import (
     SSE_THERMAL_INTERVAL_MS,
     SSE_NETWORK_INTERVAL_MS,
     SSE_CPU_INTERVAL_MS,
     SSE_RAM_INTERVAL_MS,
     SSE_BATTERY_INTERVAL_MS,
 )
+from server.core.sysfs import get_sysfs_reader
 
 
 # ---------------------------------------------------------------------------
@@ -32,32 +33,16 @@ from dashboard.config import (
 # ---------------------------------------------------------------------------
 
 def _read_file(path: str) -> Optional[str]:
-    """Read a single sysfs/proc file, return None on any failure."""
-    try:
-        with open(path, "r") as f:
-            return f.read().strip()
-    except (FileNotFoundError, PermissionError, OSError):
-        return None
+    """Read a single sysfs/proc file via swappable sysfs reader."""
+    return get_sysfs_reader().read_file(path)
 
 
 def _read_int(path: str, default: int = 0) -> int:
-    s = _read_file(path)
-    if s is None:
-        return default
-    try:
-        return int(s)
-    except ValueError:
-        return default
+    return get_sysfs_reader().read_int(path, default)
 
 
 def _read_float(path: str, default: float = 0.0) -> float:
-    s = _read_file(path)
-    if s is None:
-        return default
-    try:
-        return float(s)
-    except ValueError:
-        return default
+    return get_sysfs_reader().read_float(path, default)
 
 
 def _get_loadavg(index: int) -> float:

@@ -1,0 +1,12 @@
+root:x:0:root
+daemon:x:1:
+bin:x:2:
+adm:x:4:rahat
+wheel:x:10:rahat,alpinist
+sudo:x:27:rahat
+audio:x:29:rahat
+video:x:44:rahat
+rahat:x:1000:
+alpinist:x:1001:
+serviceuser:x:1002:
+nobody:x:65534:

@@ -11,7 +11,7 @@ import asyncio
 import subprocess
 from typing import Optional
 
-from dashboard.config import PAM_SERVICE
+from server.core.config import PAM_SERVICE
 
 logger = logging.getLogger(__name__)
 

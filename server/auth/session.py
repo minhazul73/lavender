@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from itsdangerous import URLSafeSerializer, BadSignature, SignatureExpired
 
-from dashboard.config import (
+from server.core.config import (
     SESSION_SECRET_KEY,
     SESSION_MAX_IDLE_MINUTES,
     ADMIN_ELEVATION_TIMEOUT_MINUTES,

@@ -3,7 +3,7 @@ Power control operations.
 """
 import subprocess
 
-from dashboard.dependencies import run_command, run_sudo_command
+from server.dependencies import run_command, run_sudo_command
 
 
 def reboot() -> dict:

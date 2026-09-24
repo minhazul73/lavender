@@ -5,9 +5,9 @@ from typing import Optional
 from fastapi import Request, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 
-from dashboard.config import SESSION_COOKIE_NAME
-from dashboard.auth.session import UserSession, session_store
-from dashboard.auth.bridge import verify_sudo_password
+from server.core.config import SESSION_COOKIE_NAME
+from server.auth.session import UserSession, session_store
+from server.auth.bridge import verify_sudo_password
 
 
 async def get_current_session(request: Request) -> Optional[UserSession]:
@@ -53,9 +53,9 @@ async def require_session(
     if session is not None:
         return session
 
-    # Determine if request expects an HTML response or JSON
     accept = request.headers.get("accept", "")
-    is_html_request = "text/html" in accept or not request.url.path.startswith("/api")
+    is_api_route = request.url.path.startswith("/api") or request.url.path.startswith("/auth")
+    is_html_request = not is_api_route and ("text/html" in accept or not accept or accept == "*/*")
 
     if is_html_request:
         next_path = request.url.path
@@ -86,7 +86,7 @@ async def require_admin(
     # Check for direct password elevation in header
     admin_pwd = request.headers.get("X-Admin-Password")
     if admin_pwd:
-        from dashboard.auth.bridge import verify_sudo_password
+        from server.auth.bridge import verify_sudo_password
         valid, err = await verify_sudo_password(admin_pwd)
         if valid:
             session.elevate()

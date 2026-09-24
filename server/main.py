@@ -5,6 +5,7 @@ import os
 import asyncio
 import subprocess
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -13,10 +14,10 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from dashboard.config import SESSION_COOKIE_NAME, APP_VERSION
-from dashboard.auth.session import UserSession, session_store
-from dashboard.auth.deps import get_current_session, require_session
-from dashboard.services.device_info import get_system_info
+from server.core.config import SESSION_COOKIE_NAME, APP_VERSION
+from server.auth.session import UserSession, session_store
+from server.auth.deps import get_current_session, require_session
+from server.services.device_info import get_system_info
 
 
 def _get_git_hash() -> str:
@@ -77,7 +78,7 @@ async def lifespan(app: FastAPI):
     # Pre-seed active session for current local user for localhost access
     try:
         import getpass, pwd
-        from dashboard.auth.session import UserSession
+        from server.auth.session import UserSession
         cur_user = getpass.getuser()
         pw = pwd.getpwnam(cur_user)
         dev_sid = "dev-session-active"
@@ -113,7 +114,7 @@ app = FastAPI(
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # Attach rate limiter to app state
-from dashboard.api.auth import limiter as auth_limiter  # noqa: E402
+from server.api.auth import limiter as auth_limiter  # noqa: E402
 app.state.limiter = auth_limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -141,13 +142,25 @@ templates = Templates(templates_dir)
 
 
 # Import route modules after app creation to avoid circular imports
-from dashboard.api import auth, system, device, live  # noqa: E402
+from server.api import auth, device, live, network, packages, power, storage, system, users  # noqa: E402
 
-# Register API routers
+# Register API routers (clean routes)
 app.include_router(auth.router)
-app.include_router(system.router, prefix="/api")
-app.include_router(device.router, prefix="/api")
-app.include_router(live.router, prefix="/api")
+app.include_router(device.router, prefix="/api/device", tags=["Device"])
+app.include_router(system.router, prefix="/api/system", tags=["System"])
+app.include_router(network.router, prefix="/api/network", tags=["Network"])
+app.include_router(packages.router, prefix="/api/packages", tags=["Packages"])
+app.include_router(power.router, prefix="/api/power", tags=["Power"])
+app.include_router(users.router, prefix="/api/users", tags=["Users"])
+app.include_router(storage.router, prefix="/api/storage", tags=["Storage"])
+app.include_router(live.router, prefix="/api", tags=["Live"])
+
+# Backward-compatibility aliases for legacy Jinja2 templates
+app.include_router(network.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
+app.include_router(packages.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
+app.include_router(power.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
+app.include_router(users.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
+app.include_router(system.router, prefix="/api", tags=["Legacy"], include_in_schema=False)
 
 
 # Login page route (public)
@@ -175,9 +188,6 @@ PAGES: dict[str, tuple[str, str]] = {
     "/users": ("users.html", "User management"),
     "/power": ("power.html", "Power controls"),
 }
-
-
-from typing import Optional
 
 
 def _register_page(path: str, template_name: str, summary: str) -> None:
@@ -211,4 +221,3 @@ for _path, (_template, _summary) in PAGES.items():
 @app.get("/battery", response_class=RedirectResponse, summary="Redirect to live overview")
 async def page_battery_redirect() -> RedirectResponse:
     return RedirectResponse(url="/", status_code=307)
-
