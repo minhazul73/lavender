@@ -66,8 +66,8 @@ async def _periodic_session_cleanup():
             await session_store.cleanup_idle()
         except asyncio.CancelledError:
             break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Session cleanup failed: %s", e)
 
 
 @asynccontextmanager
@@ -91,8 +91,8 @@ async def lifespan(app: FastAPI):
             groups=["wheel", "sudo", cur_user],
             is_admin=True,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Dev session seeding failed: %s", e)
 
     yield
     cleanup_task.cancel()

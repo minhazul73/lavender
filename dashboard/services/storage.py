@@ -102,7 +102,12 @@ def _run_df() -> List[Dict[str, Any]]:
 
 def get_disk_usage() -> List[Dict[str, Any]]:
     """Get disk usage from df -h, with external storage categorization."""
-    return _run_df()
+    try:
+        return _run_df()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to get disk usage: %s", e)
+        return []
 
 
 def get_mounts() -> List[Dict[str, str]]:
