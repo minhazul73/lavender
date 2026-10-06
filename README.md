@@ -49,6 +49,17 @@ Originally designed for postmarketOS on ARM64 mobile devices (such as the Redmi 
 
 ---
 
+## Documentation
+
+Detailed documentation for Lavender is organized into modular guides in the [`docs/`](docs/) directory:
+
+- [Architecture Overview](docs/architecture.md) — System design, layers, and data flow.
+- [Authentication & Security](docs/auth.md) — Native PAM, shadow verification, sudo/doas elevation, and session store.
+- [API Reference](docs/api.md) — Complete REST and SSE endpoint reference with request/response specs.
+- [Services & Subsystems](docs/services.md) — Internal Python service modules and host Linux subsystem adapters.
+
+---
+
 ## Tech Stack
 
 - **Backend:** FastAPI (async) + Uvicorn

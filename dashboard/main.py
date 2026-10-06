@@ -14,6 +14,9 @@ from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
 from dashboard.config import SESSION_COOKIE_NAME, APP_VERSION
+import logging
+logger = logging.getLogger(__name__)
+
 from dashboard.auth.session import UserSession, session_store
 from dashboard.auth.deps import get_current_session, require_session
 from dashboard.services.device_info import get_system_info
@@ -66,8 +69,8 @@ async def _periodic_session_cleanup():
             await session_store.cleanup_idle()
         except asyncio.CancelledError:
             break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Session cleanup failed: %s", e)
 
 
 @asynccontextmanager
@@ -91,8 +94,8 @@ async def lifespan(app: FastAPI):
             groups=["wheel", "sudo", cur_user],
             is_admin=True,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Dev session seeding failed: %s", e)
 
     yield
     cleanup_task.cancel()

@@ -7,6 +7,8 @@ import os
 from typing import Optional
 
 from dashboard.config import SUDO_COMMANDS
+import logging
+logger = logging.getLogger(__name__)
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
@@ -131,8 +133,12 @@ def parse_passwd_users(min_uid: int = 1000, exclude_nologin: bool = True) -> lis
                             "shell": shell,
                             "comment": parts[4],
                         })
-    except Exception:
-        pass
+    except FileNotFoundError:
+        logger.warning("/etc/passwd not found")
+    except PermissionError:
+        logger.warning("Permission denied reading /etc/passwd")
+    except Exception as e:
+        logger.warning("Error parsing /etc/passwd: %s", e)
     return users
 
 
@@ -156,8 +162,12 @@ def parse_all_passwd_users() -> list[dict]:
                         "comment": parts[4],
                         "is_human": is_human,
                     })
-    except Exception:
-        pass
+    except FileNotFoundError:
+        logger.warning("/etc/passwd not found")
+    except PermissionError:
+        logger.warning("Permission denied reading /etc/passwd")
+    except Exception as e:
+        logger.warning("Error parsing /etc/passwd: %s", e)
     return users
 
 
@@ -174,8 +184,12 @@ def parse_groups() -> list[dict]:
                         "gid": int(parts[2]),
                         "members": [m.strip() for m in parts[3].split(",") if m.strip()] if parts[3] else [],
                     })
-    except Exception:
-        pass
+    except FileNotFoundError:
+        logger.warning("/etc/group not found")
+    except PermissionError:
+        logger.warning("Permission denied reading /etc/group")
+    except Exception as e:
+        logger.warning("Error parsing /etc/group: %s", e)
     return groups
 
 
