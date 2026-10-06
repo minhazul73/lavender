@@ -11,7 +11,7 @@ All API endpoints are mounted under the FastAPI application with the following p
 | Method | Path | Access | Description |
 |:---|:---|:---|:---|
 | `POST` | `/auth/login` | Public (rate-limited) | Authenticate Linux user credentials. Accepts Form and JSON payloads, sets signed `HttpOnly` cookie. |
-| `GET`, `POST` | `/auth/logout` | Authenticated | Terminate session, drop sudo ticket, and clear cookie. |
+| `GET`, `POST` | `/auth/logout` | Public (optional session) | Terminate the session when present, drop the sudo ticket, and clear the cookie. |
 | `GET` | `/auth/me` | Authenticated | Get current active session details and privilege status. |
 | `POST` | `/auth/elevate` | Authenticated | Elevate to administrative privileges (payload: `{"password": "..."}`). |
 | `POST` | `/auth/drop-admin` | Authenticated | Drop active elevation and revoke sudo timestamp ticket. |
@@ -47,6 +47,12 @@ All API endpoints are mounted under the FastAPI application with the following p
 | `GET` | `/api/device/packages/search?query={q}` | Authenticated | Search package repository. |
 | `GET` | `/api/device/packages/info?package={name}` | Authenticated | Get package details. |
 | `GET` | `/api/device/users` | Authenticated | Get system users, all accounts, groups, current user, and sudoers status. |
+| `POST` | `/api/device/users/session/terminate` | Admin | Terminate an active terminal or SSH session. |
+| `GET` | `/api/device/users/{username}/ssh-keys` | Authenticated (Self or Admin) | List a user's public SSH keys. |
+| `POST` | `/api/device/users/{username}/ssh-keys` | Authenticated (Self or Admin) | Add a public SSH key. |
+| `DELETE` | `/api/device/users/{username}/ssh-keys/{key_index}` | Authenticated (Self or Admin) | Delete a public SSH key. |
+| `POST` | `/api/device/users/{username}/groups` | Admin | Update a user's secondary groups. |
+| `POST` | `/api/device/users/{username}/password` | Authenticated (Self or Admin) | Change a user's password. |
 | `POST` | `/api/device/power/reboot` | Admin | Reboot device. |
 | `POST` | `/api/device/power/poweroff` | Admin | Power off device. |
 | `POST` | `/api/device/power/suspend` | Admin | Suspend device. |

@@ -16,6 +16,8 @@ When a user authenticates via `/auth/login`, credentials are verified sequential
 - The session identifier is cryptographically signed using `itsdangerous.URLSafeSerializer` with a configurable secret key (`DASHBOARD_SECRET_KEY`).
 - Issued cookies (`rn7_session`) are marked `HttpOnly`, `SameSite=Lax`, and given a 60-minute sliding idle timeout (`SESSION_MAX_IDLE_MINUTES`).
 - A background task purges inactive sessions every 5 minutes.
+- When startup seeds `dev-session-active`, a request without `rn7_session` from `127.0.0.1`, `localhost`, or `::1` uses that administrator session.
+- This fallback depends on the client address received by the application. Review proxy and deployment settings to ensure remote requests cannot receive a loopback client address unintentionally.
 
 ### 3. Cockpit-Style Administrative Elevation
 - `/auth/elevate` validates the supplied password with `sudo -v` without checking the session user's groups, then marks the requesting session as elevated.
