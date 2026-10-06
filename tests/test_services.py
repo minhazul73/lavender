@@ -92,12 +92,24 @@ class TestNetworkService:
 class TestPackagesService:
     """Test packages service functions."""
 
-    def test_get_package_manager(self):
-        """Test package manager detection returns a manager object."""
+    def test_get_package_manager_none_detected(self, monkeypatch):
+        """Test fallback when no package manager binary exists."""
+        import dashboard.services.packages as pkgs
+        monkeypatch.setattr(pkgs, "_CURRENT_MANAGER", None)
+        monkeypatch.setattr(pkgs.shutil, "which", lambda _name: None)
         mgr = get_package_manager()
-        assert hasattr(mgr, "id")
-        assert hasattr(mgr, "name")
-        assert hasattr(mgr, "get_installed_packages")
+        assert mgr.id == "none"
+
+    @patch("dashboard.services.storage._run_df", side_effect=RuntimeError("df failed"))
+    def test_get_disk_usage_failure(self, _mock):
+        assert get_disk_usage() == []
+
+    @patch("dashboard.services.power.run_sudo_command")
+    def test_reboot_failure(self, mock_sudo):
+        mock_sudo.return_value = (1, "", "Interactive authentication required.")
+        res = reboot()
+        assert res["success"] is False
+        assert res["error"] == "Interactive authentication required." 
 
 
 class TestPowerService:

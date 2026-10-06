@@ -18,8 +18,8 @@ When a user authenticates via `/auth/login`, credentials are verified sequential
 - A background task purges inactive sessions every 5 minutes.
 
 ### 3. Cockpit-Style Administrative Elevation
-- Users in administrative groups (`wheel`, `sudo`, `root` or `UID 0`) can elevate their session privileges by re-entering their password at `/auth/elevate`.
-- Elevation issues a temporary 15-minute timestamp ticket (`ADMIN_ELEVATION_TIMEOUT_MINUTES`) via `sudo -v`.
+- `/auth/elevate` validates the supplied password with `sudo -v` without checking the session user's groups, then marks the requesting session as elevated.
+- The session elevation flag expires after 15 minutes (`ADMIN_ELEVATION_TIMEOUT_MINUTES`). This setting does not set the sudo timestamp lifetime.
 - Revoking elevation (`/auth/drop-admin`) immediately invalidates the session elevation flag and executes `sudo -k` on the host.
 
 ### 4. Rate Limiting

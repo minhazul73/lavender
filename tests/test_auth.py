@@ -126,7 +126,9 @@ class TestAuthBridge:
     def test_verify_sudo_password_success(self, mock_run):
         """Test sudo password verification success."""
         mock_run.return_value = MagicMock(returncode=0, stderr="", stdout="")
-        # This test would need proper setup with async runner
+        with patch.dict("sys.modules", {"spwd": None, "pam": None}):
+            assert verify_linux_credentials("user", "secret") is True
+        assert mock_run.called
 
     def test_auth_error_exception(self):
         """Test AuthError can be raised."""
@@ -137,12 +139,20 @@ class TestAuthBridge:
 class TestAuthDeps:
     """Test authentication dependencies."""
 
-    def test_require_session_no_session(self):
-        """Test require_session raises on no session."""
+    def test_require_session_no_session_api(self):
+        """Test require_session raises 401 for API calls without a session."""
+        import asyncio
         from fastapi import HTTPException
-        # This would require a mock request object
-        pass
+        request = MagicMock()
+        request.headers = {"accept": "application/json"}
+        request.url.path = "/api/x"
+        request.url.query = ""
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(require_session(request, None))
+        assert exc.value.status_code == 401
 
     def test_require_session_with_session(self):
-        """Test require_session passes with valid session."""
-        pass
+        """Test require_session returns the existing session."""
+        import asyncio
+        session = MagicMock()
+        assert asyncio.run(require_session(MagicMock(), session)) is session

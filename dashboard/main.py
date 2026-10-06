@@ -14,6 +14,9 @@ from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
 from dashboard.config import SESSION_COOKIE_NAME, APP_VERSION
+import logging
+logger = logging.getLogger(__name__)
+
 from dashboard.auth.session import UserSession, session_store
 from dashboard.auth.deps import get_current_session, require_session
 from dashboard.services.device_info import get_system_info

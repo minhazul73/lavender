@@ -7,6 +7,8 @@ import os
 from typing import Optional
 
 from dashboard.config import SUDO_COMMANDS
+import logging
+logger = logging.getLogger(__name__)
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:

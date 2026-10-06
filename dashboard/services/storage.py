@@ -96,7 +96,10 @@ def _run_df() -> List[Dict[str, Any]]:
                 seen[device] = e
 
         return list(seen.values())
-    except Exception:
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"df command failed or timed out: {e}")
         return []
 
 

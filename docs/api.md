@@ -66,6 +66,10 @@ Each event is a JSON object:
 ```json
 {"metric": "cpu", "data": {"cpus": [...], "count": 8, "load1": 0.5}}
 ```
+If metric collection fails, the event omits `data` and includes `error: "collect_failed"`, for example:
+```json
+{"metric": "cpu", "error": "collect_failed"}
+```
 
 ### Available Metrics
 | Metric | Interval | Buffer Size | Description |
