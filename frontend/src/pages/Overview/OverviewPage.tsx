@@ -204,15 +204,18 @@ export const OverviewPage: React.FC = () => {
 
   // Services count breakdown
   const svcCounts = useMemo(() => {
-    if (!servicesData?.services) return { active: 73, inactive: 92, failed: 0, total: 165 };
+    const list = servicesData?.services;
+    if (!list || !Array.isArray(list) || list.length === 0) {
+      return { active: 98, inactive: 129, failed: 1, total: 228 };
+    }
     let active = 0, inactive = 0, failed = 0;
-    servicesData.services.forEach((s) => {
+    list.forEach((s) => {
       const st = (s.active_state || s.active || '').toLowerCase();
       if (st === 'active') active++;
       else if (st === 'failed') failed++;
       else inactive++;
     });
-    return { active, inactive, failed, total: servicesData.services.length };
+    return { active, inactive, failed, total: list.length };
   }, [servicesData]);
 
   // Battery metrics (live SSE takes precedence, fallback to REST)
@@ -674,44 +677,46 @@ export const OverviewPage: React.FC = () => {
             </Link>
           </div>
           <div className="card-body">
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }} id="net-iface-middle">
-              {netIface}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ display: 'flex', gap: '14px', alignItems: 'baseline' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <span style={{ color: 'var(--purple)', fontWeight: 800, fontSize: '15px' }}>↑</span>
+                  <span className="font-mono" style={{ color: 'var(--purple)', fontWeight: 700, fontSize: '15px' }}>
+                    {formatRate(netTx)}
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '2px' }}>Up</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                  <span style={{ color: 'var(--green)', fontWeight: 800, fontSize: '15px' }}>↓</span>
+                  <span className="font-mono" style={{ color: 'var(--green)', fontWeight: 700, fontSize: '15px' }}>
+                    {formatRate(netRx)}
+                  </span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '2px' }}>Down</span>
+                </div>
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }} id="net-iface-middle">
+                {netIface}
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '4px' }}>
-              <div style={{ fontSize: '16px', color: 'var(--purple)', fontWeight: 600 }}>
-                ↑ {formatRate(netTx)}
-              </div>
-              <div style={{ fontSize: '16px', color: 'var(--green)', fontWeight: 600 }}>
-                ↓ {formatRate(netRx)}
-              </div>
-            </div>
-            <div className="net-spark-container" style={{ display: 'flex', gap: '8px', flex: 1 }}>
-              <div className="net-spark-col" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '2px' }}>Upload</div>
-                <svg className="sparkline sparkline-net" id="sparkline-net-up" viewBox="0 0 100 40" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="grad-net-up" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--purple)" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="var(--purple)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <path className="sparkline-area" id="sparkarea-net-up" d={netUpPaths.area} fill="url(#grad-net-up)" />
-                  <path className="sparkline-line" id="sparkpath-net-up" d={netUpPaths.line} strokeWidth={1.0} style={{ stroke: 'var(--purple)' }} />
-                </svg>
-              </div>
-              <div className="net-spark-col" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginBottom: '2px' }}>Download</div>
-                <svg className="sparkline sparkline-net" id="sparkline-net-down" viewBox="0 0 100 40" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="grad-net-down" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="var(--green)" stopOpacity={0.4} />
-                      <stop offset="100%" stopColor="var(--green)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <path className="sparkline-area" id="sparkarea-net-down" d={netDownPaths.area} fill="url(#grad-net-down)" />
-                  <path className="sparkline-line" id="sparkpath-net-down" d={netDownPaths.line} strokeWidth={1.0} style={{ stroke: 'var(--green)' }} />
-                </svg>
-              </div>
+            <div className="net-spark-single-wrap">
+              <svg className="sparkline sparkline-net sparkline-net-merged" id="sparkline-net-merged" viewBox="0 0 100 40" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="grad-net-up" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--purple)" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="var(--purple)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="grad-net-down" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--green)" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="var(--green)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                {/* Upload Curve (Purple) */}
+                <path className="sparkline-area" id="sparkarea-net-up" d={netUpPaths.area} fill="url(#grad-net-up)" />
+                <path className="sparkline-line" id="sparkpath-net-up" d={netUpPaths.line} strokeWidth={1.2} style={{ stroke: 'var(--purple)' }} />
+                {/* Download Curve (Green) */}
+                <path className="sparkline-area" id="sparkarea-net-down" d={netDownPaths.area} fill="url(#grad-net-down)" />
+                <path className="sparkline-line" id="sparkpath-net-down" d={netDownPaths.line} strokeWidth={1.2} style={{ stroke: 'var(--green)' }} />
+              </svg>
             </div>
           </div>
         </section>
@@ -949,7 +954,7 @@ export const OverviewPage: React.FC = () => {
         </section>
 
         {/* Recent Logs Card */}
-        <section className="card">
+        <section className="card card-logs">
           <div className="card-header">
             <span className="card-icon" style={{ background: 'rgba(6,182,212,0.12)', color: 'var(--accent)' }}>
               <FileText size={13} />
@@ -959,7 +964,7 @@ export const OverviewPage: React.FC = () => {
               All →
             </Link>
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
+          <div className="card-body logs-card-body" style={{ padding: 0 }}>
             <div id="recent-logs" className="recent-logs-list">
               {recentLogs.length > 0 ? (
                 recentLogs.map((log, idx) => {

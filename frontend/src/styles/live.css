@@ -49,6 +49,7 @@
     flex-direction: column;
     gap: 14px;
     width: 100%;
+    box-sizing: border-box;
 }
 
 /* Balanced card styling for the overview cockpit */
@@ -60,6 +61,7 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
 }
 
 .overview-dashboard .card-header {
@@ -102,9 +104,24 @@
 .overview-dashboard .card-body {
     padding: 0;
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+}
+
+/* Recent Logs: snug layout with no unnecessary bottom padding */
+.overview-dashboard .card-logs {
+    padding-bottom: 8px;
+}
+
+.logs-card-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow: hidden;
 }
 
 /* ---- Row 1: Metrics (CPU, Memory, Battery, Storage) ---- */
@@ -129,10 +146,10 @@
     }
 }
 
-/* ---- Row 2: Network Traffic (58%) + Top Processes (42%) ---- */
+/* ---- Row 2: Network Traffic (50%) + Top Processes (50%) ---- */
 .middle-row {
     display: grid;
-    grid-template-columns: 1.35fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 14px;
     margin-bottom: 0;
     align-items: stretch;
@@ -197,6 +214,91 @@
     gap: 14px;
     margin-bottom: 0;
     align-items: stretch;
+}
+
+/* ======================================================
+   Desktop: Zero-Scroll Dynamic Adaptive Cockpit Layout
+   ====================================================== */
+@media (min-width: 1024px) {
+    .dashboard-content-overview {
+        height: calc(100vh - var(--topbar-height, 52px));
+        max-height: calc(100vh - var(--topbar-height, 52px));
+        overflow: hidden !important;
+        box-sizing: border-box;
+    }
+
+    .overview-dashboard {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        gap: 12px;
+        box-sizing: border-box;
+    }
+
+    /* Top row: keep exact natural content height, perfect previous state */
+    .metrics-row {
+        flex: 0 0 auto;
+        gap: 12px;
+    }
+
+    /* Bottom row: compact snug cockpit height (~250px) for Services, Thermal, Logs */
+    .bottom-row {
+        flex: 0 0 250px;
+        height: 250px;
+        min-height: 0;
+        gap: 12px;
+    }
+
+    .bottom-row > .card {
+        height: 100%;
+        min-height: 0;
+    }
+
+    /* Middle row: takes all remaining height, plenty of space (~240px-280px), NOT shrinked */
+    .middle-row {
+        flex: 1 1 auto;
+        min-height: 180px;
+        gap: 12px;
+    }
+
+    .middle-row > .card-network,
+    .middle-row > .procs-cell-wrap {
+        height: 100%;
+        min-height: 0;
+    }
+
+    .procs-cell-wrap {
+        min-height: 0;
+        height: 100%;
+    }
+
+    .sparkline-net-merged {
+        height: 100%;
+        min-height: 60px;
+    }
+}
+
+/* Fallback for very small vertical viewports (height < 620px) or mobile */
+@media (max-height: 620px), (max-width: 1023px) {
+    .dashboard-content-overview {
+        overflow-y: auto !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    .overview-dashboard {
+        height: auto !important;
+    }
+
+    .middle-row {
+        flex: 0 0 auto !important;
+    }
+
+    .procs-cell-wrap {
+        min-height: 195px;
+        height: 220px;
+    }
 }
 
 @media (max-width: 1100px) {
@@ -304,8 +406,24 @@
 /* Network sparklines — fills available card height */
 .sparkline-net {
     height: 100%;
-    min-height: 80px;
+    min-height: 40px;
     flex: 1;
+}
+
+.sparkline-net-merged {
+    width: 100%;
+    height: 100%;
+    min-height: 40px;
+    flex: 1;
+    display: block;
+}
+
+.net-spark-single-wrap {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    width: 100%;
+    display: flex;
 }
 
 /* Area fill under the curve — rendered by gradient path from JS */
@@ -394,7 +512,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: space-evenly;
     gap: 8px;
 }
 
@@ -601,13 +719,16 @@
 }
 
 /* ---- Services Card — horizontal layout ---- */
+.overview-dashboard .card-services .svc-card-body,
 .svc-card-body {
-    padding: 12px 16px !important;
+    padding: 10px 14px !important;
     display: flex !important;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    flex: 1;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow: visible !important;
 }
 
 .svc-layout {
@@ -615,6 +736,7 @@
     align-items: center;
     justify-content: center;
     gap: 20px;
+    width: 100%;
 }
 
 /* Donut */
@@ -727,9 +849,9 @@
 
 /* ---- Recent Logs ---- */
 .recent-logs-list {
+    flex: 1;
     height: 100%;
-    min-height: 140px;
-    max-height: 200px;
+    min-height: 0;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(6, 182, 212, 0.25) transparent;
@@ -921,13 +1043,14 @@
    Thermal Card — Gauge UI
    ====================================================== */
 
-/* Card body: distribute 4 zones vertically with even spacing */
+/* Card body: distribute zones neatly with top alignment */
 .thermal-card-body {
     padding: 10px 14px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 0;
+    overflow-y: auto;
 }
 
 .thermal-zones {
@@ -935,7 +1058,7 @@
     flex-direction: column;
     gap: 8px;
     flex: 1;
-    justify-content: space-evenly;
+    justify-content: flex-start;
 }
 
 .thermal-loading {

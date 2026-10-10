@@ -27,9 +27,10 @@ export const AppShell: React.FC = () => {
       className="dashboard-shell"
       style={{
         display: 'flex',
-        minHeight: '100vh',
+        height: '100vh',
         width: '100%',
         backgroundColor: 'var(--bg-base)',
+        overflow: 'hidden',
       }}
     >
       {/* Sidebar */}
@@ -43,6 +44,7 @@ export const AppShell: React.FC = () => {
           flexDirection: 'column',
           minWidth: 0,
           overflowX: 'hidden',
+          height: '100vh',
         }}
       >
         <Topbar
@@ -51,13 +53,15 @@ export const AppShell: React.FC = () => {
         />
 
         <main
-          className="dashboard-content"
+          className={`dashboard-content ${location.pathname === '/' ? 'dashboard-content-overview' : ''}`}
           style={{
             flex: 1,
-            padding: location.pathname === '/' ? '12px 18px 16px' : '16px 20px',
+            padding: location.pathname === '/' ? '10px 16px 12px' : '16px 20px',
             width: '100%',
             maxWidth: '100%',
             boxSizing: 'border-box',
+            minHeight: 0,
+            overflowY: 'auto',
           }}
         >
           <Outlet />
