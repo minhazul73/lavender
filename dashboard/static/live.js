@@ -398,11 +398,6 @@
         if (upEl) upEl.textContent = fmtRate(tx);
         if (downEl) downEl.textContent = fmtRate(rx);
 
-        // Network health pill
-        var netEl = document.getElementById('health-network');
-        netEl.className = 'health-pill' + (rx > 0 || tx > 0 ? ' good' : ' warn');
-        netEl.querySelector('span:last-child').textContent = (rx > 0 || tx > 0) ? 'Active' : 'Idle';
-
         pushBuf('net_up', tx);
         updateSpark('sparkpath-net-up', 'net_up', 'sparkarea-net-up', 40);
         pushBuf('net_down', rx);
@@ -440,30 +435,6 @@
             if (z.name && z.name.indexOf('cpu') === 0) cpuTemp = z.temp_celsius;
         });
         if (zones.length > 0) avgTemp = avgTemp / zones.length;
-
-        var thEl = document.getElementById('health-thermal');
-        thEl.className = 'health-pill' + (avgTemp > 70 ? ' crit' : (avgTemp > 50 ? ' warn' : ' good'));
-        thEl.querySelector('span:last-child').textContent = avgTemp.toFixed(0) + '°C';
-    }
-
-    /* ---- Battery health pill ---- */
-    function updateBatteryPill() {
-        if (!latest.battery) return;
-        var pct = latest.battery.percentage;
-        if (pct !== null) {
-            var bEl = document.getElementById('health-battery');
-            bEl.className = 'health-pill' + (pct < 20 ? ' crit' : (pct < 50 ? ' warn' : ' good'));
-            bEl.querySelector('span:last-child').textContent = pct + '%';
-        }
-    }
-
-    /* ---- Memory health pill ---- */
-    function updateMemoryPill() {
-        if (!latest.ram) return;
-        var pct = latest.ram.used_pct || 0;
-        var mEl = document.getElementById('health-memory');
-        mEl.className = 'health-pill' + (pct > 85 ? ' crit' : (pct > 70 ? ' warn' : ' good'));
-        mEl.querySelector('span:last-child').textContent = pct.toFixed(0) + '%';
     }
 
     /* ---- Thermal (gauge-style zones in bottom card) ---- */
@@ -568,13 +539,6 @@
             if (disks[i].mount === '/') { root = disks[i]; break; }
         }
         if (!root && disks.length > 0) root = disks[0];
-
-        var rootPct = root ? _pctNum(root) : 0;
-        var dEl = document.getElementById('health-disk');
-        if (dEl) {
-            dEl.className = 'health-pill' + (rootPct > 90 ? ' crit' : (rootPct > 80 ? ' warn' : ' good'));
-            dEl.querySelector('span:last-child').textContent = rootPct + '%';
-        }
 
         // Render all mounts in the storage card body
         var container = document.getElementById('store-mounts');
@@ -723,7 +687,7 @@
             if (metric === 'cpu') { updateCpu(data); }
             else if (metric === 'ram') { updateRam(data); }
             else if (metric === 'thermal') { updateThermal(data); updateThermalTop({zones: data}); }
-            else if (metric === 'battery') { updateBattery(data); updateBatteryPill(); }
+            else if (metric === 'battery') { updateBattery(data); }
             else if (metric === 'network') updateNetwork(data);
         } catch (err) {
             console.warn('live: bad SSE payload', err);
@@ -790,7 +754,7 @@
     fetchJson('/api/system/logs?limit=10').then(function(d) { if (d) updateLogs(d); });
     fetchJson('/api/device/battery').then(function(d) {
         if (d) {
-            if (d.battery && !d.battery.error) { updateBattery(d.battery); updateBatteryPill(); }
+            if (d.battery && !d.battery.error) { updateBattery(d.battery); }
             if (d.thermal) updateThermalTop({zones: d.thermal});
         }
     });

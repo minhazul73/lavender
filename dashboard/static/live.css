@@ -41,85 +41,6 @@
     box-shadow: 0 0 6px var(--red);
 }
 
-/* ---- Health Pills ---- */
-.health-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-    align-items: center;
-}
-
-.health-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 99px;
-    font-size: 11px;
-    font-weight: 600;
-    background: rgba(12, 26, 46, 0.8);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    letter-spacing: 0.02em;
-    transition: var(--transition);
-    backdrop-filter: blur(8px);
-}
-
-.health-pill .dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    flex-shrink: 0;
-}
-
-.health-pill.good {
-    color: var(--green);
-    border-color: rgba(16, 185, 129, 0.3);
-    background: var(--green-dim);
-}
-
-.health-pill.good .dot {
-    background: var(--green);
-    box-shadow: 0 0 6px var(--green-glow);
-}
-
-.health-pill.warn {
-    color: var(--yellow);
-    border-color: rgba(245, 158, 11, 0.3);
-    background: var(--yellow-dim);
-}
-
-.health-pill.warn .dot {
-    background: var(--yellow);
-    box-shadow: 0 0 6px var(--yellow-glow);
-}
-
-.health-pill.crit {
-    color: var(--red);
-    border-color: rgba(239, 68, 68, 0.3);
-    background: var(--red-dim);
-}
-
-.health-pill.crit .dot {
-    background: var(--red);
-    box-shadow: 0 0 6px var(--red-glow);
-    animation: pulse-dot 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.3);
-    }
-}
-
 /* ---- Metrics Row ---- */
 /* CPU wide for mini-graphs; Memory is slimmed to 0.95fr to give Battery 1.55fr rich telemetry */
 .metrics-row {
@@ -1489,14 +1410,5 @@
 
     .card-body {
         padding: 12px;
-    }
-
-    .health-row {
-        gap: 6px;
-    }
-
-    .health-pill {
-        padding: 4px 10px;
-        font-size: 10px;
     }
 }
