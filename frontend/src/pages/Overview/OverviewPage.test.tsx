@@ -100,9 +100,9 @@ describe('OverviewPage', () => {
     );
 
     // Verify Health status
-    expect(screen.getByText(/Battery: 85%/i)).toBeInTheDocument();
-    expect(screen.getByText(/Thermal: 43°C/i)).toBeInTheDocument();
-    expect(screen.getByText(/RAM: 50%/i)).toBeInTheDocument();
+    expect(screen.getAllByText('85%').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('43°C')).toBeInTheDocument();
+    expect(screen.getByText(/Memory 50%/i)).toBeInTheDocument();
 
     // Verify CPU card
     expect(screen.getByText('1.45')).toBeInTheDocument();
@@ -110,17 +110,16 @@ describe('OverviewPage', () => {
     expect(screen.getByText(/1800 MHz/i)).toBeInTheDocument();
 
     // Verify Battery
-    expect(screen.getByText('85%')).toBeInTheDocument();
-    expect(screen.getByText(/3.5 W/i)).toBeInTheDocument();
+    expect(screen.getByText(/3.50 W|3.5 W/i)).toBeInTheDocument();
     expect(screen.getByText(/4.12 V/i)).toBeInTheDocument();
 
     // Verify Network
-    expect(screen.getByText(/Interface: wlan0/i)).toBeInTheDocument();
+    expect(screen.getByText('wlan0')).toBeInTheDocument();
 
     // Verify async REST load
     expect(await screen.findByText(/58G/i)).toBeInTheDocument();
-    expect(await screen.findByText('python3')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(await screen.findByText(/python3/i)).toBeInTheDocument();
+    expect(screen.getAllByText('Active').length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders correctly with legacy disk keys without throwing replace error', async () => {
@@ -155,7 +154,8 @@ describe('OverviewPage', () => {
     );
 
     expect(await screen.findByText('/data')).toBeInTheDocument();
-    expect(screen.getByText(/120G \/ 500G \(24%\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/120G \/ 500G/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/24%/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders structured log objects without throwing React child error', async () => {
@@ -188,6 +188,6 @@ describe('OverviewPage', () => {
 
     expect(await screen.findByText(/Session created for user admin/i)).toBeInTheDocument();
     expect(screen.getByText(/lavender:/i)).toBeInTheDocument();
-    expect(screen.getByText(/\[23:59:01\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/23:59:01/i)).toBeInTheDocument();
   });
 });

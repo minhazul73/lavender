@@ -56,10 +56,19 @@ export function useSSE(options: UseSSEOptions = {}) {
       es.onmessage = (event) => {
         try {
           const parsed = JSON.parse(event.data);
-          setData((prev) => ({
-            ...prev,
-            ...parsed,
-          }));
+          if (parsed && typeof parsed === 'object') {
+            if (parsed.metric && parsed.data !== undefined) {
+              setData((prev) => ({
+                ...prev,
+                [parsed.metric]: parsed.data,
+              }));
+            } else {
+              setData((prev) => ({
+                ...prev,
+                ...parsed,
+              }));
+            }
+          }
         } catch (err) {
           console.warn('Failed to parse SSE JSON payload:', err);
         }

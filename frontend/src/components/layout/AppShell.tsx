@@ -5,7 +5,7 @@ import { Topbar } from './Topbar';
 import { ElevationModal } from '../common/ElevationModal';
 
 const ROUTE_TITLES: Record<string, string> = {
-  '/': 'System Overview',
+  '/': 'Live Overview',
   '/services': 'Systemd Services',
   '/processes': 'Running Processes',
   '/storage': 'Storage & Filesystems',

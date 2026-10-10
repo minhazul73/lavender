@@ -91,6 +91,34 @@ describe('useSSE Hook', () => {
     expect(result.current.data?.ram?.used_pct).toBe(50);
   });
 
+  it('updates telemetry data on structured metric message ({ metric, data })', async () => {
+    const { result } = renderHook(() => useSSE({ url: '/api/test/stream' }));
+
+    await act(async () => {
+      vi.advanceTimersByTime(10);
+    });
+
+    act(() => {
+      MockEventSource.instances[0].emitMessage({
+        metric: 'cpu',
+        data: { count: 8, load5: 1.25 },
+      });
+    });
+
+    expect(result.current.data?.cpu?.count).toBe(8);
+    expect(result.current.data?.cpu?.load5).toBe(1.25);
+
+    act(() => {
+      MockEventSource.instances[0].emitMessage({
+        metric: 'ram',
+        data: { used_pct: 68 },
+      });
+    });
+
+    expect(result.current.data?.cpu?.count).toBe(8);
+    expect(result.current.data?.ram?.used_pct).toBe(68);
+  });
+
   it('handles disconnect and attempts reconnection', async () => {
     const { result } = renderHook(() =>
       useSSE({ url: '/api/test/stream', initialReconnectDelay: 500 })

@@ -90,17 +90,26 @@ export interface BatteryTelemetry {
 
 export interface ThermalZone {
   name: string;
-  temp: number;
+  display_name?: string;
+  temp?: number;
+  temp_celsius?: number;
+  temp_millicelsius?: number;
   type?: string;
-  crit?: number;
+  warning?: boolean;
+  crit?: number | boolean;
 }
 
 export interface NetworkTelemetry {
-  interface: string;
-  rx_bytes_sec?: number;
-  tx_bytes_sec?: number;
+  iface?: string;
+  interface?: string;
+  rx_bytes?: number;
+  tx_bytes?: number;
+  rx_rate_bps?: number;
+  tx_rate_bps?: number;
   rx_rate?: number;
   tx_rate?: number;
+  rx_bytes_sec?: number;
+  tx_bytes_sec?: number;
 }
 
 export interface LiveTelemetryData {
@@ -134,9 +143,13 @@ export interface StorageOverviewResponse {
 
 export interface ServiceItem {
   unit: string;
+  name?: string;
   load?: string;
+  load_state?: string;
   active?: string;
+  active_state?: string;
   sub?: string;
+  sub_state?: string;
   description?: string;
   scope?: string;
 }
@@ -150,7 +163,12 @@ export interface ProcessItem {
   pid: number;
   user: string;
   cpu: number;
+  cpu_time?: number;
+  time?: string;
   mem: number;
+  mem_pct?: number;
+  vsz?: number;
+  rss?: number;
   command: string;
   name: string;
 }
