@@ -317,7 +317,12 @@ def get_ip_addresses() -> list[dict]:
 
     def sort_key(iface):
         score = 100
-        if iface.get("is_default"):
+        name = iface.get("name", "")
+        # Tailscale interfaces should be deprioritized (lower priority = higher score)
+        is_tailscale = name.startswith("tailscale")
+        if is_tailscale:
+            score = 80  # Lower priority than wireless, bridge, virtual
+        elif iface.get("is_default"):
             score = 10
         elif iface.get("category") == "wireless":
             score = 20
