@@ -9,29 +9,6 @@
 
 {% block content %}
 
-<!-- Health status row -->
-<div class="health-row" id="health-row">
-    <div class="health-pill" id="health-battery">
-        <span class="dot"></span>
-        <span>Battery</span>
-    </div>
-    <div class="health-pill" id="health-thermal">
-        <span class="dot"></span>
-        <span>Thermal</span>
-    </div>
-    <div class="health-pill" id="health-memory">
-        <span class="dot"></span>
-        <span>Memory</span>
-    </div>
-    <div class="health-pill" id="health-disk">
-        <span class="dot"></span>
-        <span>Disk</span>
-    </div>
-    <div class="health-pill" id="health-network">
-        <span class="dot"></span>
-        <span>Network</span>
-    </div>
-</div>
 
 <!-- Metrics Row: CPU wide + 4 smaller cards -->
 <div class="metrics-row">
@@ -167,10 +144,6 @@
                 <div class="batt-stat-tile">
                     <span class="batt-stat-label">Energy</span>
                     <span class="batt-stat-val font-mono" id="batt-energy">— / — Wh</span>
-                </div>
-                <div class="batt-stat-tile">
-                    <span class="batt-stat-label">Battery Health</span>
-                    <span class="batt-stat-val font-mono" id="batt-health">—</span>
                 </div>
             </div>
         </div>
