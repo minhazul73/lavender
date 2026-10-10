@@ -99,10 +99,10 @@ describe('OverviewPage', () => {
       </MemoryRouter>
     );
 
-    // Verify Health status
+    // Verify Battery percentage, thermal sensor, and memory
     expect(screen.getAllByText('85%').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('43°C')).toBeInTheDocument();
-    expect(screen.getByText(/Memory 50%/i)).toBeInTheDocument();
+    expect(screen.getByText('42.5°C')).toBeInTheDocument();
+    expect(screen.getAllByText('50%').length).toBeGreaterThanOrEqual(1);
 
     // Verify CPU card
     expect(screen.getByText('1.45')).toBeInTheDocument();

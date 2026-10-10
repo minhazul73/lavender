@@ -41,144 +41,107 @@
     box-shadow: 0 0 6px var(--red);
 }
 
-/* ---- Health Pills ---- */
-.health-row {
+/* ======================================================
+   High-Density Cockpit Overview Dashboard
+   ====================================================== */
+.overview-dashboard {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-    align-items: center;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
 }
 
-.health-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 12px;
-    border-radius: 99px;
-    font-size: 11px;
-    font-weight: 600;
-    background: rgba(12, 26, 46, 0.8);
+/* Balanced card styling for the overview cockpit */
+.overview-dashboard .card {
+    padding: 14px 18px;
+    border-radius: 10px;
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    color: var(--text-muted);
-    letter-spacing: 0.02em;
-    transition: var(--transition);
-    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
 }
 
-.health-pill .dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--text-muted);
+.overview-dashboard .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
+.overview-dashboard .card-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+
+.overview-dashboard .card-link {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: color 0.2s;
+    text-decoration: none;
+}
+
+.overview-dashboard .card-link:hover {
+    color: var(--accent);
+}
+
+.overview-dashboard .card-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
 }
 
-.health-pill.good {
-    color: var(--green);
-    border-color: rgba(16, 185, 129, 0.3);
-    background: var(--green-dim);
+.overview-dashboard .card-body {
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
-.health-pill.good .dot {
-    background: var(--green);
-    box-shadow: 0 0 6px var(--green-glow);
-}
-
-.health-pill.warn {
-    color: var(--yellow);
-    border-color: rgba(245, 158, 11, 0.3);
-    background: var(--yellow-dim);
-}
-
-.health-pill.warn .dot {
-    background: var(--yellow);
-    box-shadow: 0 0 6px var(--yellow-glow);
-}
-
-.health-pill.crit {
-    color: var(--red);
-    border-color: rgba(239, 68, 68, 0.3);
-    background: var(--red-dim);
-}
-
-.health-pill.crit .dot {
-    background: var(--red);
-    box-shadow: 0 0 6px var(--red-glow);
-    animation: pulse-dot 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.3);
-    }
-}
-
-/* ---- Metrics Row ---- */
-/* CPU wide for mini-graphs; Memory is slimmed to 0.95fr to give Battery 1.55fr rich telemetry */
+/* ---- Row 1: Metrics (CPU, Memory, Battery, Storage) ---- */
 .metrics-row {
     display: grid;
-    grid-template-columns: 2.3fr 0.95fr 1.55fr 1.2fr;
-    gap: 12px;
-    margin-bottom: 14px;
+    grid-template-columns: 2.2fr 1fr 1.5fr 1.3fr;
+    gap: 14px;
+    margin-bottom: 0;
     align-items: stretch;
 }
 
-/* Tablet: 2+2 grid, CPU full-width on top */
+/* Responsive Row 1 */
 @media (max-width: 1200px) {
     .metrics-row {
-        grid-template-columns: 2fr 1fr 1fr;
-    }
-
-    .card-cpu {
-        grid-column: 1 / -1;
-        /* CPU spans full width */
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
-/* Phablet: 2 columns */
-@media (max-width: 768px) {
-    .metrics-row {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .card-cpu {
-        grid-column: 1 / -1;
-    }
-}
-
-/* Mobile: single column */
-@media (max-width: 480px) {
+@media (max-width: 640px) {
     .metrics-row {
         grid-template-columns: 1fr;
     }
-
-    .card-cpu {
-        grid-column: 1;
-    }
 }
 
-/* ---- Middle row: network (58%) + processes (42%) ---- */
-/* Processes table only needs so much — give the visual network graph more breathing room */
+/* ---- Row 2: Network Traffic (58%) + Top Processes (42%) ---- */
 .middle-row {
     display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 12px;
-    margin-bottom: 14px;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 14px;
+    margin-bottom: 0;
     align-items: stretch;
 }
 
-/* Container for top processes card in middle row - ensures it matches network card without expanding the row */
 .procs-cell-wrap {
     position: relative;
     height: 100%;
-    min-height: 0;
+    min-height: 195px;
 }
 
 .procs-cell-wrap > .card-procs {
@@ -209,20 +172,12 @@
 }
 
 .proc-table-wrap::-webkit-scrollbar {
-    width: 5px;
-}
-
-.proc-table-wrap::-webkit-scrollbar-track {
-    background: transparent;
+    width: 4px;
 }
 
 .proc-table-wrap::-webkit-scrollbar-thumb {
     background: rgba(167, 139, 250, 0.25);
     border-radius: 4px;
-}
-
-.proc-table-wrap::-webkit-scrollbar-thumb:hover {
-    background: rgba(167, 139, 250, 0.45);
 }
 
 @media (max-width: 900px) {
@@ -231,38 +186,35 @@
     }
 
     .procs-cell-wrap {
-        height: 290px;
+        height: 240px;
     }
 }
 
-/* ---- Bottom row: Services (compact) | Thermal (medium) | Recent Logs (wide) ---- */
-/* Logs contain long text lines — give them the most space */
+/* ---- Row 3: Services (compact) | Thermal (medium) | Recent Logs (wide) ---- */
 .bottom-row {
     display: grid;
-    grid-template-columns: 0.7fr 1fr 1.8fr;
-    gap: 12px;
+    grid-template-columns: 0.75fr 1.05fr 1.8fr;
+    gap: 14px;
+    margin-bottom: 0;
     align-items: stretch;
 }
 
-/* Tablet: stack to 2 cols — logs alone on bottom */
 @media (max-width: 1100px) {
     .bottom-row {
         grid-template-columns: 1fr 1fr;
     }
 
-    .bottom-row>*:last-child {
+    .bottom-row > *:last-child {
         grid-column: 1 / -1;
-        /* Logs span full width */
     }
 }
 
-/* Mobile: single column */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
     .bottom-row {
         grid-template-columns: 1fr;
     }
 
-    .bottom-row>*:last-child {
+    .bottom-row > *:last-child {
         grid-column: 1;
     }
 }
@@ -315,7 +267,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 6px;
-    padding: 4px 0;
+    padding: 3px 0;
     border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -339,7 +291,8 @@
 /* ---- Sparklines ---- */
 .sparkline {
     width: 100%;
-    height: 32px;
+    height: 38px;
+    min-height: 38px;
     flex: 1;
     margin-top: 6px;
     display: block;
@@ -348,10 +301,10 @@
     /* clip lines that approach the edge */
 }
 
-/* Network sparklines — tall, fills all available space */
+/* Network sparklines — fills available card height */
 .sparkline-net {
-    height: 40px;
-    min-height: 56px;
+    height: 100%;
+    min-height: 80px;
     flex: 1;
 }
 
@@ -429,15 +382,23 @@
 }
 
 /* ---- Storage Mount List ---- */
+.store-card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0;
+    flex: 1;
+}
+
 .store-mounts-container {
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
+    justify-content: space-between;
+    gap: 8px;
 }
 
 .store-mount {
-    flex: 1;
     display: flex;
     flex-direction: column;
 }
@@ -445,30 +406,41 @@
 .store-mount-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .store-mount-icon {
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .store-mount-label {
     flex: 1;
     color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .store-mount-pct {
     font-family: 'JetBrains Mono', monospace;
     color: var(--text-secondary);
-    font-size: 12px;
+    font-size: 11.5px;
+}
+
+.store-mount-detail {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 4px;
 }
 
 .store-mount-bar-wrap {
     width: 100%;
-    height: 8px;
+    height: 6px;
     background: rgba(255, 255, 255, 0.06);
     border-radius: 99px;
     overflow: hidden;
@@ -493,26 +465,18 @@
     background: linear-gradient(90deg, var(--red), #f97316);
 }
 
-.store-mount-detail {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-primary);
-    font-family: 'JetBrains Mono', monospace;
-    margin-top: 3px;
-}
-
 /* ---- CPU Cores Grid ---- */
 .cpu-cores-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 6px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .cpu-core {
     background: rgba(6, 182, 212, 0.04);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px;
     padding: 6px 8px;
     text-align: center;
     transition: var(--transition);
@@ -524,17 +488,17 @@
 }
 
 .cpu-core-label {
-    font-size: 9px;
+    font-size: 9.5px;
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
 
 .cpu-core-spark {
     width: 100%;
-    height: 22px;
+    height: 24px;
     margin: 2px 0;
 }
 
@@ -544,10 +508,11 @@
 }
 
 .cpu-core-value {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     font-family: 'JetBrains Mono', monospace;
     color: var(--text-secondary);
+    line-height: 1.1;
 }
 
 .cpu-core-value.crit {
@@ -597,7 +562,7 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    padding: 6px 12px;
+    padding: 6px 10px;
     text-align: left;
     border-bottom: 1px solid var(--border);
     background: rgba(10, 18, 32, 0.95);
@@ -610,10 +575,11 @@
 }
 
 .proc-table td {
-    padding: 6px 12px;
+    padding: 5px 10px;
     border-bottom: 1px solid var(--border-subtle);
     color: var(--text-secondary);
     transition: background 0.15s;
+    line-height: 1.3;
 }
 
 .proc-table tr:last-child td {
@@ -632,7 +598,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    /* No max-width — table-layout:fixed + column widths handle the constraint */
 }
 
 /* ---- Services Card — horizontal layout ---- */
@@ -655,8 +620,8 @@
 /* Donut */
 .svc-donut-wrap {
     position: relative;
-    width: 100px;
-    height: 100px;
+    width: 96px;
+    height: 96px;
     flex-shrink: 0;
     background: transparent;
     overflow: visible;
@@ -699,11 +664,11 @@
 }
 
 .svc-donut-label .total {
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 800;
     font-family: 'JetBrains Mono', monospace;
     line-height: 1;
-    letter-spacing: -1px;
+    letter-spacing: -0.5px;
     color: var(--text-primary);
 }
 
@@ -713,15 +678,15 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 /* Stat rows */
 .svc-stats {
     display: flex;
     flex-direction: column;
-    gap: 9px;
-    min-width: 90px;
+    gap: 8px;
+    min-width: 85px;
 }
 
 .svc-stat-row {
@@ -732,7 +697,7 @@
 
 .svc-stat-bar {
     width: 3px;
-    height: 28px;
+    height: 26px;
     border-radius: 2px;
     flex-shrink: 0;
     opacity: 0.85;
@@ -746,14 +711,14 @@
 }
 
 .svc-stat-count {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     font-family: 'JetBrains Mono', monospace;
     letter-spacing: -0.5px;
 }
 
 .svc-stat-label {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 500;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -761,15 +726,33 @@
 }
 
 /* ---- Recent Logs ---- */
+.recent-logs-list {
+    height: 100%;
+    min-height: 140px;
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(6, 182, 212, 0.25) transparent;
+}
+
+.recent-logs-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.recent-logs-list::-webkit-scrollbar-thumb {
+    background: rgba(6, 182, 212, 0.25);
+    border-radius: 4px;
+}
+
 .log-entry {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    padding: 7px 14px;
+    padding: 5px 10px;
     font-size: 11px;
     border-bottom: 1px solid var(--border-subtle);
     transition: background 0.15s;
-    line-height: 1.4;
+    line-height: 1.35;
 }
 
 .log-entry:last-child {
@@ -940,7 +923,7 @@
 
 /* Card body: distribute 4 zones vertically with even spacing */
 .thermal-card-body {
-    padding: 10px 14px 14px;
+    padding: 10px 14px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -950,7 +933,7 @@
 .thermal-zones {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     flex: 1;
     justify-content: space-evenly;
 }
@@ -969,9 +952,9 @@
 
 /* Zone icon circle */
 .tz-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
     background: rgba(249, 115, 22, 0.10);
     border: 1px solid rgba(249, 115, 22, 0.18);
     display: flex;
@@ -988,7 +971,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
 }
 
 /* Top meta line: label + temp badge */
@@ -1014,7 +997,7 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 11px;
     font-weight: 700;
-    padding: 1px 7px;
+    padding: 1px 6px;
     border-radius: 99px;
     border: 1px solid currentColor;
     background: rgba(0, 0, 0, 0.25);
@@ -1208,13 +1191,13 @@
     justify-content: space-between;
     align-items: center;
     gap: 12px;
-    padding: 0 6px;
+    padding: 0;
 }
 
 .batt-hero-left {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 4px;
     flex: 1;
 }
 
@@ -1225,8 +1208,8 @@
 }
 
 .batt-pct-val {
-    font-size: 26px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 800;
     line-height: 1;
     font-family: 'Inter', -apple-system, sans-serif;
     letter-spacing: -0.02em;
@@ -1238,7 +1221,7 @@
     display: flex;
     align-items: center;
     width: 100%;
-    max-width: 130px;
+    max-width: 125px;
     height: 8px;
     position: relative;
 }
@@ -1309,7 +1292,7 @@
 }
 
 .batt-meta-label {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 500;
     color: var(--text-muted);
     text-transform: uppercase;
@@ -1337,10 +1320,11 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 6px 8px;
-    padding: 7px 9px;
+    padding: 6px 8px;
     background: rgba(0, 0, 0, 0.25);
-    border-radius: 8px;
+    border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-top: 6px;
 }
 
 .batt-stat-tile {
@@ -1348,13 +1332,13 @@
     flex-direction: column;
     justify-content: center;
     gap: 1px;
-    padding: 3px 6px;
-    border-radius: 6px;
+    padding: 4px 6px;
+    border-radius: 4px;
     background: rgba(255, 255, 255, 0.02);
 }
 
 .batt-stat-label {
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 500;
     color: var(--text-muted);
     letter-spacing: 0.02em;
@@ -1371,7 +1355,7 @@
     background: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(59, 130, 246, 0.08));
     border: 1px solid rgba(56, 189, 248, 0.35);
     box-shadow: 0 0 14px rgba(6, 182, 212, 0.15);
-    padding: 4px 7px 5px;
+    padding: 4px 6px;
 }
 
 .batt-volt-header {
@@ -1400,7 +1384,7 @@
 }
 
 .batt-volt-val {
-    font-size: 15px !important;
+    font-size: 14px !important;
     font-weight: 700 !important;
     color: #38bdf8 !important;
     letter-spacing: -0.01em;
@@ -1484,19 +1468,10 @@
 /* ---- General mobile polish ---- */
 @media (max-width: 480px) {
     .stat-main {
-        font-size: 22px;
+        font-size: 20px;
     }
 
-    .card-body {
-        padding: 12px;
-    }
-
-    .health-row {
-        gap: 6px;
-    }
-
-    .health-pill {
-        padding: 4px 10px;
-        font-size: 10px;
+    .overview-dashboard .card {
+        padding: 8px 10px;
     }
 }

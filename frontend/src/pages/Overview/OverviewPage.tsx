@@ -148,7 +148,7 @@ export const OverviewPage: React.FC = () => {
       const [storage, services, logs, procs, batt] = await Promise.allSettled([
         api.get<StorageOverviewResponse>('/api/system/storage'),
         api.get<ServicesListResponse>('/api/system/services'),
-        api.get<{ logs: SystemLogItem[] }>('/api/system/logs?limit=10'),
+        api.get<{ logs: SystemLogItem[] }>('/api/system/logs?limit=30'),
         api.get<ProcessesOverviewResponse>('/api/system/processes?sort_by=mem&limit=10'),
         api.get<{ battery?: BatteryTelemetry; thermal?: ThermalZone[] }>('/api/device/battery'),
       ]);
@@ -195,20 +195,12 @@ export const OverviewPage: React.FC = () => {
       const label = z.display_name || z.name;
       if (wanted.includes(label)) selected.push(z);
     });
-    if (selected.length < 4) {
-      thermalZones.forEach((z) => {
-        if (!selected.includes(z) && selected.length < 4) selected.push(z);
-      });
-    }
-    return selected;
+    thermalZones.forEach((z) => {
+      if (!selected.includes(z) && selected.length < 4) selected.push(z);
+    });
+    return selected.slice(0, 4);
   }, [thermalZones]);
 
-  // Compute thermal average for health pill
-  const avgThermal = useMemo(() => {
-    if (!thermalZones.length) return 45;
-    const sum = thermalZones.reduce((acc, z) => acc + (z.temp_celsius ?? z.temp ?? 0), 0);
-    return Math.round(sum / thermalZones.length);
-  }, [thermalZones]);
 
   // Services count breakdown
   const svcCounts = useMemo(() => {
@@ -298,13 +290,6 @@ export const OverviewPage: React.FC = () => {
   const inactiveDash = svcTotal > 0 ? (svcCounts.inactive / svcTotal) * CIRC : 0;
   const failedDash = svcTotal > 0 ? (svcCounts.failed / svcTotal) * CIRC : 0;
 
-  // Root storage disk usage for health pill
-  const rootPct = useMemo(() => {
-    if (!storageData?.disks?.length) return 50;
-    const rootDisk = storageData.disks.find((d) => (d.mount || d.mount_point) === '/') || storageData.disks[0];
-    if (typeof rootDisk.pct_num === 'number') return rootDisk.pct_num;
-    return parseInt(String(rootDisk.use_pct || rootDisk.use_percent || '0').replace('%', ''), 10) || 0;
-  }, [storageData]);
 
   // Network speeds
   const netIface = liveData?.network?.iface || liveData?.network?.interface || 'wlan0';
@@ -360,6 +345,10 @@ export const OverviewPage: React.FC = () => {
     if (label.includes('Gold') || label.includes('Big')) return 'CPU Big';
     if (label.includes('LITTLE') || label.includes('Little')) return 'CPU Little';
     if (label.includes('GPU')) return 'GPU';
+    if (label.toLowerCase().includes('acpitz')) return 'ACPI System';
+    if (label.toLowerCase().includes('composite')) return 'NVMe / SSD';
+    if (label.toLowerCase().includes('coretemp')) return 'CPU Core';
+    if (label.toLowerCase().includes('hwmon')) return label.replace('hwmon-', 'Sensor ');
     return label.length > 16 ? label.slice(0, 15) + '…' : label;
   };
 
@@ -378,43 +367,7 @@ export const OverviewPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {/* ── Health Status Row ──────────────────────────────────── */}
-      <div className="health-row" id="health-row">
-        <div
-          className={`health-pill ${battPct !== null && battPct < 20 ? 'crit' : battPct !== null && battPct < 50 ? 'warn' : 'good'}`}
-          id="health-battery"
-        >
-          <span className="dot" />
-          <span>{battPct !== null ? `${battPct}%` : '75%'}</span>
-        </div>
-        <div
-          className={`health-pill ${avgThermal > 70 ? 'crit' : avgThermal > 50 ? 'warn' : 'good'}`}
-          id="health-thermal"
-        >
-          <span className="dot" />
-          <span>{avgThermal ? `${avgThermal}°C` : '45°C'}</span>
-        </div>
-        <div
-          className={`health-pill ${ramPct > 85 ? 'crit' : ramPct > 70 ? 'warn' : 'good'}`}
-          id="health-memory"
-        >
-          <span className="dot" />
-          <span>Memory {ramPct.toFixed(0)}%</span>
-        </div>
-        <div
-          className={`health-pill ${rootPct > 90 ? 'crit' : rootPct > 80 ? 'warn' : 'good'}`}
-          id="health-disk"
-        >
-          <span className="dot" />
-          <span>{rootPct}%</span>
-        </div>
-        <div className="health-pill good" id="health-network">
-          <span className="dot" />
-          <span>Active</span>
-        </div>
-      </div>
-
+    <div className="overview-dashboard">
       {/* ── Metrics Row: CPU, Memory, Battery, Storage ─────────── */}
       <div className="metrics-row">
         {/* CPU Card */}
@@ -438,7 +391,7 @@ export const OverviewPage: React.FC = () => {
               Processes →
             </Link>
           </div>
-          <div className="card-body" style={{ padding: '12px' }}>
+          <div className="card-body">
             <div className="cpu-cores-grid" id="cpu-cores-grid">
               {Array.from({ length: cpuCount }).map((_, i) => {
                 const coreUsageObj = liveData?.cpu?.per_core_usage?.find((c) => c.core === i);
@@ -625,11 +578,15 @@ export const OverviewPage: React.FC = () => {
               →
             </Link>
           </div>
-          <div className="card-body" style={{ padding: '10px 14px', flex: 1 }}>
+          <div className="card-body store-card-body">
             <div id="store-mounts" className="store-mounts-container">
               {storageData?.disks && storageData.disks.length > 0 ? (
                 storageData.disks
-                  .slice()
+                  .filter((d) => {
+                    const m = (d.mount || d.mount_point || '').toLowerCase();
+                    return !m.includes('efivars') && !m.includes('credentials');
+                  })
+                  .slice(0, 3)
                   .sort((a, b) => (Number(a.is_external || false) - Number(b.is_external || false)) || ((a.mount || a.mount_point || '') > (b.mount || b.mount_point || '') ? 1 : -1))
                   .map((d) => {
                     const pct =
@@ -651,11 +608,11 @@ export const OverviewPage: React.FC = () => {
                           <span className="store-mount-label">{mountDisplay}</span>
                           <span className="store-mount-pct">{pct}%</span>
                         </div>
-                        <div className="store-mount-bar-wrap">
-                          <div className={`store-mount-bar${barClass}`} style={{ width: `${pct}%` }} />
-                        </div>
                         <div className="store-mount-detail">
                           {used} / {total} · {avail} free
+                        </div>
+                        <div className="store-mount-bar-wrap">
+                          <div className={`store-mount-bar${barClass}`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     );
@@ -668,21 +625,21 @@ export const OverviewPage: React.FC = () => {
                       <span className="store-mount-label">System (/)</span>
                       <span className="store-mount-pct">50%</span>
                     </div>
+                    <div className="store-mount-detail">22.9G / 48.8G · 23.4G free</div>
                     <div className="store-mount-bar-wrap">
                       <div className="store-mount-bar" style={{ width: '50%' }} />
                     </div>
-                    <div className="store-mount-detail">22.9G / 48.8G · 23.4G free</div>
                   </div>
                   <div className="store-mount">
                     <div className="store-mount-header">
                       <span className="store-mount-icon">📁</span>
-                      <span className="store-mount-label">/run/credentials/getty@tty1.service</span>
-                      <span className="store-mount-pct">0%</span>
+                      <span className="store-mount-label">/boot/efi</span>
+                      <span className="store-mount-pct">8%</span>
                     </div>
+                    <div className="store-mount-detail">38M / 508M · 470M free</div>
                     <div className="store-mount-bar-wrap">
-                      <div className="store-mount-bar" style={{ width: '0%' }} />
+                      <div className="store-mount-bar" style={{ width: '8%' }} />
                     </div>
-                    <div className="store-mount-detail">0 / 1.0M · 1.0M free</div>
                   </div>
                   <div className="store-mount is-external">
                     <div className="store-mount-header">
@@ -690,10 +647,10 @@ export const OverviewPage: React.FC = () => {
                       <span className="store-mount-label">/mnt/sdcard</span>
                       <span className="store-mount-pct">70%</span>
                     </div>
+                    <div className="store-mount-detail">43.2G / 58.2G · 12.0G free</div>
                     <div className="store-mount-bar-wrap">
                       <div className="store-mount-bar" style={{ width: '70%' }} />
                     </div>
-                    <div className="store-mount-detail">43.2G / 58.2G · 12.0G free</div>
                   </div>
                 </>
               )}
@@ -1003,7 +960,7 @@ export const OverviewPage: React.FC = () => {
             </Link>
           </div>
           <div className="card-body" style={{ padding: 0 }}>
-            <div id="recent-logs" style={{ maxHeight: '160px', overflowY: 'auto' }}>
+            <div id="recent-logs" className="recent-logs-list">
               {recentLogs.length > 0 ? (
                 recentLogs.map((log, idx) => {
                   const timestamp = typeof log === 'object' && log !== null ? log.timestamp : '';

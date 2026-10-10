@@ -54,10 +54,10 @@ export const AppShell: React.FC = () => {
           className="dashboard-content"
           style={{
             flex: 1,
-            padding: '24px',
-            maxWidth: '1600px',
+            padding: location.pathname === '/' ? '12px 18px 16px' : '16px 20px',
             width: '100%',
-            margin: '0 auto',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
           }}
         >
           <Outlet />
