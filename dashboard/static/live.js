@@ -368,15 +368,6 @@
                 energyEl.textContent = '— Wh';
             }
         }
-
-        var healthEl = document.getElementById('batt-health');
-        if (healthEl) {
-            if (capacity !== null && capacity !== undefined) {
-                healthEl.textContent = typeof capacity === 'number' ? capacity.toFixed(0) + '%' : capacity;
-            } else {
-                healthEl.textContent = '—';
-            }
-        }
     }
 
     function updateNetwork(data) {
