@@ -1,0 +1,142 @@
+{
+  "singleton": "lavender-daily-maintenance",
+  "version": "1.0.0",
+  "description": "Daily maintenance task tracker for Lavender project",
+  "columns": {
+    "todo": {
+      "label": "To Do",
+      "tasks": [
+        {
+          "id": "lint-capture-failures",
+          "title": "Lint+pytest (capture failures)",
+          "description": "run quick lint/tests and write any failures to /tmp/lavender-failures.txt",
+          "created": "2026-10-10",
+          "priority": "high",
+          "comment": "Shell: flake8 dashboard tests && python -m pytest tests/ -v"
+        },
+        {
+          "id": "add-missing-unit-tests",
+          "title": "Add missing unit tests",
+          "description": "read /tmp/lavender-failures.txt and add/adjust tests for failures",
+          "created": "2026-10-10",
+          "priority": "high",
+          "comment": "Shell: read /tmp/lavender-failures.txt then create/adjust tests"
+        },
+        {
+          "id": "update-docs",
+          "title": "Update docs",
+          "description": "update docs/*.md for any endpoints touched by failing tests",
+          "created": "2026-10-10",
+          "priority": "medium",
+          "comment": "Shell: ls docs/*.md and update relevant files"
+        },
+        {
+          "id": "test-coverage",
+          "title": "Add missing unit tests for uncovered modules",
+          "description": "Create unit tests for dashboard modules lacking coverage",
+          "created": "2026-10-08",
+          "priority": "high"
+        },
+        {
+          "id": "docs-update",
+          "title": "Update documentation for new endpoints",
+          "description": "Ensure docs/api.md matches all FastAPI endpoint decorators",
+          "created": "2026-10-08",
+          "priority": "medium"
+        }
+      ]
+    },
+    "in_progress": {
+      "label": "In Progress",
+      "tasks": []
+    },
+    "done": {
+      "label": "Done",
+      "tasks": []
+    },
+    "blocked": {
+      "label": "Blocked",
+      "tasks": []
+    }
+  },
+  "last_run": null,
+  "last_success": null,
+  "failures": [],
+  "tasks": {
+    "lint-pytest": {
+      "id": "lint-pytest",
+      "title": "Run lint + pytest, capture failures",
+      "description": "Execute flake8 linting and pytest, save failures to /tmp/lavender-failures.txt",
+      "script": "flake8 dashboard tests --count && python -m pytest tests/ -v",
+      "output_file": "/tmp/lavender-failures.txt",
+      "priority": "critical",
+      "status": "pending"
+    },
+    "test-coverage": {
+      "id": "test-coverage",
+      "title": "Add missing unit tests for failing modules",
+      "description": "Identify modules with poor coverage and create corresponding test files",
+      "coverage_analysis": true,
+      "priority": "high",
+      "status": "pending"
+    },
+    "docs-update": {
+      "id": "docs-update",
+      "title": "Update docs for new endpoints",
+      "description": "Verify docs/api.md matches source code endpoints and add missing documentation",
+      "source_dir": "dashboard/api",
+      "docs_file": "docs/api.md",
+      "priority": "medium",
+      "status": "pending"
+    },
+    "telegram-summary": {
+      "id": "telegram-summary",
+      "title": "Send Telegram summary after all tasks complete",
+      "description": "Generate and send daily maintenance report via Telegram",
+      "condition": "all_tasks_complete",
+      "priority": "low",
+      "status": "pending"
+    },
+    "lint-capture-failures": {
+      "id": "lint-capture-failures",
+      "title": "Lint+pytest (capture failures)",
+      "description": "run quick lint/tests and write any failures to /tmp/lavender-failures.txt",
+      "script": "cd /home/rahat/lavender && flake8 dashboard tests --count --output-file=/tmp/lavender-lint-failures.txt; python -m pytest tests/ -v 2>&1 | tee /tmp/lavender-pytest-failures.txt; cat /tmp/lavender-lint-failures.txt /tmp/lavender-pytest-failures.txt > /tmp/lavender-failures.txt",
+      "output_file": "/tmp/lavender-failures.txt",
+      "comment": "Shell: flake8 dashboard tests && python -m pytest tests/ -v",
+      "priority": "high",
+      "status": "pending"
+    },
+    "add-missing-unit-tests": {
+      "id": "add-missing-unit-tests",
+      "title": "Add missing unit tests",
+      "description": "read /tmp/lavender-failures.txt and add/adjust tests for failures",
+      "input_file": "/tmp/lavender-failures.txt",
+      "comment": "Shell: read /tmp/lavender-failures.txt then create/adjust tests",
+      "priority": "high",
+      "status": "pending"
+    },
+    "update-docs": {
+      "id": "update-docs",
+      "title": "Update docs",
+      "description": "update docs/*.md for any endpoints touched by failing tests",
+      "source_file": "/tmp/lavender-failures.txt",
+      "docs_dir": "docs",
+      "comment": "Shell: ls docs/*.md and update relevant files",
+      "priority": "medium",
+      "status": "pending"
+    }
+  },
+  "notification": {
+    "telegram": {
+      "enabled": false,
+      "token_env": "TELEGRAM_BOT_TOKEN",
+      "chat_id_env": "TELEGRAM_CHAT_ID",
+      "summary_file": "/tmp/telegram_summary.txt",
+      "log_file": "/tmp/lavender-maintenance-{{date}}.log"
+    }
+  },
+  "schedule": "daily at 06:00 UTC",
+  "created": "2026-10-08",
+  "modified": "2026-10-08"
+}

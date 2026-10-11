@@ -57,6 +57,7 @@ Detailed documentation for Lavender is organized into modular guides in the [`do
 - [Authentication & Security](docs/auth.md) — Native PAM, shadow verification, sudo/doas elevation, and session store.
 - [API Reference](docs/api.md) — Complete REST and SSE endpoint reference with request/response specs.
 - [Services & Subsystems](docs/services.md) — Internal Python service modules and host Linux subsystem adapters.
+- [Kanban Maintenance Cronjob](docs/maintenance.md) — Runbook, dependencies, and troubleshooting for the daily maintenance cronjob.
 
 ---
 
