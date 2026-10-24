@@ -82,26 +82,27 @@ All backend endpoints are now structured under dedicated domain routers:
 | **Package Management** | `/api/packages` | `/api/device/packages` |
 | **Users & Sessions** | `/api/users` | `/api/device/users` |
 | **Power & Governors** | `/api/power` | `/api/device/power` |
-| **Storage & Mounts** | `/api/storage` | `/api/storage` |
-| **Live Telemetry (SSE)** | `/api/device/live` | `/api/device/live` |
+| **Storage & File Manager** | `/api/storage` | `/api/storage` (and `/api/system/storage`) |
+| **Live Telemetry (SSE)** | `/api/device/live` | `/api/live` |
 
-All legacy endpoint aliases continue to function, ensuring existing curl scripts and automated webhooks will not break.
+All legacy endpoint aliases continue to function, ensuring existing curl scripts and automated webhooks will not break. In addition, `/api/storage` now features complete file management endpoints (`/api/storage/files`, `/api/storage/bookmarks`, `/api/storage/file/view`, `/api/storage/file/raw`, `/api/storage/file/save`, `/api/storage/mkdir`, `/api/storage/file/create`, `/api/storage/rename`, `/api/storage/delete`, `/api/storage/upload`).
 
 ---
 
 ## 5. Local Development Workflow
 
-If developing the React frontend locally:
+When developing locally with hot reload:
 
 ```bash
-# Terminal 1: Backend API server
+# Terminal 1: Backend API server (runs on port 8085 with auto-reload)
 make dev-backend
 
-# Terminal 2: Vite dev server with Hot Module Replacement (HMR)
+# Terminal 2: Vite dev server with Hot Module Replacement (runs on port 3000, proxies /api and /auth to :8085)
 make dev-frontend
 ```
 
-To compile production assets after modifying the frontend:
+To compile production assets into `server/dist/` after modifying the frontend:
 ```bash
 make build
 ```
+

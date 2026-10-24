@@ -9,7 +9,7 @@ install:
 dev-backend:
 	uv run uvicorn server.main:app --reload --host 0.0.0.0 --port 8085
 
-# Run frontend dev server only (Vite HMR proxying API to :8080)
+# Run frontend dev server only (Vite HMR proxying API to :8085)
 dev-frontend:
 	cd frontend && bun run dev
 
