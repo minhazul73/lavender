@@ -59,6 +59,14 @@ Comprehensive network diagnostics and Wi-Fi interface management:
 - Wi-Fi status integration across `nmcli`, `iwconfig`, `iw`, `wpa_cli`, and `/proc/net/wireless`.
 - Latency tools: Ping latency tests and domain resolution diagnostics.
 
+### 7b. `battery.py`
+Battery, thermal, and CPU frequency management:
+- **Battery:** Reads sysfs `/sys/class/power_supply/` and UPower data (`upower -e` / `upower -i`) for capacity, voltage, charge cycles, and state.
+- **Thermal Zones:** Scans `/sys/class/thermal/thermal_zone*`, mapping type names to friendly labels (e.g. `cpu0_thermal` → `CPU0 (Gold)`) and flagging zones above 70 °C as warnings.
+- **CPU Frequencies:** Iterates `/sys/devices/system/cpu/cpu*/cpufreq/` for current frequency and scaling governor. Filters out non-CPU entries (e.g. `cpufreq`) by requiring `entry[3:].isdigit()` so only `cpu0`, `cpu1`, etc. are processed.
+- **CPU Scaling:** Reads `cpu0/cpufreq` for available governors and min/max frequency ranges.
+- **Uptime:** Wraps `uptime` command output for human-readable system up time.
+
 ### 8. `users.py`
 User and group account management:
 - Enriched `/etc/passwd` parsing separating human accounts (UID ≥ 1000) from system daemon accounts.
