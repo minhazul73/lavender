@@ -247,7 +247,7 @@ def get_cpu_frequencies() -> list[dict]:
         return [{"note": "CPU frequency info not available"}]
 
     for entry in sorted(os.listdir(cpu_dir)):
-        if entry.startswith("cpu") and entry.isdigit():
+        if entry.startswith("cpu") and entry[3:].isdigit():
             cpu_num = int(entry[3:])
             cpu_path = os.path.join(cpu_dir, entry)
             cpu_info = {
