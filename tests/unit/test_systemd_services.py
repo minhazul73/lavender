@@ -161,7 +161,7 @@ class TestServiceToggleEnabled:
     @patch("dashboard.services.systemd.service_action")
     def test_disable_calls_stop_action(self, mock_action):
         mock_action.return_value = {"success": True}
-        res = systemd.service_toggle_enabled("foo.service", enable=False)
+        systemd.service_toggle_enabled("foo.service", enable=False)
         mock_action.assert_called_once_with("foo.service", "disable", False)
 
 
@@ -238,4 +238,3 @@ class TestGetRecentLogs:
         mock_run.return_value = (0, "not json\n", "")
         logs = systemd.get_recent_logs()
         assert logs == []
-
