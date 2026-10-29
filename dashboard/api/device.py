@@ -10,13 +10,12 @@ from fastapi import APIRouter, Query, HTTPException, Depends
 
 from dashboard.auth.session import UserSession
 from dashboard.auth.deps import require_session, require_admin, get_current_session
-from dashboard.dependencies import run_command, parse_groups, parse_all_passwd_users
+from dashboard.dependencies import parse_groups, parse_all_passwd_users
 from dashboard.auth.bridge import run_sudo_async
 from dashboard.services.network import (
     get_ip_addresses,
     get_wifi_info,
     get_dns_info,
-    get_dns_servers,
     ping_test,
     get_gateways,
     get_network_summary,
@@ -36,15 +35,11 @@ from dashboard.services.packages import (
     get_installed_count,
     get_installed_packages,
     get_upgradable_packages,
-    upgrade_packages,
     search_packages,
     get_package_info,
     invalidate_packages_cache,
 )
 from dashboard.services.users import (
-    get_users,
-    get_all_users,
-    get_groups,
     get_current_user,
     get_sudoers_info,
     get_human_users,
@@ -57,12 +52,8 @@ from dashboard.services.users import (
     add_user_ssh_key,
     delete_user_ssh_key,
     get_user_groups,
-    GROUP_METADATA,
 )
 from dashboard.services.power import (
-    reboot,
-    poweroff,
-    suspend,
     get_scheduled_shutdown,
     schedule_power_action,
     cancel_scheduled_action,
@@ -444,10 +435,10 @@ async def api_update_user_groups(
                     err_messages.append(f"remove from {g}: {e or e2}")
 
         if err_messages:
+            err_detail = "; ".join(err_messages)
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to update groups: {
-                '; '.join(err_messages)}",
+                detail=f"Failed to update groups: {err_detail}",
             )
 
     return {
@@ -501,8 +492,7 @@ async def api_change_password(
             raise e
         raise HTTPException(
             status_code=500,
-            detail=f"Password update error: {
-            str(e)}",
+            detail=f"Password update error: {str(e)}",
         )
 
 

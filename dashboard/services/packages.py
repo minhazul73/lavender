@@ -4,7 +4,6 @@ Supports Alpine/postmarketOS (apk), Debian/Ubuntu/Linux Mint (apt/dpkg),
 Arch Linux/Manjaro (pacman), and Fedora/RHEL (dnf/rpm).
 """
 
-import os
 import re
 import time
 import shutil
@@ -110,7 +109,7 @@ class ApkManager(BasePackageManager):
     def get_installed_count(self) -> int:
         code, out, err = run_command(["apk", "info"], timeout=15)
         if code == 0:
-            lines = [l for l in out.splitlines() if l.strip()]
+            lines = [ln for ln in out.splitlines() if ln.strip()]
             return len(lines)
         return 0
 
@@ -232,7 +231,7 @@ class AptManager(BasePackageManager):
             ["dpkg-query", "-W", "-f=${Package}\n"], timeout=15
         )
         if code == 0:
-            lines = [l for l in out.splitlines() if l.strip()]
+            lines = [ln for ln in out.splitlines() if ln.strip()]
             return len(lines)
         return 0
 
@@ -359,7 +358,7 @@ class PacmanManager(BasePackageManager):
     def get_installed_count(self) -> int:
         code, out, err = run_command(["pacman", "-Q"], timeout=15)
         if code == 0:
-            return len([l for l in out.splitlines() if l.strip()])
+            return len([ln for ln in out.splitlines() if ln.strip()])
         return 0
 
     def get_upgradable_packages(self) -> List[Dict[str, Any]]:
@@ -469,13 +468,13 @@ class DnfManager(BasePackageManager):
                 {"name": name, "version": version, "arch": arch, "full": line}
             )
 
-        packages.sort(key=lambda p: p["name"].lower())
+        packages.sort(key=lambda pkg: pkg["name"].lower())
         return packages
 
     def get_installed_count(self) -> int:
         code, out, err = run_command(["rpm", "-qa"], timeout=15)
         if code == 0:
-            return len([l for l in out.splitlines() if l.strip()])
+            return len([ln for ln in out.splitlines() if ln.strip()])
         return 0
 
     def get_upgradable_packages(self) -> List[Dict[str, Any]]:
@@ -490,14 +489,20 @@ class DnfManager(BasePackageManager):
             if not line:
                 continue
             parts = line.split()
-            if len(parts) >= 2:
-                name = parts[0]
+            if len(parts) >= 3:
+                name_arch = parts[0]
+                name, arch = (
+                    name_arch.split(".", 1) if "." in name_arch else (name_arch, "")
+                )
                 version = parts[1]
+                repo = parts[2]
                 packages.append(
                     {
-                        "name": name,
+                        "name": name_arch,
                         "name_clean": name,
                         "version": version,
+                        "repo": repo,
+                        "arch": arch,
                         "full": line,
                     }
                 )
@@ -513,11 +518,34 @@ class DnfManager(BasePackageManager):
             line = line.strip()
             if not line or line.startswith("="):
                 continue
-            parts = line.split(" : ", 1)
-            name = parts[0].strip()
-            desc = parts[1].strip() if len(parts) > 1 else ""
+            # dnf search output formats may be:
+            #   "name : description"
+            #   "name.arch\tversion repo description"
+            if " : " in line:
+                name, desc = line.split(" : ", 1)
+                name = name.strip()
+                desc = desc.strip()
+                results.append(
+                    {"name": name, "version": desc, "description": desc, "full": line}
+                )
+                continue
+            # fallback to whitespace split; assume first token is name.arch
+            parts = line.split(None, 1)
+            name_arch = parts[0]
+            name, arch = (
+                (name_arch.split(".", 1) + [""])[:2]
+                if "." in name_arch
+                else (name_arch, "")
+            )
+            remainder = parts[1] if len(parts) > 1 else ""
             results.append(
-                {"name": name, "version": desc, "description": desc, "full": line}
+                {
+                    "name": name,
+                    "arch": arch,
+                    "version": remainder,
+                    "description": remainder,
+                    "full": line,
+                }
             )
         return results
 

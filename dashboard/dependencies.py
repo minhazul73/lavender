@@ -7,8 +7,9 @@ import shutil
 import os
 from typing import Optional
 
-from dashboard.config import SUDO_COMMANDS
 import logging
+
+from dashboard.auth.session import UserSession
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
 
 
 async def run_session_command(
-    session: Optional["UserSession"],
+    session: Optional[UserSession],
     cmd: list[str],
     timeout: int = 30,
 ) -> tuple[int, str, str]:
@@ -71,7 +72,7 @@ async def run_session_command(
 
 
 async def run_session_user_service(
-    session: Optional["UserSession"],
+    session: Optional[UserSession],
     cmd: list[str],
     timeout: int = 30,
 ) -> tuple[int, str, str]:
@@ -86,7 +87,7 @@ async def run_session_user_service(
 
 
 async def run_session_sudo(
-    session: Optional["UserSession"],
+    session: Optional[UserSession],
     cmd: list[str],
     password: Optional[str] = None,
     timeout: int = 30,
