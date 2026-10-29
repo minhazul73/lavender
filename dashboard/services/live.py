@@ -26,10 +26,10 @@ from dashboard.config import (
     SSE_BATTERY_INTERVAL_MS,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
 
 def _read_file(path: str) -> Optional[str]:
     """Read a single sysfs/proc file, return None on any failure."""
@@ -78,6 +78,7 @@ def _get_loadavg(index: int) -> float:
 # Ring buffer (memory-efficient, fixed-window history)
 # ---------------------------------------------------------------------------
 
+
 class RingBuffer:
     """Fixed-size circular buffer for a single metric stream.
 
@@ -114,9 +115,11 @@ class RingBuffer:
 # Collector protocol
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CollectorStats:
     """Running stats for a single collector."""
+
     sample_count: int = 0
     last_error: Optional[str] = None
     errors_in_row: int = 0
@@ -135,11 +138,16 @@ class MetricCollector:
       - buffer management
     """
 
-    __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
-                 "_task", "_buffer_key")
+    __slots__ = (
+        "_interval_ms",
+        "_buffer",
+        "_stats",
+        "_stop_event",
+        "_task",
+        "_buffer_key",
+    )
 
-    def __init__(self, interval_ms: int, history_size: int,
-                 buffer_key: str) -> None:
+    def __init__(self, interval_ms: int, history_size: int, buffer_key: str) -> None:
         self._interval_ms = interval_ms
         self._buffer = RingBuffer(history_size)
         self._stats = CollectorStats()
@@ -183,7 +191,9 @@ class MetricCollector:
         if self._task is not None and not self._task.done():
             return  # already running
         self._stop_event.clear()
-        self._task = loop.create_task(self._run_loop(), name=f"collector-{self._buffer_key}")
+        self._task = loop.create_task(
+            self._run_loop(), name=f"collector-{self._buffer_key}"
+        )
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -198,6 +208,7 @@ class MetricCollector:
 # ---------------------------------------------------------------------------
 # Per-core CPU usage from /proc/stat
 # ---------------------------------------------------------------------------
+
 
 def _parse_proc_stat() -> List[Optional[dict]]:
     """Parse /proc/stat and return per-core CPU time dicts.
@@ -244,19 +255,40 @@ def _parse_proc_stat() -> List[Optional[dict]]:
             while len(values) < 10:
                 values.append(0)
 
-            user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = values[:10]
-            # Guest time is already in usertime, subtract to avoid double-counting
+            user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = (
+                values[:10]
+            )
+            # Guest time is already in usertime, subtract to avoid
+            # double-counting
             user -= guest
             nice -= guestnice
 
-            total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guestnice
+            total = (
+                user
+                + nice
+                + system
+                + idle
+                + iowait
+                + irq
+                + softirq
+                + steal
+                + guest
+                + guestnice
+            )
             idle_total = idle + iowait
 
             cpus[core_num] = {
-                "user": user, "nice": nice, "system": system,
-                "idle": idle, "iowait": iowait, "irq": irq,
-                "softirq": softirq, "steal": steal, "guest": guest,
-                "guestnice": guestnice, "total": total,
+                "user": user,
+                "nice": nice,
+                "system": system,
+                "idle": idle,
+                "iowait": iowait,
+                "irq": irq,
+                "softirq": softirq,
+                "steal": steal,
+                "guest": guest,
+                "guestnice": guestnice,
+                "total": total,
                 "idle_total": idle_total,
             }
 
@@ -281,12 +313,14 @@ def _calc_cpu_usage(prev: Optional[dict], curr: Optional[dict]) -> Optional[floa
 # CPU Frequency Collector
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CPUCoreInfo:
     core: int
-    frequency_mhz: Optional[float] = None   # None if cpufreq not exposed
+    frequency_mhz: Optional[float] = None  # None if cpufreq not exposed
     governor: Optional[str] = None
-    capacity: Optional[int] = None          # scheduler capacity (big vs little)
+    # scheduler capacity (big vs little)
+    capacity: Optional[int] = None
 
 
 class CPUFreqCollector(MetricCollector):
@@ -296,12 +330,23 @@ class CPUFreqCollector(MetricCollector):
     ARM SoCs without dynamic frequency scaling).
     """
 
-    __slots__ = ("_cpu_dir", "_cpus", "_cpus_last_update", "_interval_ms",
-                 "_buffer", "_stats", "_stop_event", "_task", "_has_cpufreq",
-                 "_prev_stat", "_curr_stat")
+    __slots__ = (
+        "_cpu_dir",
+        "_cpus",
+        "_cpus_last_update",
+        "_interval_ms",
+        "_buffer",
+        "_stats",
+        "_stop_event",
+        "_task",
+        "_has_cpufreq",
+        "_prev_stat",
+        "_curr_stat",
+    )
 
-    def __init__(self, interval_ms: int = SSE_CPU_INTERVAL_MS,
-                 history_size: int = 20) -> None:
+    def __init__(
+        self, interval_ms: int = SSE_CPU_INTERVAL_MS, history_size: int = 20
+    ) -> None:
         super().__init__(interval_ms, history_size, "cpu")
         self._cpu_dir = "/sys/devices/system/cpu"
         self._cpus: List[CPUCoreInfo] = []
@@ -328,15 +373,19 @@ class CPUFreqCollector(MetricCollector):
             freq_mhz = freq_khz / 1000.0 if freq_khz > 0 else None
             gov_path = f"{self._cpu_dir}/cpu{core.core}/cpufreq/scaling_governor"
             gov = _read_file(gov_path)
-            cores_list.append({
-                "cpu": core.core,
-                "frequency_mhz": freq_mhz,
-                "frequency_khz": freq_khz if freq_khz > 0 else None,
-                "governor": gov if gov else None,
-                "capacity": core.capacity,
-            })
+            cores_list.append(
+                {
+                    "cpu": core.core,
+                    "frequency_mhz": freq_mhz,
+                    "frequency_khz": freq_khz if freq_khz > 0 else None,
+                    "governor": gov if gov else None,
+                    "capacity": core.capacity,
+                }
+            )
 
-        freqs = [c["frequency_mhz"] for c in cores_list if c["frequency_mhz"] is not None]
+        freqs = [
+            c["frequency_mhz"] for c in cores_list if c["frequency_mhz"] is not None
+        ]
         primary_freq = freqs[0] if freqs else None
 
         # Per-core CPU usage from /proc/stat
@@ -350,10 +399,12 @@ class CPUFreqCollector(MetricCollector):
         per_core_usage = []
         for i, (prev, curr) in enumerate(zip(self._prev_stat, self._curr_stat)):
             usage = _calc_cpu_usage(prev, curr)
-            per_core_usage.append({
-                "core": i,
-                "usage": round(usage, 1) if usage is not None else None,
-            })
+            per_core_usage.append(
+                {
+                    "core": i,
+                    "usage": round(usage, 1) if usage is not None else None,
+                }
+            )
 
         return {
             "cpus": cores_list,
@@ -381,9 +432,9 @@ class CPUFreqCollector(MetricCollector):
                 if online:
                     if os.path.isdir(f"{self._cpu_dir}/{entry}/cpufreq"):
                         has_cpufreq = True
-                    capacity = _read_int(
-                        f"{self._cpu_dir}/{entry}/cpu_capacity", 0
-                    ) or None
+                    capacity = (
+                        _read_int(f"{self._cpu_dir}/{entry}/cpu_capacity", 0) or None
+                    )
                     cpus.append(CPUCoreInfo(core=core_num, capacity=capacity))
         # os.listdir() order is arbitrary, so cpu7 could be reported before
         # cpu0. Sort numerically so the UI lists cores in a stable order.
@@ -397,6 +448,7 @@ class CPUFreqCollector(MetricCollector):
 # RAM Collector
 # ---------------------------------------------------------------------------
 
+
 class RAMCollector(MetricCollector):
     """Collects RAM usage from /proc/meminfo.
 
@@ -404,11 +456,11 @@ class RAMCollector(MetricCollector):
     read (no subprocess).
     """
 
-    __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
-                 "_task")
+    __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event", "_task")
 
-    def __init__(self, interval_ms: int = SSE_RAM_INTERVAL_MS,
-                 history_size: int = 20) -> None:
+    def __init__(
+        self, interval_ms: int = SSE_RAM_INTERVAL_MS, history_size: int = 20
+    ) -> None:
         super().__init__(interval_ms, history_size, "ram")
 
     async def collect(self) -> dict:
@@ -465,6 +517,7 @@ class RAMCollector(MetricCollector):
 # Thermal Collector
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ThermalZone:
     name: str
@@ -510,11 +563,18 @@ class ThermalCollector(MetricCollector):
     Tries multiple sysfs paths because thermal drivers differ by SoC.
     """
 
-    __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
-                 "_task", "_sources")
+    __slots__ = (
+        "_interval_ms",
+        "_buffer",
+        "_stats",
+        "_stop_event",
+        "_task",
+        "_sources",
+    )
 
-    def __init__(self, interval_ms: int = SSE_THERMAL_INTERVAL_MS,
-                 history_size: int = 20) -> None:
+    def __init__(
+        self, interval_ms: int = SSE_THERMAL_INTERVAL_MS, history_size: int = 20
+    ) -> None:
         super().__init__(interval_ms, history_size, "thermal")
         self._sources = self._discover_thermal_sources()
 
@@ -543,17 +603,20 @@ class ThermalCollector(MetricCollector):
                     zone_name = f"{label}" if label else f"hwmon-{hwmon_name}-{temp_i}"
                     norm_type = dev_type.replace("-", "_")
                     if norm_type in seen_names:
-                        continue  # already found via a previous source (e.g. platform)
+                        # already found via a previous source (e.g. platform)
+                        continue
                     seen_names.add(norm_type)
-                    zones.append({
-                        "name": zone_name,
-                        "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
-                        "type": dev_type,
-                        "temp_millicelsius": temp_val,
-                        "temp_celsius": tc,
-                        "warning": warning,
-                        "crit": crit,
-                    })
+                    zones.append(
+                        {
+                            "name": zone_name,
+                            "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
+                            "type": dev_type,
+                            "temp_millicelsius": temp_val,
+                            "temp_celsius": tc,
+                            "warning": warning,
+                            "crit": crit,
+                        }
+                    )
 
         # 2) platform device thermal (qcom, mediatek, etc.)
         platform_path = "/sys/bus/platform/devices"
@@ -568,15 +631,17 @@ class ThermalCollector(MetricCollector):
                     tc = temp_val / 1000.0
                     warning = tc >= 70.0
                     crit = tc >= 90.0
-                    zones.append({
-                        "name": dev_name,
-                        "display_name": THERMAL_NAME_MAP.get(dev_name, dev_name),
-                        "type": "platform-thermal",
-                        "temp_millicelsius": temp_val,
-                        "temp_celsius": tc,
-                        "warning": warning,
-                        "crit": crit,
-                    })
+                    zones.append(
+                        {
+                            "name": dev_name,
+                            "display_name": THERMAL_NAME_MAP.get(dev_name, dev_name),
+                            "type": "platform-thermal",
+                            "temp_millicelsius": temp_val,
+                            "temp_celsius": tc,
+                            "warning": warning,
+                            "crit": crit,
+                        }
+                    )
 
         # 3) legacy thermal sysfs (some kernels)
         thermal_path = "/sys/class/thermal"
@@ -590,22 +655,25 @@ class ThermalCollector(MetricCollector):
                 temp_file = os.path.join(zone_dir, "temp")
                 temp_val = _read_int(temp_file, 0)
                 if temp_val > 0:
-                    # Skip duplicates already found via hwmon (same dev_type, normalized)
+                    # Skip duplicates already found via hwmon (same dev_type,
+                    # normalized)
                     if norm_type in seen_names:
                         continue
                     seen_names.add(norm_type)
                     tc = temp_val / 1000.0
                     warning = tc >= 70.0
                     crit = tc >= 90.0
-                    zones.append({
-                        "name": zone_name,
-                        "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
-                        "type": dev_type,
-                        "temp_millicelsius": temp_val,
-                        "temp_celsius": tc,
-                        "warning": warning,
-                        "crit": crit,
-                    })
+                    zones.append(
+                        {
+                            "name": zone_name,
+                            "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
+                            "type": dev_type,
+                            "temp_millicelsius": temp_val,
+                            "temp_celsius": tc,
+                            "warning": warning,
+                            "crit": crit,
+                        }
+                    )
 
         return zones
 
@@ -621,6 +689,7 @@ class ThermalCollector(MetricCollector):
 # ---------------------------------------------------------------------------
 # Battery Collector
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class BatteryInfo:
@@ -655,12 +724,21 @@ class BatteryCollector(MetricCollector):
     upower for fields like time_to_empty, time_to_full, and capacity.
     """
 
-    __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
-                 "_task", "_sysfs_batteries", "_upower_available",
-                 "_upower_checked", "_upower_device")
+    __slots__ = (
+        "_interval_ms",
+        "_buffer",
+        "_stats",
+        "_stop_event",
+        "_task",
+        "_sysfs_batteries",
+        "_upower_available",
+        "_upower_checked",
+        "_upower_device",
+    )
 
-    def __init__(self, interval_ms: int = SSE_BATTERY_INTERVAL_MS,
-                 history_size: int = 20) -> None:
+    def __init__(
+        self, interval_ms: int = SSE_BATTERY_INTERVAL_MS, history_size: int = 20
+    ) -> None:
         super().__init__(interval_ms, history_size, "battery")
         self._sysfs_batteries: List[str] = []
         self._upower_available = False
@@ -675,11 +753,17 @@ class BatteryCollector(MetricCollector):
         if upower_info:
             for k, v in upower_info.items():
                 if v is not None:
-                    if info.get(k) is None or info.get(k) == "" or info.get(k) == "unknown":
+                    if (
+                        info.get(k) is None
+                        or info.get(k) == ""
+                        or info.get(k) == "unknown"
+                    ):
                         info[k] = v
                     elif k in ("time_to_empty", "time_to_full", "capacity"):
                         info[k] = v
-                    elif k == "energy_rate" and (not info.get("energy_rate") or info.get("energy_rate") <= 0):
+                    elif k == "energy_rate" and (
+                        not info.get("energy_rate") or info.get("energy_rate") <= 0
+                    ):
                         info[k] = v
 
         state = str(info.get("state") or "unknown").lower()
@@ -898,8 +982,11 @@ class BatteryCollector(MetricCollector):
         if not os.path.isdir(ps_path):
             return batteries
         for name in os.listdir(ps_path):
-            if (name.startswith("bat") or "battery" in name.lower()
-                    or name.startswith("qcom-battery")):
+            if (
+                name.startswith("bat")
+                or "battery" in name.lower()
+                or name.startswith("qcom-battery")
+            ):
                 batteries.append(name)
         return batteries
 
@@ -908,6 +995,7 @@ class BatteryCollector(MetricCollector):
         if self._upower_device is not None:
             return self._upower_device or None
         import subprocess
+
         try:
             out = subprocess.check_output(["upower", "-e"], timeout=3).decode("utf-8")
             for line in out.splitlines():
@@ -924,6 +1012,7 @@ class BatteryCollector(MetricCollector):
         """Fallback and supplement via upower."""
         if not self._upower_checked:
             import subprocess
+
             try:
                 subprocess.run(["upower", "--version"], capture_output=True, timeout=2)
                 self._upower_available = True
@@ -939,12 +1028,18 @@ class BatteryCollector(MetricCollector):
             return {}
 
         import subprocess
+
         try:
             out = subprocess.check_output(
                 ["upower", "-i", dev],
-                timeout=4, stderr=subprocess.STDOUT,
+                timeout=4,
+                stderr=subprocess.STDOUT,
             ).decode("utf-8", errors="replace")
-        except (FileNotFoundError, subprocess.TimeoutExpired, subprocess.CalledProcessError):
+        except (
+            FileNotFoundError,
+            subprocess.TimeoutExpired,
+            subprocess.CalledProcessError,
+        ):
             return {}
 
         result: dict = {}
@@ -964,7 +1059,9 @@ class BatteryCollector(MetricCollector):
                 result["state"] = val
             elif key == "temperature":
                 try:
-                    result["temperature"] = float(val.replace("degrees C", "").replace("°C", "").strip())
+                    result["temperature"] = float(
+                        val.replace("degrees C", "").replace("°C", "").strip()
+                    )
                 except ValueError:
                     pass
             elif key == "voltage":
@@ -1014,6 +1111,7 @@ class BatteryCollector(MetricCollector):
 # Network Rate Collector
 # ---------------------------------------------------------------------------
 
+
 class NetworkRateCollector(MetricCollector):
     """Collects network interface counters from /proc/net/dev and computes
     rates (bytes/sec) by comparing consecutive samples.
@@ -1022,11 +1120,19 @@ class NetworkRateCollector(MetricCollector):
     computes (new - old) / elapsed.
     """
 
-    __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
-                 "_task", "_prev_counters", "_prev_time")
+    __slots__ = (
+        "_interval_ms",
+        "_buffer",
+        "_stats",
+        "_stop_event",
+        "_task",
+        "_prev_counters",
+        "_prev_time",
+    )
 
-    def __init__(self, interval_ms: int = SSE_NETWORK_INTERVAL_MS,
-                 history_size: int = 30) -> None:
+    def __init__(
+        self, interval_ms: int = SSE_NETWORK_INTERVAL_MS, history_size: int = 30
+    ) -> None:
         super().__init__(interval_ms, history_size, "network")
         self._prev_counters: Dict[str, Tuple[int, int]] = {}
         self._prev_time: float = 0.0
@@ -1133,9 +1239,20 @@ class NetworkRateCollector(MetricCollector):
         Prioritizes WiFi, Ethernet, and USB interfaces over virtual / VPN interfaces
         like Tailscale.
         """
-        exclude = {"lo", "docker", "br-", "veth", "tun", "tap", "virbr", "bond", "dummy"}
+        exclude = {
+            "lo",
+            "docker",
+            "br-",
+            "veth",
+            "tun",
+            "tap",
+            "virbr",
+            "bond",
+            "dummy",
+        }
         candidates = [
-            iface for iface in counters.keys()
+            iface
+            for iface in counters.keys()
             if not any(iface.startswith(p) for p in exclude)
         ]
         if not candidates:
@@ -1151,12 +1268,13 @@ class NetworkRateCollector(MetricCollector):
             rx_bytes, tx_bytes = counters.get(iface, (0, 0))
             total_bytes = rx_bytes + tx_bytes
             cat_prio = self._interface_category_priority(iface)
-            is_virtual = (cat_prio >= 8)
+            is_virtual = cat_prio >= 8
 
             operstate = self._interface_operstate(iface)
-            is_down = (operstate == "down")
+            is_down = operstate == "down"
 
-            # Only physical / cellular interfaces qualify for default route bonus
+            # Only physical / cellular interfaces qualify for default route
+            # bonus
             is_default = (iface == default_route) and not is_virtual
 
             down_penalty = 1 if is_down else 0
@@ -1165,13 +1283,13 @@ class NetworkRateCollector(MetricCollector):
             traffic_score = 0 if total_bytes > 0 else 1
 
             return (
-                down_penalty,      # 0 for up/unknown, 1 for down
-                virtual_penalty,   # 0 for physical/cellular/usb/wifi, 1 for Tailscale/VPN
-                default_score,     # 0 if physical default route, 1 otherwise
-                traffic_score,     # 0 if interface has recorded traffic, 1 if 0 bytes
-                cat_prio,          # 1: WiFi, 2: Ethernet, 3: USB, 4: Cellular, 5: Other
-                -total_bytes,      # higher total traffic first
-                iface              # deterministic fallback
+                down_penalty,  # 0 for up/unknown, 1 for down
+                virtual_penalty,  # 0 for physical/cellular/usb/wifi, 1 for Tailscale/VPN
+                default_score,  # 0 if physical default route, 1 otherwise
+                traffic_score,  # 0 if interface has recorded traffic, 1 if 0 bytes
+                cat_prio,  # 1: WiFi, 2: Ethernet, 3: USB, 4: Cellular, 5: Other
+                -total_bytes,  # higher total traffic first
+                iface,  # deterministic fallback
             )
 
         candidates.sort(key=sort_key)
@@ -1182,6 +1300,7 @@ class NetworkRateCollector(MetricCollector):
 # Live Monitoring Engine (singleton orchestrator)
 # ---------------------------------------------------------------------------
 
+
 class LiveMonitor:
     """Orchestrates all per-metric collectors.
 
@@ -1190,8 +1309,16 @@ class LiveMonitor:
     - Expose current values + buffers for SSE streaming
     """
 
-    __slots__ = ("_cpu", "_ram", "_thermal", "_battery", "_network",
-                 "_lock", "_client_count", "_started")
+    __slots__ = (
+        "_cpu",
+        "_ram",
+        "_thermal",
+        "_battery",
+        "_network",
+        "_lock",
+        "_client_count",
+        "_started",
+    )
 
     def __init__(self) -> None:
         self._cpu = CPUFreqCollector()
@@ -1250,7 +1377,8 @@ class LiveMonitor:
         # The refcount bump and the start decision must be atomic together,
         # otherwise a client arriving while the last one is still tearing down
         # sees _started=True, skips the start, and then the departing client
-        # flips _started=False — leaving a live subscriber with dead collectors.
+        # flips _started=False — leaving a live subscriber with dead
+        # collectors.
         async with self._lock:
             self._client_count += 1
             if self._client_count == 1:
@@ -1293,6 +1421,7 @@ class LiveMonitor:
 # ---------------------------------------------------------------------------
 
 _live_monitor: Optional[LiveMonitor] = None
+
 
 def get_live_monitor() -> LiveMonitor:
     global _live_monitor

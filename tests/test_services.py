@@ -1,11 +1,21 @@
 """
 Unit tests for dashboard service modules.
 """
+
 import pytest
 from unittest.mock import patch, MagicMock
 
-from dashboard.services.device_info import get_device_model, get_os_info, get_system_info
-from dashboard.services.storage import get_disk_usage, get_mounts, _is_external_mount, _parse_pct
+from dashboard.services.device_info import (
+    get_device_model,
+    get_os_info,
+    get_system_info,
+)
+from dashboard.services.storage import (
+    get_disk_usage,
+    get_mounts,
+    _is_external_mount,
+    _parse_pct,
+)
 from dashboard.services.network import format_bytes, get_known_dns_provider
 from dashboard.services.packages import get_package_manager, NullPackageManager
 from dashboard.services.power import reboot, poweroff, suspend, get_scheduled_shutdown
@@ -88,18 +98,31 @@ class TestNetworkService:
         assert get_known_dns_provider("127.0.0.1") == "Local Stub Resolver"
         assert get_known_dns_provider("192.168.1.1") == "Local Router / Gateway"
 
-    def test_primary_interface_prioritizes_wifi_ethernet_usb_over_tailscale(self, monkeypatch):
+    def test_primary_interface_prioritizes_wifi_ethernet_usb_over_tailscale(
+        self, monkeypatch
+    ):
         """Test that WiFi, Ethernet, and USB interfaces are prioritized over Tailscale."""
         from dashboard.services.live import NetworkRateCollector
+
         collector = NetworkRateCollector()
 
         # Mock operstate and default route on the class (due to __slots__)
         monkeypatch.setattr(
             NetworkRateCollector,
             "_interface_operstate",
-            staticmethod(lambda iface: "up" if iface in ("wlan0", "eth0", "usb0") else ("down" if iface == "enp0" else "unknown")),
+            staticmethod(
+                lambda iface: (
+                    "up"
+                    if iface in ("wlan0", "eth0", "usb0")
+                    else ("down" if iface == "enp0" else "unknown")
+                )
+            ),
         )
-        monkeypatch.setattr(NetworkRateCollector, "_default_route_interface", staticmethod(lambda: "wlan0"))
+        monkeypatch.setattr(
+            NetworkRateCollector,
+            "_default_route_interface",
+            staticmethod(lambda: "wlan0"),
+        )
 
         # Scenario 1: Tailscale vs WiFi (both have traffic)
         counters = {
@@ -110,7 +133,11 @@ class TestNetworkService:
         assert collector._primary_interface(counters) == "wlan0"
 
         # Scenario 2: Tailscale vs USB tethering
-        monkeypatch.setattr(NetworkRateCollector, "_default_route_interface", staticmethod(lambda: "usb0"))
+        monkeypatch.setattr(
+            NetworkRateCollector,
+            "_default_route_interface",
+            staticmethod(lambda: "usb0"),
+        )
         counters = {
             "tailscale0": (50000, 20000),
             "usb0": (800000, 400000),
@@ -118,27 +145,41 @@ class TestNetworkService:
         assert collector._primary_interface(counters) == "usb0"
 
         # Scenario 3: Tailscale vs Ethernet
-        monkeypatch.setattr(NetworkRateCollector, "_default_route_interface", staticmethod(lambda: "eth0"))
+        monkeypatch.setattr(
+            NetworkRateCollector,
+            "_default_route_interface",
+            staticmethod(lambda: "eth0"),
+        )
         counters = {
             "tailscale0": (50000, 20000),
             "eth0": (900000, 300000),
         }
         assert collector._primary_interface(counters) == "eth0"
 
-        # Scenario 4: WiFi is up with 0 bytes, Tailscale has traffic -> WiFi still preferred
-        monkeypatch.setattr(NetworkRateCollector, "_default_route_interface", staticmethod(lambda: "wlan0"))
+        # Scenario 4: WiFi is up with 0 bytes, Tailscale has traffic -> WiFi
+        # still preferred
+        monkeypatch.setattr(
+            NetworkRateCollector,
+            "_default_route_interface",
+            staticmethod(lambda: "wlan0"),
+        )
         counters = {
             "tailscale0": (50000, 20000),
             "wlan0": (0, 0),
         }
         assert collector._primary_interface(counters) == "wlan0"
 
-        # Scenario 5: Physical interfaces are down with 0 bytes, only Tailscale is active
-        monkeypatch.setattr(NetworkRateCollector, "_default_route_interface", staticmethod(lambda: None))
+        # Scenario 5: Physical interfaces are down with 0 bytes, only Tailscale
+        # is active
+        monkeypatch.setattr(
+            NetworkRateCollector, "_default_route_interface", staticmethod(lambda: None)
+        )
         monkeypatch.setattr(
             NetworkRateCollector,
             "_interface_operstate",
-            staticmethod(lambda iface: "down" if iface in ("wlan0", "usb0") else "unknown"),
+            staticmethod(
+                lambda iface: "down" if iface in ("wlan0", "usb0") else "unknown"
+            ),
         )
         counters = {
             "tailscale0": (50000, 20000),
@@ -154,6 +195,7 @@ class TestPackagesService:
     def test_get_package_manager_none_detected(self, monkeypatch):
         """Test fallback when no package manager binary exists."""
         import dashboard.services.packages as pkgs
+
         monkeypatch.setattr(pkgs, "_CURRENT_MANAGER", None)
         monkeypatch.setattr(pkgs.shutil, "which", lambda _name: None)
         mgr = get_package_manager()
@@ -168,7 +210,7 @@ class TestPackagesService:
         mock_sudo.return_value = (1, "", "Interactive authentication required.")
         res = reboot()
         assert res["success"] is False
-        assert res["error"] == "Interactive authentication required." 
+        assert res["error"] == "Interactive authentication required."
 
 
 class TestPowerService:
@@ -197,6 +239,7 @@ class TestSystemdService:
     def test_get_recent_logs_parses_realtime_timestamp(self, mock_cmd):
         import json
         from dashboard.services.systemd import get_recent_logs
+
         mock_entry = {
             "__REALTIME_TIMESTAMP": "1792166401792781",
             "MESSAGE": "usb 1-4: new high-speed USB device",
@@ -217,6 +260,7 @@ class TestSystemdService:
     def test_get_recent_logs_fallback_syslog_timestamp(self, mock_cmd):
         import json
         from dashboard.services.systemd import get_recent_logs
+
         mock_entry = {
             "SYSLOG_TIMESTAMP": "Oct 16 22:00:01 ",
             "MESSAGE": "CRON[123]: job done",
@@ -230,4 +274,3 @@ class TestSystemdService:
         assert log["timestamp"] == "Oct 16 22:00:01 "
         assert log["service"] == "CRON"
         assert log["level"] == "warning"
-

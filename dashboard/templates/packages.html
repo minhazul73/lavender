@@ -533,7 +533,7 @@ async function searchRepositories() {
         const data = await res.json();
 
         state.repoResults = Array.isArray(data.results) ? data.results.filter(r => !r.error) : [];
-        
+
         // Show the Repo pill
         const repoPill = document.getElementById('pill-repo');
         repoPill.style.display = 'inline-flex';

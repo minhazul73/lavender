@@ -1,6 +1,7 @@
 """
 Integration tests for Lavender API endpoints using httpx.AsyncClient.
 """
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from dashboard.main import app
@@ -89,4 +90,3 @@ async def test_system_logs_api():
         assert "logs" in data
         assert "count" in data
         assert isinstance(data["logs"], list)
-

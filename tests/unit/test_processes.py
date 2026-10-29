@@ -1,6 +1,7 @@
 """
 Unit tests for dashboard.services.processes.
 """
+
 from unittest.mock import patch, mock_open
 
 from dashboard.services import processes as procs
@@ -15,7 +16,9 @@ class TestTopProcesses:
             "rahat       1234 10.0  5.0 100000 20480 ?        S    12:01   0:10 python3 app.py\n"
         )
         mock_run.return_value = (0, ps_out, "")
-        with patch("builtins.open", mock_open(read_data="MemTotal:        3500000 kB\n")):
+        with patch(
+            "builtins.open", mock_open(read_data="MemTotal:        3500000 kB\n")
+        ):
             result = procs.get_top_processes(sort_by="mem", limit=0)
         assert result[0]["pid"] == 1234
         assert result[0]["mem"] == 20480

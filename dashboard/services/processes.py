@@ -1,6 +1,7 @@
 """
 Process and resource management.
 """
+
 import subprocess
 import os
 import time
@@ -64,30 +65,35 @@ def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
                         content = f.read()
                         rparen = content.rfind(")")
                         if rparen != -1:
-                            rest = content[rparen + 2:].split()
+                            rest = content[rparen + 2 :].split()
                             state = rest[0]
                             vsz_kb = int(rest[20]) // 1024
                             rss_kb = int(rest[21]) * 4
                 except Exception:
                     pass
 
-                mem_pct = round((rss_kb / total_mem_kb) * 100, 1) if total_mem_kb > 0 else 0.0
+                mem_pct = (
+                    round((rss_kb / total_mem_kb) * 100, 1) if total_mem_kb > 0 else 0.0
+                )
 
-                processes.append({
-                    "pid": pid,
-                    "user": user,
-                    "cpu": 0.0,
-                    "cpu_time": time_secs,
-                    "time": time_str,
-                    "mem": rss_kb,
-                    "mem_pct": mem_pct,
-                    "vsz": vsz_kb,
-                    "rss": rss_kb,
-                    "stat": state,
-                    "command": command,
-                })
+                processes.append(
+                    {
+                        "pid": pid,
+                        "user": user,
+                        "cpu": 0.0,
+                        "cpu_time": time_secs,
+                        "time": time_str,
+                        "mem": rss_kb,
+                        "mem_pct": mem_pct,
+                        "vsz": vsz_kb,
+                        "rss": rss_kb,
+                        "stat": state,
+                        "command": command,
+                    }
+                )
             else:
-                # Procps format: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+                # Procps format: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME
+                # COMMAND
                 parts = line.split(None, 10)
                 if len(parts) < 11:
                     continue
@@ -108,24 +114,28 @@ def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
                     except ValueError:
                         pass
 
-                processes.append({
-                    "pid": pid,
-                    "user": user,
-                    "cpu": cpu_pct,
-                    "cpu_time": time_secs,
-                    "time": time_str,
-                    "mem": rss_kb,
-                    "mem_pct": mem_pct,
-                    "vsz": vsz_kb,
-                    "rss": rss_kb,
-                    "stat": stat,
-                    "command": command,
-                })
+                processes.append(
+                    {
+                        "pid": pid,
+                        "user": user,
+                        "cpu": cpu_pct,
+                        "cpu_time": time_secs,
+                        "time": time_str,
+                        "mem": rss_kb,
+                        "mem_pct": mem_pct,
+                        "vsz": vsz_kb,
+                        "rss": rss_kb,
+                        "stat": stat,
+                        "command": command,
+                    }
+                )
         except (ValueError, IndexError):
             continue
 
     if sort_by == "cpu":
-        processes.sort(key=lambda p: (p.get("cpu", 0), p.get("cpu_time", 0)), reverse=True)
+        processes.sort(
+            key=lambda p: (p.get("cpu", 0), p.get("cpu_time", 0)), reverse=True
+        )
     elif sort_by == "pid":
         processes.sort(key=lambda p: p.get("pid", 0))
     elif sort_by == "user":

@@ -1,6 +1,7 @@
 """
 Authentication API endpoints: Login, Logout, Elevation, and User Profile.
 """
+
 import logging
 from typing import Optional
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, Form, status
@@ -98,16 +99,20 @@ async def api_login(
     signed_token = session_store.sign_session_id(session.session_id)
 
     # Sanitize next parameter to prevent open redirects
-    safe_next = next if next and next.startswith("/") and not next.startswith("//") else "/"
+    safe_next = (
+        next if next and next.startswith("/") and not next.startswith("//") else "/"
+    )
 
     if is_json:
-        res = JSONResponse(content={
-            "success": True,
-            "username": username,
-            "redirect": safe_next,
-            "is_admin": session.is_admin,
-            "can_elevate": session.can_elevate(),
-        })
+        res = JSONResponse(
+            content={
+                "success": True,
+                "username": username,
+                "redirect": safe_next,
+                "is_admin": session.is_admin,
+                "can_elevate": session.can_elevate(),
+            }
+        )
     else:
         res = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
 
@@ -138,7 +143,10 @@ async def api_logout(
     if is_json and request.method == "POST":
         res = JSONResponse(content={"success": True})
     else:
-        res = RedirectResponse(url="/login?msg=Logged+out+successfully", status_code=status.HTTP_303_SEE_OTHER)
+        res = RedirectResponse(
+            url="/login?msg=Logged+out+successfully",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     res.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
     return res
@@ -165,14 +173,22 @@ async def api_elevate(
 
     valid, err = await verify_sudo_password(password)
     if not valid:
-        logger.warning("Administrative elevation failed for user %s: %s", session.username, err)
+        logger.warning(
+            "Administrative elevation failed for user %s: %s", session.username, err
+        )
         raise HTTPException(
             status_code=400,
-            detail=f"Incorrect password for '{session.username}'. Please enter the password for user '{session.username}' (user must have wheel/sudo group permissions).",
+            detail=f"Incorrect password for '{
+                session.username}'. Please enter the password for user '{
+                session.username}' (user must have wheel/sudo group permissions).",
         )
 
     session.elevate()
-    logger.info("User %s elevated to administrative access (session %s)", session.username, session.session_id[:8])
+    logger.info(
+        "User %s elevated to administrative access (session %s)",
+        session.username,
+        session.session_id[:8],
+    )
     return {
         "success": True,
         "is_admin": True,

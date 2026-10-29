@@ -1,0 +1,6 @@
+[flake8]
+max-line-length = 88
+
+# Black formats with line break before binary operator — ignore W503 to avoid conflicts.
+ignore =
+    W503

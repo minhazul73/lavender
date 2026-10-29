@@ -1,21 +1,38 @@
 """
 Storage utilities: disk usage via df -h, mount info, and directory usage.
 """
+
 import subprocess
 from typing import List, Dict, Any
 
-
-PSEUDO_FS = frozenset([
-    "tmpfs", "devtmpfs", "devpts", "proc", "sysfs", "cgroup",
-    "cgroup2", "debugfs", "tracefs", "fusectl", "pstore",
-    "bpf", "configfs", "securityfs", "hugetlbfs",
-    "dev", "run",  # pseudo mounts with no device prefix
-])
+PSEUDO_FS = frozenset(
+    [
+        "tmpfs",
+        "devtmpfs",
+        "devpts",
+        "proc",
+        "sysfs",
+        "cgroup",
+        "cgroup2",
+        "debugfs",
+        "tracefs",
+        "fusectl",
+        "pstore",
+        "bpf",
+        "configfs",
+        "securityfs",
+        "hugetlbfs",
+        "dev",
+        "run",  # pseudo mounts with no device prefix
+    ]
+)
 
 # Mount paths to exclude from user-facing storage list
-HIDDEN_MOUNTS = frozenset([
-    "/boot",            # system partition, not useful for users
-])
+HIDDEN_MOUNTS = frozenset(
+    [
+        "/boot",  # system partition, not useful for users
+    ]
+)
 
 # Mount path prefixes to exclude (firmware, system internals)
 HIDDEN_MOUNT_PREFIXES = (
@@ -38,7 +55,7 @@ def _is_external_mount(mount: str) -> bool:
 def _parse_pct(pct_str: str):
     """Parse a percentage string like '34%' into an integer 34."""
     try:
-        return int(pct_str.rstrip('%'))
+        return int(pct_str.rstrip("%"))
     except (ValueError, AttributeError):
         return 0
 
@@ -56,7 +73,7 @@ def _run_df() -> List[Dict[str, Any]]:
             text=True,
             timeout=10,
         )
-        lines = result.stdout.strip().split('\n')
+        lines = result.stdout.strip().split("\n")
         if len(lines) < 2:
             return []
 
@@ -66,7 +83,7 @@ def _run_df() -> List[Dict[str, Any]]:
             if len(parts) < 6:
                 continue
             fs = parts[0]
-            fs_base = fs.split('/')[-1] if '/' in fs else fs
+            fs_base = fs.split("/")[-1] if "/" in fs else fs
             if fs_base in PSEUDO_FS:
                 continue
             mount = parts[5]
@@ -75,16 +92,18 @@ def _run_df() -> List[Dict[str, Any]]:
             if any(mount.startswith(p) for p in HIDDEN_MOUNT_PREFIXES):
                 continue
             use_pct_str = parts[4]
-            entries.append({
-                "fs": fs,
-                "size": parts[1],
-                "used": parts[2],
-                "avail": parts[3],
-                "use_pct": use_pct_str,
-                "mount": mount,
-                "is_external": _is_external_mount(mount),
-                "pct_num": _parse_pct(use_pct_str),
-            })
+            entries.append(
+                {
+                    "fs": fs,
+                    "size": parts[1],
+                    "used": parts[2],
+                    "avail": parts[3],
+                    "use_pct": use_pct_str,
+                    "mount": mount,
+                    "is_external": _is_external_mount(mount),
+                    "pct_num": _parse_pct(use_pct_str),
+                }
+            )
 
         # Deduplicate by device: keep the entry with the shortest mount path
         seen: Dict[str, Dict[str, Any]] = {}
@@ -98,6 +117,7 @@ def _run_df() -> List[Dict[str, Any]]:
         return list(seen.values())
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.warning(f"df command failed or timed out: {e}")
         return []
@@ -109,6 +129,7 @@ def get_disk_usage() -> List[Dict[str, Any]]:
         return _run_df()
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).warning("Failed to get disk usage: %s", e)
         return []
 
@@ -117,20 +138,22 @@ def get_mounts() -> List[Dict[str, str]]:
     """Read /proc/mounts for mount info, filtering pseudo FSes."""
     mounts = []
     try:
-        with open('/proc/mounts', 'r') as f:
+        with open("/proc/mounts", "r") as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 4:
                     fs = parts[2]
-                    fs_base = fs.split('/')[-1] if '/' in fs else fs
+                    fs_base = fs.split("/")[-1] if "/" in fs else fs
                     if fs_base in PSEUDO_FS:
                         continue
-                    mounts.append({
-                        "source": parts[0],
-                        "target": parts[1],
-                        "fs": fs,
-                        "options": parts[3],
-                    })
+                    mounts.append(
+                        {
+                            "source": parts[0],
+                            "target": parts[1],
+                            "fs": fs,
+                            "options": parts[3],
+                        }
+                    )
     except Exception:
         pass
     return mounts
@@ -138,7 +161,7 @@ def get_mounts() -> List[Dict[str, str]]:
 
 def get_dir_usage() -> List[Dict[str, Any]]:
     """Get directory usage via du -sh on common paths."""
-    paths = ['/', '/home', '/var', '/tmp']
+    paths = ["/", "/home", "/var", "/tmp"]
     result = []
     for path in paths:
         try:
@@ -148,18 +171,22 @@ def get_dir_usage() -> List[Dict[str, Any]]:
                 text=True,
                 timeout=30,
             )
-            size = p.stdout.strip().split()[0] if p.stdout.strip() else '?'
-            result.append({
-                "base_path": path,
-                "total_size": size,
-                "directories": [{"path": path, "size": size}],
-            })
+            size = p.stdout.strip().split()[0] if p.stdout.strip() else "?"
+            result.append(
+                {
+                    "base_path": path,
+                    "total_size": size,
+                    "directories": [{"path": path, "size": size}],
+                }
+            )
         except Exception:
-            result.append({
-                "base_path": path,
-                "total_size": '?',
-                "directories": [],
-            })
+            result.append(
+                {
+                    "base_path": path,
+                    "total_size": "?",
+                    "directories": [],
+                }
+            )
     return result
 
 

@@ -1,4 +1,5 @@
 """Unit tests for dashboard.services.packages."""
+
 import time
 from unittest.mock import patch, MagicMock
 
@@ -135,7 +136,11 @@ class TestAptManager:
         assert mgr.get_remove_command("htop") == ["apt-get", "remove", "-y", "htop"]
         assert mgr.get_upgrade_command() == ["apt-get", "upgrade", "-y"]
         assert mgr.get_upgrade_command("htop") == [
-            "apt-get", "install", "--only-upgrade", "-y", "htop"
+            "apt-get",
+            "install",
+            "--only-upgrade",
+            "-y",
+            "htop",
         ]
 
     @patch("dashboard.services.packages.run_command")
@@ -201,7 +206,12 @@ class TestAptManager:
 class TestPacmanManager:
     def test_commands(self):
         mgr = PacmanManager()
-        assert mgr.get_install_command("htop") == ["pacman", "-S", "--noconfirm", "htop"]
+        assert mgr.get_install_command("htop") == [
+            "pacman",
+            "-S",
+            "--noconfirm",
+            "htop",
+        ]
         assert mgr.get_remove_command("htop") == ["pacman", "-R", "--noconfirm", "htop"]
         assert mgr.get_upgrade_command() == ["pacman", "-Syu", "--noconfirm"]
 
@@ -274,6 +284,7 @@ class TestDnfManager:
 class TestGetPackageManager:
     def setup_method(self):
         import dashboard.services.packages as pkgs
+
         pkgs._CURRENT_MANAGER = None
 
     @patch("dashboard.services.packages.shutil.which")
@@ -284,7 +295,9 @@ class TestGetPackageManager:
 
     @patch("dashboard.services.packages.shutil.which")
     def test_detects_apt(self, mock_which):
-        mock_which.side_effect = lambda x: "/usr/bin/dpkg-query" if x == "dpkg-query" else None
+        mock_which.side_effect = lambda x: (
+            "/usr/bin/dpkg-query" if x == "dpkg-query" else None
+        )
         mgr = get_package_manager()
         assert isinstance(mgr, AptManager)
 
@@ -300,6 +313,7 @@ class TestCacheAndWrappers:
     def setup_method(self):
         invalidate_packages_cache()
         import dashboard.services.packages as pkgs
+
         pkgs._CURRENT_MANAGER = None
 
     def test_invalidate_cache(self):

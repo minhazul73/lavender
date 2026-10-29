@@ -3,6 +3,7 @@ System and device information detection service for Lavender.
 Dynamically discovers hardware model, OS distribution, kernel, architecture, and hostname.
 Avoids hardcoding any specific phone or board model.
 """
+
 import os
 import platform
 import subprocess
@@ -30,7 +31,9 @@ def get_device_model() -> str:
         if os.path.exists(dt_path):
             try:
                 with open(dt_path, "rb") as f:
-                    val = f.read().decode("utf-8", errors="ignore").strip().rstrip("\x00")
+                    val = (
+                        f.read().decode("utf-8", errors="ignore").strip().rstrip("\x00")
+                    )
                 if val:
                     return val
             except Exception:
@@ -67,7 +70,8 @@ def get_device_model() -> str:
                     "o.e.m.",
                     "type1productconfigid",
                 ):
-                    # Clean up repeated product model suffixes (e.g. Model_Model)
+                    # Clean up repeated product model suffixes (e.g.
+                    # Model_Model)
                     if "_" in val:
                         parts = val.split("_")
                         if len(parts) == 2 and parts[0].endswith(parts[1]):

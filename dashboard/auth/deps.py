@@ -1,6 +1,7 @@
 """
 FastAPI dependencies for authentication and authorization.
 """
+
 from typing import Optional
 from fastapi import Request, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
@@ -87,6 +88,7 @@ async def require_admin(
     admin_pwd = request.headers.get("X-Admin-Password")
     if admin_pwd:
         from dashboard.auth.bridge import verify_sudo_password
+
         valid, err = await verify_sudo_password(admin_pwd)
         if valid:
             session.elevate()

@@ -2,6 +2,7 @@
 API routes for device-level operations.
 Protected with session authentication and privilege verification.
 """
+
 import asyncio
 import os
 from typing import Optional
@@ -73,13 +74,17 @@ router = APIRouter()
 
 # ---- System & Hardware Info ----
 
+
 @router.get("/device/info")
-async def api_device_info(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_device_info(
+    session: Optional[UserSession] = Depends(get_current_session),
+):
     """Get dynamic system, hardware model, OS, and kernel metadata."""
     return get_system_info()
 
 
 # ---- Network ----
+
 
 @router.get("/device/network")
 async def api_network(session: UserSession = Depends(require_session)):
@@ -124,6 +129,7 @@ async def api_wifi_scan(
 
 # ---- Battery / Device Stats ----
 
+
 @router.get("/device/battery")
 async def api_battery(session: Optional[UserSession] = Depends(get_current_session)):
     """Get battery and device stats."""
@@ -138,6 +144,7 @@ async def api_battery(session: Optional[UserSession] = Depends(get_current_sessi
 
 # ---- Packages ----
 
+
 @router.get("/device/packages")
 async def api_packages(
     refresh: bool = False,
@@ -146,14 +153,22 @@ async def api_packages(
 ):
     """Get package overview (installed count, upgradable list, full installed list)."""
     mgr = get_package_manager()
-    installed = await asyncio.to_thread(get_installed_packages, force_refresh=refresh) if include_list else []
+    installed = (
+        await asyncio.to_thread(get_installed_packages, force_refresh=refresh)
+        if include_list
+        else []
+    )
     upgradable = await asyncio.to_thread(get_upgradable_packages)
     upgradable_list = [p for p in upgradable if not p.get("error")]
     return {
         "backend": mgr.id,
         "backend_name": mgr.name,
         "backend_short": mgr.short_name,
-        "installed_count": len(installed) if include_list else await asyncio.to_thread(get_installed_count),
+        "installed_count": (
+            len(installed)
+            if include_list
+            else await asyncio.to_thread(get_installed_count)
+        ),
         "upgradable_count": len(upgradable_list),
         "upgradable": upgradable,
         "installed": installed,
@@ -162,14 +177,18 @@ async def api_packages(
 
 @router.post("/device/packages/upgrade")
 async def api_upgrade_packages(
-    package: Optional[str] = Query(None, description="Optional single package name to upgrade"),
+    package: Optional[str] = Query(
+        None, description="Optional single package name to upgrade"
+    ),
     session: UserSession = Depends(require_admin),
 ):
     """Upgrade all packages or a single package (requires administrative privileges)."""
     mgr = get_package_manager()
     cmd = mgr.get_upgrade_command(package)
     if not cmd:
-        raise HTTPException(status_code=400, detail="No upgrade command available for this system")
+        raise HTTPException(
+            status_code=400, detail="No upgrade command available for this system"
+        )
     code, out, err = await run_sudo_async(cmd, password=None)
     invalidate_packages_cache()
     if code != 0:
@@ -186,11 +205,15 @@ async def api_install_package(
     mgr = get_package_manager()
     cmd = mgr.get_install_command(package)
     if not cmd:
-        raise HTTPException(status_code=400, detail="No install command available for this system")
+        raise HTTPException(
+            status_code=400, detail="No install command available for this system"
+        )
     code, out, err = await run_sudo_async(cmd, password=None)
     invalidate_packages_cache()
     if code != 0:
-        raise HTTPException(status_code=500, detail=err or out or f"Failed to install {package}")
+        raise HTTPException(
+            status_code=500, detail=err or out or f"Failed to install {package}"
+        )
     return {"action": "install", "package": package, "success": True, "output": out}
 
 
@@ -203,11 +226,15 @@ async def api_remove_package(
     mgr = get_package_manager()
     cmd = mgr.get_remove_command(package)
     if not cmd:
-        raise HTTPException(status_code=400, detail="No remove command available for this distribution")
+        raise HTTPException(
+            status_code=400, detail="No remove command available for this distribution"
+        )
     code, out, err = await run_sudo_async(cmd, password=None)
     invalidate_packages_cache()
     if code != 0:
-        raise HTTPException(status_code=500, detail=err or out or f"Failed to remove {package}")
+        raise HTTPException(
+            status_code=500, detail=err or out or f"Failed to remove {package}"
+        )
     return {"action": "remove", "package": package, "success": True, "output": out}
 
 
@@ -232,6 +259,7 @@ async def api_package_info(
 
 
 # ---- Users & Sessions ----
+
 
 @router.get("/device/users")
 async def api_users(session: UserSession = Depends(require_session)):
@@ -296,7 +324,10 @@ async def api_get_ssh_keys(
 ):
     """Get installed public SSH keys for a user."""
     if session.username != username and not session.is_elevated():
-        raise HTTPException(status_code=403, detail="Admin privileges required to view other users' keys")
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required to view other users' keys",
+        )
     keys = await asyncio.to_thread(get_user_ssh_keys, username)
     return {"username": username, "keys": keys}
 
@@ -309,13 +340,18 @@ async def api_add_ssh_key(
 ):
     """Add a public SSH key to a user's authorized_keys."""
     if session.username != username and not session.is_elevated():
-        raise HTTPException(status_code=403, detail="Admin privileges required to modify other users' keys")
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required to modify other users' keys",
+        )
     key = payload.get("key", "").strip()
     if not key:
         raise HTTPException(status_code=400, detail="Key content is required")
     success = await asyncio.to_thread(add_user_ssh_key, username, key)
     if not success:
-        raise HTTPException(status_code=400, detail="Invalid public key format or failed to write")
+        raise HTTPException(
+            status_code=400, detail="Invalid public key format or failed to write"
+        )
     return {"success": True, "message": "SSH key added successfully"}
 
 
@@ -327,7 +363,10 @@ async def api_delete_ssh_key(
 ):
     """Delete a public SSH key by index."""
     if session.username != username and not session.is_elevated():
-        raise HTTPException(status_code=403, detail="Admin privileges required to modify other users' keys")
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required to modify other users' keys",
+        )
     success = await asyncio.to_thread(delete_user_ssh_key, username, key_index)
     if not success:
         raise HTTPException(status_code=400, detail="Failed to delete key")
@@ -343,24 +382,41 @@ async def api_update_user_groups(
     """Update secondary groups for a user safely (Admin gated)."""
     groups = payload.get("groups", [])
     if not isinstance(groups, list):
-        raise HTTPException(status_code=400, detail="Groups must be a list of group names")
+        raise HTTPException(
+            status_code=400, detail="Groups must be a list of group names"
+        )
 
     # Verify user exists
     all_users = parse_all_passwd_users()
     if not any(u["name"] == username for u in all_users):
         raise HTTPException(status_code=404, detail=f"User '{username}' does not exist")
 
-    # Query system groups so we never pass a non-existent group (e.g. 'sudo' on Alpine)
+    # Query system groups so we never pass a non-existent group (e.g. 'sudo'
+    # on Alpine)
     system_groups = {g["name"] for g in parse_groups()}
     valid_requested = {g for g in groups if g in system_groups}
 
     # Preserve unmanaged secondary groups that the user is already in
     current_user_groups = set(get_user_groups(username))
     editable_groups = {
-        "wheel", "sudo", "docker", "audio", "video",
-        "netdev", "plugdev", "dialout", "input", "camera", "disk", "kvm"
+        "wheel",
+        "sudo",
+        "docker",
+        "audio",
+        "video",
+        "netdev",
+        "plugdev",
+        "dialout",
+        "input",
+        "camera",
+        "disk",
+        "kvm",
     }
-    unmanaged_groups = {g for g in current_user_groups if g not in editable_groups and g in system_groups}
+    unmanaged_groups = {
+        g
+        for g in current_user_groups
+        if g not in editable_groups and g in system_groups
+    }
 
     final_groups = sorted(list(unmanaged_groups | valid_requested))
     groups_arg = ",".join(final_groups)
@@ -388,9 +444,17 @@ async def api_update_user_groups(
                     err_messages.append(f"remove from {g}: {e or e2}")
 
         if err_messages:
-            raise HTTPException(status_code=500, detail=f"Failed to update groups: {'; '.join(err_messages)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to update groups: {
+                '; '.join(err_messages)}",
+            )
 
-    return {"success": True, "message": f"Updated groups for {username}", "groups": final_groups}
+    return {
+        "success": True,
+        "message": f"Updated groups for {username}",
+        "groups": final_groups,
+    }
 
 
 @router.post("/device/users/{username}/password")
@@ -404,13 +468,17 @@ async def api_change_password(
         raise HTTPException(status_code=403, detail="Admin privileges required")
     new_pass = payload.get("new_password", "").strip()
     if not new_pass or len(new_pass) < 4:
-        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 4 characters"
+        )
 
     # Update password via chpasswd using run_sudo_async with password
     # On Linux: echo 'username:new_pass' | sudo chpasswd
     try:
         proc = await asyncio.create_subprocess_exec(
-            "sudo", "-n", "chpasswd",
+            "sudo",
+            "-n",
+            "chpasswd",
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -421,15 +489,25 @@ async def api_change_password(
         )
         if proc.returncode != 0:
             err = stderr.decode().strip() or stdout.decode().strip()
-            raise HTTPException(status_code=500, detail=f"Failed to change password: {err}")
-        return {"success": True, "message": f"Password successfully updated for {username}"}
+            raise HTTPException(
+                status_code=500, detail=f"Failed to change password: {err}"
+            )
+        return {
+            "success": True,
+            "message": f"Password successfully updated for {username}",
+        }
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=f"Password update error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Password update error: {
+            str(e)}",
+        )
 
 
 # ---- Power Controls (Admin Gated) ----
+
 
 @router.post("/device/power/reboot")
 async def api_reboot(session: UserSession = Depends(require_admin)):
@@ -466,12 +544,16 @@ async def api_set_governor(
     """Set CPU frequency governor across all CPU cores (Admin gated)."""
     res = await asyncio.to_thread(set_cpu_governor, governor)
     if not res.get("success"):
-        raise HTTPException(status_code=400, detail=res.get("error", "Failed to set CPU governor"))
+        raise HTTPException(
+            status_code=400, detail=res.get("error", "Failed to set CPU governor")
+        )
     return res
 
 
 @router.get("/device/power/state")
-async def api_power_state(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_power_state(
+    session: Optional[UserSession] = Depends(get_current_session),
+):
     """Get active CPU power profile and pending scheduled power actions."""
     gov_file = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
     current_gov = "unknown"
@@ -500,19 +582,25 @@ async def api_schedule_power(
     """Schedule a timed reboot or shutdown (Admin gated)."""
     action = payload.get("action", "").lower().strip()
     if action not in ("reboot", "poweroff"):
-        raise HTTPException(status_code=400, detail="Action must be 'reboot' or 'poweroff'")
+        raise HTTPException(
+            status_code=400, detail="Action must be 'reboot' or 'poweroff'"
+        )
 
     try:
         minutes = int(payload.get("minutes", 0))
         if minutes < 1 or minutes > 1440:
             raise ValueError()
     except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="Minutes must be an integer between 1 and 1440")
+        raise HTTPException(
+            status_code=400, detail="Minutes must be an integer between 1 and 1440"
+        )
 
     message = payload.get("message", "Scheduled from Lavender dashboard")
     res = await asyncio.to_thread(schedule_power_action, action, minutes, message)
     if not res.get("success"):
-        raise HTTPException(status_code=500, detail=res.get("error", "Failed to schedule action"))
+        raise HTTPException(
+            status_code=500, detail=res.get("error", "Failed to schedule action")
+        )
     return res
 
 
@@ -521,7 +609,8 @@ async def api_cancel_scheduled_power(session: UserSession = Depends(require_admi
     """Cancel any pending scheduled shutdown or reboot (Admin gated)."""
     res = await asyncio.to_thread(cancel_scheduled_action)
     if not res.get("success"):
-        raise HTTPException(status_code=500, detail=res.get("error", "Failed to cancel scheduled action"))
+        raise HTTPException(
+            status_code=500,
+            detail=res.get("error", "Failed to cancel scheduled action"),
+        )
     return res
-
-

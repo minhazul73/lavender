@@ -3,6 +3,7 @@ Distro-Agnostic Package Management Service.
 Supports Alpine/postmarketOS (apk), Debian/Ubuntu/Linux Mint (apt/dpkg),
 Arch Linux/Manjaro (pacman), and Fedora/RHEL (dnf/rpm).
 """
+
 import os
 import re
 import time
@@ -27,6 +28,7 @@ def invalidate_packages_cache():
 
 class BasePackageManager:
     """Abstract base class for distribution package manager adapters."""
+
     id: str = "generic"
     name: str = "Generic Package Manager"
     short_name: str = "Package Manager"
@@ -61,6 +63,7 @@ class BasePackageManager:
 
 class ApkManager(BasePackageManager):
     """Alpine Linux & postmarketOS Package Manager (apk)."""
+
     id = "apk"
     name = "Alpine Package Keeper (apk)"
     short_name = "apk"
@@ -186,6 +189,7 @@ class ApkManager(BasePackageManager):
 
 class AptManager(BasePackageManager):
     """Debian, Ubuntu, Linux Mint & Raspberry Pi OS Package Manager (apt/dpkg)."""
+
     id = "apt"
     name = "APT / dpkg (Debian/Ubuntu/Mint)"
     short_name = "apt"
@@ -211,18 +215,22 @@ class AptManager(BasePackageManager):
             name = parts[0].strip()
             version = parts[1].strip() if len(parts) > 1 else ""
             arch = parts[2].strip() if len(parts) > 2 else ""
-            packages.append({
-                "name": name,
-                "version": version,
-                "arch": arch,
-                "full": f"{name} {version}",
-            })
+            packages.append(
+                {
+                    "name": name,
+                    "version": version,
+                    "arch": arch,
+                    "full": f"{name} {version}",
+                }
+            )
 
         packages.sort(key=lambda p: p["name"].lower())
         return packages
 
     def get_installed_count(self) -> int:
-        code, out, err = run_command(["dpkg-query", "-W", "-f=${Package}\n"], timeout=15)
+        code, out, err = run_command(
+            ["dpkg-query", "-W", "-f=${Package}\n"], timeout=15
+        )
         if code == 0:
             lines = [l for l in out.splitlines() if l.strip()]
             return len(lines)
@@ -238,26 +246,31 @@ class AptManager(BasePackageManager):
             line = line.strip()
             if not line or line.startswith("Listing"):
                 continue
-            # Format: package/suite new_version arch [upgradable from: current_version]
+            # Format: package/suite new_version arch [upgradable from:
+            # current_version]
             parts = line.split()
             if len(parts) >= 2:
                 name_part = parts[0].split("/")[0]
                 new_ver = parts[1]
-                arch = parts[2] if len(parts) > 2 and not parts[2].startswith("[") else ""
+                arch = (
+                    parts[2] if len(parts) > 2 and not parts[2].startswith("[") else ""
+                )
 
                 current_ver = ""
                 m = re.search(r"\[upgradable from:\s*([^\]]+)\]", line)
                 if m:
                     current_ver = m.group(1).strip()
 
-                packages.append({
-                    "name": name_part,
-                    "name_clean": name_part,
-                    "version": new_ver,
-                    "current_version": current_ver,
-                    "arch": arch,
-                    "full": line,
-                })
+                packages.append(
+                    {
+                        "name": name_part,
+                        "name_clean": name_part,
+                        "version": new_ver,
+                        "current_version": current_ver,
+                        "arch": arch,
+                        "full": line,
+                    }
+                )
         return packages
 
     def search_packages(self, query: str) -> List[Dict[str, Any]]:
@@ -280,12 +293,14 @@ class AptManager(BasePackageManager):
             parts = line.split(" - ", 1)
             name = parts[0].strip()
             desc = parts[1].strip() if len(parts) > 1 else ""
-            results.append({
-                "name": name,
-                "version": desc,
-                "description": desc,
-                "full": line,
-            })
+            results.append(
+                {
+                    "name": name,
+                    "version": desc,
+                    "description": desc,
+                    "full": line,
+                }
+            )
         return results
 
     def get_package_info(self, package_name: str) -> Dict[str, Any]:
@@ -293,7 +308,9 @@ class AptManager(BasePackageManager):
         code, out, err = run_command(["dpkg-query", "-s", package_name], timeout=10)
         if code != 0:
             # Fallback to repository package details
-            code, out, err = run_command(["apt-cache", "show", package_name], timeout=10)
+            code, out, err = run_command(
+                ["apt-cache", "show", package_name], timeout=10
+            )
 
         return {
             "package": package_name,
@@ -315,6 +332,7 @@ class AptManager(BasePackageManager):
 
 class PacmanManager(BasePackageManager):
     """Arch Linux, Manjaro & EndeavourOS Package Manager (pacman)."""
+
     id = "pacman"
     name = "Pacman (Arch/Manjaro)"
     short_name = "pacman"
@@ -360,13 +378,15 @@ class PacmanManager(BasePackageManager):
             # Format: package old_version -> new_version
             parts = line.split()
             if len(parts) >= 4 and parts[2] == "->":
-                packages.append({
-                    "name": parts[0],
-                    "name_clean": parts[0],
-                    "current_version": parts[1],
-                    "version": parts[3],
-                    "full": line,
-                })
+                packages.append(
+                    {
+                        "name": parts[0],
+                        "name_clean": parts[0],
+                        "current_version": parts[1],
+                        "version": parts[3],
+                        "full": line,
+                    }
+                )
         return packages
 
     def search_packages(self, query: str) -> List[Dict[str, Any]]:
@@ -386,12 +406,14 @@ class PacmanManager(BasePackageManager):
                 name = name_repo.split("/")[-1]
                 version = parts[1]
                 desc = lines[i + 1].strip() if (i + 1) < len(lines) else ""
-                results.append({
-                    "name": name,
-                    "version": version,
-                    "description": desc,
-                    "full": header,
-                })
+                results.append(
+                    {
+                        "name": name,
+                        "version": version,
+                        "description": desc,
+                        "full": header,
+                    }
+                )
         return results
 
     def get_package_info(self, package_name: str) -> Dict[str, Any]:
@@ -418,6 +440,7 @@ class PacmanManager(BasePackageManager):
 
 class DnfManager(BasePackageManager):
     """Fedora, RHEL, CentOS & Rocky Linux Package Manager (dnf/rpm)."""
+
     id = "dnf"
     name = "DNF / RPM (Fedora/RHEL)"
     short_name = "dnf"
@@ -442,7 +465,9 @@ class DnfManager(BasePackageManager):
             name = parts[0].strip()
             version = parts[1].strip() if len(parts) > 1 else ""
             arch = parts[2].strip() if len(parts) > 2 else ""
-            packages.append({"name": name, "version": version, "arch": arch, "full": line})
+            packages.append(
+                {"name": name, "version": version, "arch": arch, "full": line}
+            )
 
         packages.sort(key=lambda p: p["name"].lower())
         return packages
@@ -468,12 +493,14 @@ class DnfManager(BasePackageManager):
             if len(parts) >= 2:
                 name = parts[0]
                 version = parts[1]
-                packages.append({
-                    "name": name,
-                    "name_clean": name,
-                    "version": version,
-                    "full": line,
-                })
+                packages.append(
+                    {
+                        "name": name,
+                        "name_clean": name,
+                        "version": version,
+                        "full": line,
+                    }
+                )
         return packages
 
     def search_packages(self, query: str) -> List[Dict[str, Any]]:
@@ -489,7 +516,9 @@ class DnfManager(BasePackageManager):
             parts = line.split(" : ", 1)
             name = parts[0].strip()
             desc = parts[1].strip() if len(parts) > 1 else ""
-            results.append({"name": name, "version": desc, "description": desc, "full": line})
+            results.append(
+                {"name": name, "version": desc, "description": desc, "full": line}
+            )
         return results
 
     def get_package_info(self, package_name: str) -> Dict[str, Any]:
@@ -514,6 +543,7 @@ class DnfManager(BasePackageManager):
 
 class NullPackageManager(BasePackageManager):
     """Fallback when no recognized package manager is available."""
+
     id = "none"
     name = "No Package Manager Detected"
     short_name = "none"
@@ -559,6 +589,7 @@ def get_package_manager() -> BasePackageManager:
 
 # Convenience wrapper functions for API and templates
 
+
 def get_installed_packages(force_refresh: bool = False) -> List[Dict[str, Any]]:
     """Get full list of installed packages (cached for 60s)."""
     now = time.time()
@@ -603,7 +634,10 @@ def upgrade_packages(package: Optional[str] = None) -> Dict[str, Any]:
     invalidate_packages_cache()
     cmd = get_package_manager().get_upgrade_command(package)
     if not cmd:
-        return {"success": False, "error": "No upgrade command available for this system"}
+        return {
+            "success": False,
+            "error": "No upgrade command available for this system",
+        }
     code, out, err = run_sudo_command(cmd, timeout=300)
     return {"success": code == 0, "output": out, "error": err}
 
@@ -613,7 +647,10 @@ def install_package(package_name: str) -> Dict[str, Any]:
     invalidate_packages_cache()
     cmd = get_package_manager().get_install_command(package_name)
     if not cmd:
-        return {"success": False, "error": "No install command available for this system"}
+        return {
+            "success": False,
+            "error": "No install command available for this system",
+        }
     code, out, err = run_sudo_command(cmd, timeout=180)
     return {"success": code == 0, "output": out, "error": err}
 
@@ -623,6 +660,9 @@ def remove_package(package_name: str) -> Dict[str, Any]:
     invalidate_packages_cache()
     cmd = get_package_manager().get_remove_command(package_name)
     if not cmd:
-        return {"success": False, "error": "No remove command available for this system"}
+        return {
+            "success": False,
+            "error": "No remove command available for this system",
+        }
     code, out, err = run_sudo_command(cmd, timeout=120)
     return {"success": code == 0, "output": out, "error": err}

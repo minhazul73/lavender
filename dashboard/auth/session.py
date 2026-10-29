@@ -1,6 +1,7 @@
 """
 In-memory session management for authenticated Linux users (Native Linux PAM).
 """
+
 import time
 import secrets
 import logging
@@ -94,7 +95,9 @@ class SessionStore:
 
     def __init__(self):
         self._sessions: dict[str, UserSession] = {}
-        self._serializer = URLSafeSerializer(SESSION_SECRET_KEY, salt="dashboard-session-salt")
+        self._serializer = URLSafeSerializer(
+            SESSION_SECRET_KEY, salt="dashboard-session-salt"
+        )
 
     def sign_session_id(self, session_id: str) -> str:
         """Sign session ID into a cryptographically secured token for cookie storage."""
@@ -115,7 +118,7 @@ class SessionStore:
     ) -> UserSession:
         """Create and store a new user session."""
         sid = secrets.token_hex(32)
-        is_root = (username == "root" or user_info.get("uid") == 0)
+        is_root = username == "root" or user_info.get("uid") == 0
         session = UserSession(
             session_id=sid,
             username=username,
@@ -128,8 +131,7 @@ class SessionStore:
         )
         self._sessions[sid] = session
         logger.info(
-            "Created session %s for user %s (uid=%d)",
-            sid[:8], username, session.uid
+            "Created session %s for user %s (uid=%d)", sid[:8], username, session.uid
         )
         return session
 
@@ -142,7 +144,11 @@ class SessionStore:
         # Check idle expiration
         max_idle_seconds = SESSION_MAX_IDLE_MINUTES * 60
         if time.time() - session.last_used > max_idle_seconds:
-            logger.info("Session %s for %s timed out due to inactivity", session_id[:8], session.username)
+            logger.info(
+                "Session %s for %s timed out due to inactivity",
+                session_id[:8],
+                session.username,
+            )
             await self.delete(session_id)
             return None
 
@@ -153,14 +159,17 @@ class SessionStore:
         """Delete session from memory."""
         session = self._sessions.pop(session_id, None)
         if session:
-            logger.info("Terminated session %s for user %s", session_id[:8], session.username)
+            logger.info(
+                "Terminated session %s for user %s", session_id[:8], session.username
+            )
 
     async def cleanup_idle(self) -> None:
         """Periodic cleaner for expired idle sessions."""
         now = time.time()
         max_idle_seconds = SESSION_MAX_IDLE_MINUTES * 60
         expired_ids = [
-            sid for sid, s in list(self._sessions.items())
+            sid
+            for sid, s in list(self._sessions.items())
             if (now - s.last_used > max_idle_seconds)
         ]
         for sid in expired_ids:

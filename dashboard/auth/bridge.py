@@ -3,6 +3,7 @@ Native Linux PAM Authentication & Execution Engine.
 Directly interfaces with Linux PAM (/lib/security / pam_unix) and local systemd sessions.
 Eliminates any need for OpenSSH daemon or network loopback sockets.
 """
+
 import os
 import pwd
 import grp
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class AuthError(Exception):
     """Raised when Linux credentials fail authentication."""
+
     pass
 
 
@@ -57,14 +59,18 @@ def verify_linux_credentials(username: str, password: str) -> bool:
     if not password:
         return False
 
-    # 1. Direct shadow verification (instant, works if user is in shadow group or root)
+    # 1. Direct shadow verification (instant, works if user is in shadow group
+    # or root)
     try:
         import spwd
         import crypt
+
         sp = spwd.getspnam(username)
         if sp and sp.sp_pwdp:
             if crypt.crypt(password, sp.sp_pwdp) == sp.sp_pwdp:
-                logger.info("Direct shadow authentication successful for user %s", username)
+                logger.info(
+                    "Direct shadow authentication successful for user %s", username
+                )
                 return True
     except Exception as exc:
         logger.debug("Direct shadow auth unavailable: %s", exc)
@@ -72,21 +78,40 @@ def verify_linux_credentials(username: str, password: str) -> bool:
     # 2. PAM authentication
     try:
         import pam
+
         p = pam.pam()
-        candidate_services = [PAM_SERVICE, "base-auth", "login", "other", "common-auth", "system-auth", "sudo"]
+        candidate_services = [
+            PAM_SERVICE,
+            "base-auth",
+            "login",
+            "other",
+            "common-auth",
+            "system-auth",
+            "sudo",
+        ]
         seen = set()
         for s in candidate_services:
             if s in seen:
                 continue
             seen.add(s)
             # Only test services present in /etc/pam.d or 'other'
-            if os.path.isdir("/etc/pam.d") and not os.path.isfile(f"/etc/pam.d/{s}") and s != "other":
+            if (
+                os.path.isdir("/etc/pam.d")
+                and not os.path.isfile(f"/etc/pam.d/{s}")
+                and s != "other"
+            ):
                 continue
             try:
                 if p.authenticate(username, password, service=s):
-                    logger.info("PAM authentication successful for user %s via service '%s'", username, s)
+                    logger.info(
+                        "PAM authentication successful for user %s via service '%s'",
+                        username,
+                        s,
+                    )
                     return True
-                logger.debug("PAM service '%s' check returned %s: %s", s, p.code, p.reason)
+                logger.debug(
+                    "PAM service '%s' check returned %s: %s", s, p.code, p.reason
+                )
             except Exception as e:
                 logger.debug("PAM service '%s' exception: %s", s, e)
     except Exception as exc:
@@ -107,7 +132,9 @@ def verify_linux_credentials(username: str, password: str) -> bool:
             return True
         logger.warning(
             "Sudo auth check failed for user %s (code %d): %s",
-            username, proc.returncode, proc.stderr.strip()
+            username,
+            proc.returncode,
+            proc.stderr.strip(),
         )
     except Exception as exc:
         logger.warning("Sudo auth check exception for %s: %s", username, exc)
@@ -144,7 +171,9 @@ async def authenticate_user(username: str, password: str) -> dict:
     return user_info
 
 
-async def run_command_async(cmd: list[str] | str, timeout: int = 30) -> tuple[int, str, str]:
+async def run_command_async(
+    cmd: list[str] | str, timeout: int = 30
+) -> tuple[int, str, str]:
     """Execute a local command asynchronously."""
     try:
         if isinstance(cmd, str):
@@ -155,7 +184,8 @@ async def run_command_async(cmd: list[str] | str, timeout: int = 30) -> tuple[in
             )
         else:
             proc = await asyncio.create_subprocess_exec(
-                cmd[0], *cmd[1:],
+                cmd[0],
+                *cmd[1:],
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -171,7 +201,9 @@ async def run_command_async(cmd: list[str] | str, timeout: int = 30) -> tuple[in
         return -1, "", str(e)
 
 
-async def run_user_service_async(uid: int, cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+async def run_user_service_async(
+    uid: int, cmd: list[str], timeout: int = 30
+) -> tuple[int, str, str]:
     """
     Execute systemctl --user command ensuring proper XDG and D-Bus runtime variables.
     Prevents 'Failed to connect to bus: No such file or directory' errors.
@@ -181,7 +213,8 @@ async def run_user_service_async(uid: int, cmd: list[str], timeout: int = 30) ->
     env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{uid}/systemd/private"
     try:
         proc = await asyncio.create_subprocess_exec(
-            cmd[0], *cmd[1:],
+            cmd[0],
+            *cmd[1:],
             env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -205,7 +238,11 @@ async def verify_sudo_password(password: str) -> tuple[bool, str]:
     """
     try:
         proc = await asyncio.create_subprocess_exec(
-            "sudo", "-S", "-p", "", "-v",
+            "sudo",
+            "-S",
+            "-p",
+            "",
+            "-v",
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -241,7 +278,8 @@ async def run_sudo_async(
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            full_cmd[0], *full_cmd[1:],
+            full_cmd[0],
+            *full_cmd[1:],
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -265,7 +303,8 @@ async def drop_sudo_ticket() -> None:
     """Revoke sudo timestamp ticket (`sudo -k`)."""
     try:
         proc = await asyncio.create_subprocess_exec(
-            "sudo", "-k",
+            "sudo",
+            "-k",
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL,
         )

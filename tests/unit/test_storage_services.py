@@ -1,6 +1,7 @@
 """
 Unit tests for dashboard.services.storage.
 """
+
 from unittest.mock import patch, mock_open
 
 from dashboard.services import storage
@@ -55,9 +56,7 @@ class TestRunDf:
             "tmpfs           1.7G     0  1.7G   0% /dev/shm\n"
             "/dev/sda1        64G   10G   54G  16% /mnt/sdcard\n"
         )
-        mock_run.return_value = type("R", (), {
-            "stdout": df_out, "returncode": 0
-        })()
+        mock_run.return_value = type("R", (), {"stdout": df_out, "returncode": 0})()
         result = storage._run_df()
         # tmpfs should be filtered out
         fs_list = [e["fs"] for e in result]
@@ -77,9 +76,7 @@ class TestRunDf:
             "Filesystem  Size  Used Avail Use% Mounted on\n"
             "/dev/sda1   64G   10G   54G  16% /mnt/sdcard\n"
         )
-        mock_run.return_value = type("R", (), {
-            "stdout": df_out, "returncode": 0
-        })()
+        mock_run.return_value = type("R", (), {"stdout": df_out, "returncode": 0})()
         result = storage._run_df()
         assert len(result) == 1
         assert result[0]["is_external"] is True
@@ -90,9 +87,7 @@ class TestRunDf:
             "Filesystem  Size  Used Avail Use% Mounted on\n"
             "/dev/sda1   48G   20G   26G  44% /boot\n"
         )
-        mock_run.return_value = type("R", (), {
-            "stdout": df_out, "returncode": 0
-        })()
+        mock_run.return_value = type("R", (), {"stdout": df_out, "returncode": 0})()
         result = storage._run_df()
         mounts = [e["mount"] for e in result]
         assert "/boot" not in mounts
@@ -104,9 +99,7 @@ class TestRunDf:
             "/dev/sda1   64G   10G   54G  16% /mnt\n"
             "/dev/sda1   64G   10G   54G  16% /mnt/data\n"
         )
-        mock_run.return_value = type("R", (), {
-            "stdout": df_out, "returncode": 0
-        })()
+        mock_run.return_value = type("R", (), {"stdout": df_out, "returncode": 0})()
         result = storage._run_df()
         assert len(result) == 1
         assert result[0]["mount"] == "/mnt"
@@ -119,9 +112,7 @@ class TestRunDf:
 
     @patch("subprocess.run")
     def test_empty_output_returns_empty(self, mock_run):
-        mock_run.return_value = type("R", (), {
-            "stdout": "", "returncode": 0
-        })()
+        mock_run.return_value = type("R", (), {"stdout": "", "returncode": 0})()
         result = storage._run_df()
         assert result == []
 
@@ -142,11 +133,15 @@ class TestGetDiskUsage:
 
 
 class TestGetMounts:
-    @patch("builtins.open", new_callable=mock_open, read_data=(
-        "/dev/mmcblk0p1 / ext4 rw,relatime 0 0\n"
-        "tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0\n"
-        "proc /proc proc rw,nosuid,nodev,noexec 0 0\n"
-    ))
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data=(
+            "/dev/mmcblk0p1 / ext4 rw,relatime 0 0\n"
+            "tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0\n"
+            "proc /proc proc rw,nosuid,nodev,noexec 0 0\n"
+        ),
+    )
     def test_filters_pseudo_fs(self, mock_file):
         result = storage.get_mounts()
         fs_types = [m["fs"] for m in result]
@@ -166,9 +161,9 @@ class TestGetMounts:
 class TestGetDirUsage:
     @patch("subprocess.run")
     def test_parses_du_output(self, mock_run):
-        mock_run.return_value = type("R", (), {
-            "stdout": "4.2G\t/\n", "returncode": 0
-        })()
+        mock_run.return_value = type(
+            "R", (), {"stdout": "4.2G\t/\n", "returncode": 0}
+        )()
         result = storage.get_dir_usage()
         assert len(result) == 4  # /, /home, /var, /tmp
         assert result[0]["base_path"] == "/"
@@ -184,17 +179,17 @@ class TestGetDirUsage:
 class TestUnmount:
     @patch("subprocess.run")
     def test_unmount_success(self, mock_run):
-        mock_run.return_value = type("R", (), {
-            "stdout": "", "stderr": "", "returncode": 0
-        })()
+        mock_run.return_value = type(
+            "R", (), {"stdout": "", "stderr": "", "returncode": 0}
+        )()
         res = storage.unmount("/mnt/usb")
         assert res["success"] is True
 
     @patch("subprocess.run")
     def test_unmount_failure(self, mock_run):
-        mock_run.return_value = type("R", (), {
-            "stdout": "", "stderr": "umount: not mounted", "returncode": 1
-        })()
+        mock_run.return_value = type(
+            "R", (), {"stdout": "", "stderr": "umount: not mounted", "returncode": 1}
+        )()
         res = storage.unmount("/mnt/usb")
         assert res["success"] is False
         assert "not mounted" in res["error"]

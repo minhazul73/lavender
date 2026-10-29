@@ -1,6 +1,7 @@
 """
 Shared dependencies and utility functions for the Lavender.
 """
+
 import subprocess
 import shutil
 import os
@@ -8,6 +9,7 @@ from typing import Optional
 
 from dashboard.config import SUDO_COMMANDS
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +17,7 @@ def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     """
     Run a command and return (returncode, stdout, stderr).
     cmd should be a list of arguments.
-    
+
     Preserves XDG_RUNTIME_DIR and DBUS_SESSION_BUS_ADDRESS from the
     parent environment so systemctl --user commands work correctly.
     """
@@ -62,6 +64,7 @@ async def run_session_command(
     Run command over authenticated user's session.
     """
     from dashboard.auth.bridge import run_command_async
+
     if session:
         return await run_command_async(cmd, timeout=timeout)
     return run_command(cmd, timeout=timeout)
@@ -77,6 +80,7 @@ async def run_session_user_service(
     XDG_RUNTIME_DIR and DBUS variables match the session's UID.
     """
     from dashboard.auth.bridge import run_user_service_async
+
     uid = session.uid if session else os.getuid()
     return await run_user_service_async(uid, cmd, timeout=timeout)
 
@@ -91,8 +95,8 @@ async def run_session_sudo(
     Run privileged command with sudo over user's session.
     """
     from dashboard.auth.bridge import run_sudo_async
-    return await run_sudo_async(cmd, password=password, timeout=timeout)
 
+    return await run_sudo_async(cmd, password=password, timeout=timeout)
 
 
 def which(program: str) -> Optional[str]:
@@ -120,19 +124,22 @@ def parse_passwd_users(min_uid: int = 1000, exclude_nologin: bool = True) -> lis
                 if len(parts) >= 7:
                     uid = int(parts[2])
                     shell = parts[6]
-                    # Filter out nobody (65534) and system nologin users for human accounts
+                    # Filter out nobody (65534) and system nologin users for
+                    # human accounts
                     if uid >= min_uid:
                         if exclude_nologin:
                             if uid == 65534 or shell in NON_LOGIN_SHELLS:
                                 continue
-                        users.append({
-                            "name": parts[0],
-                            "uid": uid,
-                            "gid": int(parts[3]),
-                            "home": parts[5],
-                            "shell": shell,
-                            "comment": parts[4],
-                        })
+                        users.append(
+                            {
+                                "name": parts[0],
+                                "uid": uid,
+                                "gid": int(parts[3]),
+                                "home": parts[5],
+                                "shell": shell,
+                                "comment": parts[4],
+                            }
+                        )
     except FileNotFoundError:
         logger.warning("/etc/passwd not found")
     except PermissionError:
@@ -152,16 +159,20 @@ def parse_all_passwd_users() -> list[dict]:
                 if len(parts) >= 7:
                     uid = int(parts[2])
                     shell = parts[6]
-                    is_human = (uid >= 1000 and uid != 65534 and shell not in NON_LOGIN_SHELLS) or uid == 0
-                    users.append({
-                        "name": parts[0],
-                        "uid": uid,
-                        "gid": int(parts[3]),
-                        "home": parts[5],
-                        "shell": shell,
-                        "comment": parts[4],
-                        "is_human": is_human,
-                    })
+                    is_human = (
+                        uid >= 1000 and uid != 65534 and shell not in NON_LOGIN_SHELLS
+                    ) or uid == 0
+                    users.append(
+                        {
+                            "name": parts[0],
+                            "uid": uid,
+                            "gid": int(parts[3]),
+                            "home": parts[5],
+                            "shell": shell,
+                            "comment": parts[4],
+                            "is_human": is_human,
+                        }
+                    )
     except FileNotFoundError:
         logger.warning("/etc/passwd not found")
     except PermissionError:
@@ -179,11 +190,17 @@ def parse_groups() -> list[dict]:
             for line in f:
                 parts = line.strip().split(":")
                 if len(parts) >= 4:
-                    groups.append({
-                        "name": parts[0],
-                        "gid": int(parts[2]),
-                        "members": [m.strip() for m in parts[3].split(",") if m.strip()] if parts[3] else [],
-                    })
+                    groups.append(
+                        {
+                            "name": parts[0],
+                            "gid": int(parts[2]),
+                            "members": (
+                                [m.strip() for m in parts[3].split(",") if m.strip()]
+                                if parts[3]
+                                else []
+                            ),
+                        }
+                    )
     except FileNotFoundError:
         logger.warning("/etc/group not found")
     except PermissionError:
@@ -197,7 +214,9 @@ def parse_active_sessions() -> list[dict]:
     """Parse active terminal and SSH sessions via who or loginctl."""
     sessions = []
     try:
-        result = subprocess.run(["who", "-u"], capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            ["who", "-u"], capture_output=True, text=True, timeout=5
+        )
         out = result.stdout.strip()
         if not out:
             # Fallback to plain who
@@ -215,13 +234,15 @@ def parse_active_sessions() -> list[dict]:
                 login_time = f"{parts[2]} {parts[3]}"
                 host = parts[-1].strip("()") if "(" in parts[-1] else "Local"
                 idle = parts[4] if len(parts) >= 6 and parts[4] != "." else "Active"
-                sessions.append({
-                    "user": user,
-                    "tty": tty,
-                    "host": host,
-                    "login_time": login_time,
-                    "idle": idle,
-                })
+                sessions.append(
+                    {
+                        "user": user,
+                        "tty": tty,
+                        "host": host,
+                        "login_time": login_time,
+                        "idle": idle,
+                    }
+                )
     except Exception:
         pass
     return sessions
@@ -231,7 +252,9 @@ def parse_login_history(limit: int = 10) -> list[dict]:
     """Parse recent login history via last."""
     history = []
     try:
-        result = subprocess.run(["last", "-n", str(limit)], capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            ["last", "-n", str(limit)], capture_output=True, text=True, timeout=5
+        )
         for line in result.stdout.splitlines():
             line = line.strip()
             if not line or line.startswith("wtmp begins") or line.startswith("reboot"):
@@ -242,12 +265,14 @@ def parse_login_history(limit: int = 10) -> list[dict]:
                 tty = parts[1]
                 host = parts[2]
                 duration = " ".join(parts[3:])
-                history.append({
-                    "user": user,
-                    "tty": tty,
-                    "host": host,
-                    "time": duration,
-                })
+                history.append(
+                    {
+                        "user": user,
+                        "tty": tty,
+                        "host": host,
+                        "time": duration,
+                    }
+                )
     except Exception:
         pass
     return history
@@ -281,4 +306,6 @@ def read_sudoers() -> str:
 def visudo_check() -> tuple[bool, str]:
     """Run visudo -c to check sudoers syntax safely without blocking."""
     code, out, err = run_command(["sudo", "-n", "visudo", "-c"], timeout=2)
-    return code == 0, (out or err or ("Requires elevated password" if code != 0 else "OK"))
+    return code == 0, (
+        out or err or ("Requires elevated password" if code != 0 else "OK")
+    )

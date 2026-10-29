@@ -89,13 +89,13 @@ function renderBattery(battery) {
     if (battery.error) {
         return `<div class="alert alert-error">Error: ${escapeHtml(battery.error)}</div>`;
     }
-    
+
     const pct = battery.percentage;
     const pctClass = pct === null ? '' : (pct > 50 ? 'good' : (pct > 20 ? 'warn' : 'crit'));
     const state = battery.state || 'Unknown';
-    const stateClass = state.toLowerCase().includes('charging') ? 'charging' : 
+    const stateClass = state.toLowerCase().includes('charging') ? 'charging' :
                        state.toLowerCase().includes('discharging') ? 'discharging' : 'unknown';
-    
+
     return `
         <div class="battery-display">
             <div class="battery-gauge">
@@ -105,7 +105,7 @@ function renderBattery(battery) {
                 <div class="battery-pct">${pct !== null ? pct + '%' : 'N/A'}</div>
             </div>
             <div class="battery-details">
-                <div class="battery-row"><span class="label">State:</span> 
+                <div class="battery-row"><span class="label">State:</span>
                     <span class="badge ${stateClass}">${state}</span></div>
                 ${battery.voltage ? `<div class="battery-row"><span class="label">Voltage:</span> <span class="value">${battery.voltage} V</span></div>` : ''}
                 ${battery.capacity !== null ? `<div class="battery-row"><span class="label">Capacity:</span> <span class="value">${battery.capacity}%</span></div>` : ''}
@@ -155,22 +155,22 @@ function renderCpu(freqs, scaling) {
     if (!freqs || freqs.length === 0) {
         return '<p class="text-muted">CPU frequency info not available</p>';
     }
-    
+
     let html = '';
-    
+
     // Scaling info
     if (scaling.governors && scaling.governors.length > 0) {
         html += `
             <div class="cpu-scaling-info">
                 <h4>Governor & Ranges</h4>
-                <div class="scaling-row"><span class="label">Available Governors:</span> 
+                <div class="scaling-row"><span class="label">Available Governors:</span>
                     <span class="value">${scaling.governors.join(', ')}</span></div>
                 ${scaling.min_freq ? `<div class="scaling-row"><span class="label">Min Freq:</span> <span class="value">${scaling.min_freq / 1000} MHz</span></div>` : ''}
                 ${scaling.max_freq ? `<div class="scaling-row"><span class="label">Max Freq:</span> <span class="value">${scaling.max_freq / 1000} MHz</span></div>` : ''}
             </div>
         `;
     }
-    
+
     // Per-CPU frequencies
     html += `
         <div class="cpu-grid">
@@ -187,7 +187,7 @@ function renderCpu(freqs, scaling) {
         `;
     });
     html += '</div>';
-    
+
     return html;
 }
 

@@ -1,6 +1,7 @@
 """
 Unit tests for authentication module.
 """
+
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 from dashboard.auth.session import UserSession, SessionStore
@@ -41,6 +42,7 @@ class TestUserSession:
     def test_is_elevated_timeout(self):
         """Test elevation timeout."""
         import time
+
         session = UserSession(
             session_id="test",
             username="user",
@@ -100,6 +102,7 @@ class TestSessionStore:
         }
         # Note: create is async
         import asyncio
+
         session = asyncio.run(store.create("testuser", user_info))
         assert session.username == "testuser"
         assert session.session_id is not None
@@ -143,6 +146,7 @@ class TestAuthDeps:
         """Test require_session raises 401 for API calls without a session."""
         import asyncio
         from fastapi import HTTPException
+
         request = MagicMock()
         request.headers = {"accept": "application/json"}
         request.url.path = "/api/x"
@@ -154,5 +158,6 @@ class TestAuthDeps:
     def test_require_session_with_session(self):
         """Test require_session returns the existing session."""
         import asyncio
+
         session = MagicMock()
         assert asyncio.run(require_session(MagicMock(), session)) is session

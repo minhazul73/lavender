@@ -1,6 +1,7 @@
 """
 Unit tests for dashboard.dependencies utility functions.
 """
+
 import subprocess
 from unittest.mock import patch, MagicMock, mock_open
 
@@ -96,11 +97,7 @@ class TestParsePasswdUsers:
 
 class TestParseGroups:
     def test_parses_members(self):
-        group = (
-            "root:x:0:\n"
-            "sudo:x:27:rahat\n"
-            "audio:x:29:rahat,other\n"
-        )
+        group = "root:x:0:\n" "sudo:x:27:rahat\n" "audio:x:29:rahat,other\n"
         with patch("builtins.open", mock_open(read_data=group)):
             groups = deps.parse_groups()
         by_name = {g["name"]: g for g in groups}

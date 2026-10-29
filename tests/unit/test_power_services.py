@@ -1,6 +1,7 @@
 """
 Unit tests for dashboard.services.power.
 """
+
 from unittest.mock import patch
 
 from dashboard.services import power

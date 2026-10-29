@@ -1,6 +1,7 @@
 """
 Power control operations.
 """
+
 import subprocess
 
 from dashboard.dependencies import run_command, run_sudo_command
@@ -71,4 +72,3 @@ def cancel_scheduled_action() -> dict:
         "output": out,
         "error": err,
     }
-

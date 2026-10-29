@@ -5,7 +5,8 @@ PORT = 8080
 HOST = "0.0.0.0"
 DEBUG = False
 
-# Application Version (SemVer: < 1.0 indicates development / pre-release status)
+# Application Version (SemVer: < 1.0 indicates development / pre-release
+# status)
 APP_VERSION = "0.4.0"
 
 
@@ -38,8 +39,8 @@ TOP_DIRS = 10
 
 # ===== SSE Live Monitoring =====
 # Default SSE poll intervals (ms) — each metric has its own
-SSE_CPU_INTERVAL_MS = 1000      # CPU freq: every 1s
-SSE_RAM_INTERVAL_MS = 3000      # RAM: every 3s
+SSE_CPU_INTERVAL_MS = 1000  # CPU freq: every 1s
+SSE_RAM_INTERVAL_MS = 3000  # RAM: every 3s
 SSE_THERMAL_INTERVAL_MS = 5000  # Thermal: every 5s
 SSE_BATTERY_INTERVAL_MS = 3000  # Battery: every 3s
 SSE_NETWORK_INTERVAL_MS = 2000  # Network rate: every 2s
@@ -55,9 +56,10 @@ SSE_NETWORK_BUFFER = 30
 SESSION_COOKIE_NAME = "rn7_session"
 SESSION_MAX_IDLE_MINUTES = 60
 ADMIN_ELEVATION_TIMEOUT_MINUTES = 15
-SESSION_SECRET_KEY = os.environ.get("DASHBOARD_SECRET_KEY", "rn7-dashboard-secret-key-default-2026")
+SESSION_SECRET_KEY = os.environ.get(
+    "DASHBOARD_SECRET_KEY", "rn7-dashboard-secret-key-default-2026"
+)
 PAM_SERVICE = os.environ.get("PAM_SERVICE", "login")
 
 # Rate Limiting
 LOGIN_RATE_LIMIT = "10/minute"
-

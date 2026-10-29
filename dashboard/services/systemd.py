@@ -1,6 +1,7 @@
 """
 Systemd service management.
 """
+
 import datetime
 import json
 import subprocess
@@ -18,10 +19,21 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
     If both false: list both user and system.
     """
     results = []
-    
+
     if not system_only:
         # User services
-        code, out, err = run_command(["systemctl", "--user", "list-units", "--type=service", "--all", "--no-pager", "--no-legend"], timeout=15)
+        code, out, err = run_command(
+            [
+                "systemctl",
+                "--user",
+                "list-units",
+                "--type=service",
+                "--all",
+                "--no-pager",
+                "--no-legend",
+            ],
+            timeout=15,
+        )
         if code == 0:
             for line in out.split("\n"):
                 line = line.lstrip("●* ").strip()
@@ -29,20 +41,42 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
                     continue
                 parts = line.split()
                 if len(parts) >= 4:
-                    results.append({
-                        "name": parts[0],
-                        "load_state": parts[1],
-                        "active_state": parts[2],
-                        "sub_state": parts[3],
-                        "scope": "user",
-                    })
-    
+                    results.append(
+                        {
+                            "name": parts[0],
+                            "load_state": parts[1],
+                            "active_state": parts[2],
+                            "sub_state": parts[3],
+                            "scope": "user",
+                        }
+                    )
+
     if not user_only:
         # System services — may need sudo for full list
-        code, out, err = run_command(["systemctl", "list-units", "--type=service", "--all", "--no-pager", "--no-legend"], timeout=15)
+        code, out, err = run_command(
+            [
+                "systemctl",
+                "list-units",
+                "--type=service",
+                "--all",
+                "--no-pager",
+                "--no-legend",
+            ],
+            timeout=15,
+        )
         if code != 0:
             # Try with sudo
-            code, out, err = run_sudo_command(["systemctl", "list-units", "--type=service", "--all", "--no-pager", "--no-legend"], timeout=15)
+            code, out, err = run_sudo_command(
+                [
+                    "systemctl",
+                    "list-units",
+                    "--type=service",
+                    "--all",
+                    "--no-pager",
+                    "--no-legend",
+                ],
+                timeout=15,
+            )
         if code == 0:
             for line in out.split("\n"):
                 line = line.lstrip("●* ").strip()
@@ -50,28 +84,35 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
                     continue
                 parts = line.split()
                 if len(parts) >= 4:
-                    results.append({
-                        "name": parts[0],
-                        "load_state": parts[1],
-                        "active_state": parts[2],
-                        "sub_state": parts[3],
-                        "scope": "system",
-                    })
-    
+                    results.append(
+                        {
+                            "name": parts[0],
+                            "load_state": parts[1],
+                            "active_state": parts[2],
+                            "sub_state": parts[3],
+                            "scope": "system",
+                        }
+                    )
+
     return results
 
 
 def get_service_status(service_name: str, user: bool = False) -> dict:
     """Get detailed status for a single service."""
-    cmd = ["systemctl", "--user", "status", service_name, "--no-pager"] if user else ["systemctl", "status", service_name, "--no-pager"]
+    cmd = (
+        ["systemctl", "--user", "status", service_name, "--no-pager"]
+        if user
+        else ["systemctl", "status", service_name, "--no-pager"]
+    )
     code, out, err = run_command(cmd, timeout=15)
-    
-    # Try with sudo for system services only if direct failed completely (no output returned)
+
+    # Try with sudo for system services only if direct failed completely (no
+    # output returned)
     if not out.strip() and not user:
         sudo_code, sudo_out, sudo_err = run_sudo_command(cmd, timeout=15)
         if sudo_out.strip():
             code, out, err = sudo_code, sudo_out, sudo_err
-    
+
     # Parse key info
     info = {
         "name": service_name,
@@ -91,21 +132,26 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
         "cpu": "",
         "docs": "",
     }
-    
+
     if out.strip():
         first_line = out.strip().split("\n")[0]
         desc_m = re.search(r"^[●○×*]?\s*[\w\.\@\-]+\s*-\s*(.+)$", first_line)
         if desc_m:
             info["description"] = desc_m.group(1).strip()
-    
+
     # Parse from output
     for line in out.split("\n"):
         if "Loaded:" in line:
-            m = re.search(r";\s*(enabled|disabled|static|masked|indirect|generated)\b", line)
+            m = re.search(
+                r";\s*(enabled|disabled|static|masked|indirect|generated)\b", line
+            )
             if m:
                 info["unit_file_state"] = m.group(1)
         if "Active:" in line:
-            m = re.search(r"Active:\s+([a-zA-Z\-]+)(?:\s+\(([^)]+)\))?(?:;\s*(.+)|(?:\s+since\s+(.+)))?", line)
+            m = re.search(
+                r"Active:\s+([a-zA-Z\-]+)(?:\s+\(([^)]+)\))?(?:;\s*(.+)|(?:\s+since\s+(.+)))?",
+                line,
+            )
             if m:
                 primary_state = m.group(1).lower()
                 info["active_state"] = primary_state
@@ -132,13 +178,34 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
         m = re.search(r"Docs:\s+(.+)", line)
         if m:
             info["docs"] = m.group(1).strip()
-    
+
     return info
 
 
 def get_service_logs(service_name: str, lines: int = 50, user: bool = False) -> str:
     """Get recent logs for a service."""
-    cmd = ["journalctl", "--user", "-u", service_name, "-n", str(lines), "--no-pager", "--output=short"] if user else ["journalctl", "-u", service_name, "-n", str(lines), "--no-pager", "--output=short"]
+    cmd = (
+        [
+            "journalctl",
+            "--user",
+            "-u",
+            service_name,
+            "-n",
+            str(lines),
+            "--no-pager",
+            "--output=short",
+        ]
+        if user
+        else [
+            "journalctl",
+            "-u",
+            service_name,
+            "-n",
+            str(lines),
+            "--no-pager",
+            "--output=short",
+        ]
+    )
     code, out, err = run_command(cmd, timeout=15)
     if code != 0 and not user:
         code, out, err = run_sudo_command(cmd, timeout=15)
@@ -162,7 +229,7 @@ def service_action(service_name: str, action: str, user: bool = False) -> dict:
         # If direct failed, try with sudo
         if code != 0:
             code, out, err = run_sudo_command(cmd, timeout=15)
-    
+
     return {
         "action": action,
         "service": service_name,
@@ -182,7 +249,10 @@ def get_all_units() -> list[dict]:
     """Get all systemd units (not just active) for the full list."""
     # User units
     units = []
-    code, out, err = run_command(["systemctl", "--user", "list-units", "--all", "--no-pager", "--no-legend"], timeout=15)
+    code, out, err = run_command(
+        ["systemctl", "--user", "list-units", "--all", "--no-pager", "--no-legend"],
+        timeout=15,
+    )
     if code == 0:
         for line in out.split("\n"):
             line = line.lstrip("●* ").strip()
@@ -190,16 +260,20 @@ def get_all_units() -> list[dict]:
                 continue
             parts = line.split()
             if len(parts) >= 4:
-                units.append({
-                    "name": parts[0],
-                    "load": parts[1],
-                    "active": parts[2],
-                    "sub": parts[3],
-                    "scope": "user",
-                })
-    
+                units.append(
+                    {
+                        "name": parts[0],
+                        "load": parts[1],
+                        "active": parts[2],
+                        "sub": parts[3],
+                        "scope": "user",
+                    }
+                )
+
     # System units
-    code, out, err = run_sudo_command(["systemctl", "list-units", "--all", "--no-pager", "--no-legend"], timeout=15)
+    code, out, err = run_sudo_command(
+        ["systemctl", "list-units", "--all", "--no-pager", "--no-legend"], timeout=15
+    )
     if code == 0:
         for line in out.split("\n"):
             line = line.lstrip("●* ").strip()
@@ -207,14 +281,16 @@ def get_all_units() -> list[dict]:
                 continue
             parts = line.split()
             if len(parts) >= 4:
-                units.append({
-                    "name": parts[0],
-                    "load": parts[1],
-                    "active": parts[2],
-                    "sub": parts[3],
-                    "scope": "system",
-                })
-    
+                units.append(
+                    {
+                        "name": parts[0],
+                        "load": parts[1],
+                        "active": parts[2],
+                        "sub": parts[3],
+                        "scope": "system",
+                    }
+                )
+
     return units
 
 
@@ -236,7 +312,9 @@ def get_recent_logs(lines: int = 20) -> list[dict]:
         except Exception:
             continue
         # Extract timestamp
-        raw_ts = entry.get("__REALTIME_TIMESTAMP") or entry.get("_SOURCE_REALTIME_TIMESTAMP")
+        raw_ts = entry.get("__REALTIME_TIMESTAMP") or entry.get(
+            "_SOURCE_REALTIME_TIMESTAMP"
+        )
         timestamp = ""
         if raw_ts:
             try:
@@ -275,11 +353,13 @@ def get_recent_logs(lines: int = 20) -> list[dict]:
         if not service:
             service = entry.get("_COMM", "system")
 
-        logs.append({
-            "timestamp": timestamp,
-            "message": message,
-            "service": service,
-            "level": level,
-        })
+        logs.append(
+            {
+                "timestamp": timestamp,
+                "message": message,
+                "service": service,
+                "level": level,
+            }
+        )
 
     return logs

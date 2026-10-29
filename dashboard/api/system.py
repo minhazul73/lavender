@@ -2,6 +2,7 @@
 API routes for system-related operations.
 Protected with session authentication and privilege verification.
 """
+
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
@@ -36,6 +37,7 @@ router = APIRouter()
 
 
 # ---- Systemd Services ----
+
 
 @router.get("/system/services")
 async def api_list_services(
@@ -104,7 +106,9 @@ async def api_service_action(
             ["systemctl", action, service_name], password=None
         )
     if code != 0:
-        raise HTTPException(status_code=500, detail=err or out or f"Failed to {action} {service_name}")
+        raise HTTPException(
+            status_code=500, detail=err or out or f"Failed to {action} {service_name}"
+        )
     return {
         "success": True,
         "action": action,
@@ -116,6 +120,7 @@ async def api_service_action(
 
 # ---- Storage / Disk ----
 
+
 @router.get("/system/storage")
 async def api_storage(session: Optional[UserSession] = Depends(get_current_session)):
     """Get disk usage information."""
@@ -125,6 +130,7 @@ async def api_storage(session: Optional[UserSession] = Depends(get_current_sessi
 
 
 # ---- Processes ----
+
 
 @router.get("/system/processes")
 async def api_processes(
@@ -148,7 +154,9 @@ async def api_kill_process(
     """Kill a process by PID (requires administrative elevation)."""
     code, out, err = await run_sudo_async(["kill", "-9", str(pid)], password=None)
     if code != 0:
-        raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {pid}")
+        raise HTTPException(
+            status_code=500, detail=err or out or f"Failed to kill PID {pid}"
+        )
     return {"action": "kill", "pid": pid, "success": True, "output": out}
 
 
@@ -162,6 +170,7 @@ async def api_memory(session: Optional[UserSession] = Depends(get_current_sessio
 
 
 # ---- Recent System Logs ----
+
 
 @router.get("/system/logs")
 async def api_recent_logs(

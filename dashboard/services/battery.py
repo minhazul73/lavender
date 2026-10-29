@@ -1,11 +1,11 @@
 """
 Battery, thermal, and CPU frequency management.
 """
+
 import subprocess
 import os
 
 from dashboard.dependencies import run_command, run_sudo_command
-
 
 # Thermal zone type-to-display-name mapping for readable labels
 THERMAL_NAME_MAP = {
@@ -96,7 +96,8 @@ def get_battery_info() -> dict:
         "energy_full": None,
         "energy_full_design": None,
         "energy_rate": None,
-        "capacity": None,  # percentage of design capacity (upower: "capacity: 100%")
+        # percentage of design capacity (upower: "capacity: 100%")
+        "capacity": None,
         "temperature": None,
         "serial": None,
         "vendor": None,
@@ -216,7 +217,9 @@ def get_thermal_zones() -> list[dict]:
                     pass
 
             # Map to readable display name
-            zone["display_name"] = THERMAL_NAME_MAP.get(zone["type"], zone["type"] or entry)
+            zone["display_name"] = THERMAL_NAME_MAP.get(
+                zone["type"], zone["type"] or entry
+            )
 
             # Read temperature
             temp_path = os.path.join(zone_path, "temp")
@@ -346,7 +349,9 @@ def set_cpu_governor(governor: str) -> dict:
         }
 
     # 1. Try cpupower command
-    code, out, err = run_sudo_command(["cpupower", "frequency-set", "-g", clean_gov], timeout=10)
+    code, out, err = run_sudo_command(
+        ["cpupower", "frequency-set", "-g", clean_gov], timeout=10
+    )
     if code == 0:
         return {"success": True, "governor": clean_gov, "output": out.strip()}
 
@@ -378,4 +383,3 @@ def set_cpu_governor(governor: str) -> dict:
         "success": False,
         "error": "; ".join(errors) or err or "Failed to set CPU governor",
     }
-

@@ -334,7 +334,7 @@ function renderProcesses(procs) {
 
         // Memory rendering
         const memFormatted = formatKb(p.mem);
-        const memClass = (p.mem_pct && p.mem_pct > 15) || p.mem > 500000 ? 'crit' : 
+        const memClass = (p.mem_pct && p.mem_pct > 15) || p.mem > 500000 ? 'crit' :
                          ((p.mem_pct && p.mem_pct > 7) || p.mem > 150000 ? 'warn' : '');
         const pctInfo = p.mem_pct > 0 ? `<span class="text-muted small" style="margin-left: 5px; font-size: 11px;">(${p.mem_pct.toFixed(1)}%)</span>` : '';
 

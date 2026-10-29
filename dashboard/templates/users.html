@@ -132,7 +132,7 @@
             <span>Interactive Human Users</span>
             <span id="human-users-count-tag" style="font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--accent-dim); color: var(--accent);">0</span>
         </h3>
-        
+
         <!-- User Cards Grid -->
         <div class="user-cards-grid" id="user-cards-container">
             <div class="card" style="padding: 24px; text-align: center; color: var(--text-muted); grid-column: 1 / -1;">
@@ -619,7 +619,7 @@ function renderSystemUsers() {
 
     let filtered = state.systemUsers;
     if (filterText) {
-        filtered = state.systemUsers.filter(u => 
+        filtered = state.systemUsers.filter(u =>
             u.name.toLowerCase().includes(filterText) ||
             String(u.uid).includes(filterText) ||
             u.shell.toLowerCase().includes(filterText)
@@ -721,7 +721,7 @@ function renderGroups() {
     }
 
     if (search) {
-        filtered = filtered.filter(g => 
+        filtered = filtered.filter(g =>
             g.name.toLowerCase().includes(search) ||
             g.description.toLowerCase().includes(search) ||
             (g.members || []).some(m => m.toLowerCase().includes(search))
@@ -786,14 +786,14 @@ function renderSecurity() {
 
     const elevVal = document.getElementById('sec-session-elev');
     if (elevVal) {
-        elevVal.innerHTML = state.metrics.is_elevated 
+        elevVal.innerHTML = state.metrics.is_elevated
             ? '<span style="color:var(--green); font-weight:600;">Active (Root Ticket)</span>'
             : '<span style="color:var(--text-muted);">Not elevated</span>';
     }
 
     const sshdVal = document.getElementById('sec-sshd-status');
     if (sshdVal) {
-        sshdVal.innerHTML = sec.sshd_active 
+        sshdVal.innerHTML = sec.sshd_active
             ? '<span style="color:var(--green); font-weight:600;">● Active (Listening)</span>'
             : '<span style="color:var(--text-muted);">Inactive / Idle</span>';
     }
@@ -819,7 +819,7 @@ function populateSshUserSelect() {
     }
 
     const currentVal = sel.value || state.selectedSshUser || state.humanUsers[0].name;
-    sel.innerHTML = state.humanUsers.map(u => 
+    sel.innerHTML = state.humanUsers.map(u =>
         `<option value="${escapeHtml(u.name)}" ${u.name === currentVal ? 'selected' : ''}>${escapeHtml(u.name)} (${u.ssh_keys_count} keys)</option>`
     ).join('');
 
@@ -908,7 +908,7 @@ function openSshKeysFor(username) {
     // Switch to Security tab and select this user
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-    
+
     const secTabBtn = document.querySelector('.tab[data-tab="security"]');
     if (secTabBtn) secTabBtn.classList.add('active');
     document.getElementById('tab-security').classList.add('active');

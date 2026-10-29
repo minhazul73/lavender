@@ -63,7 +63,7 @@ Originally designed for postmarketOS on ARM64 mobile devices (such as the Redmi 
 - **Systemd Service Management** — Manage system and user services (`systemctl` and `systemctl --user`). Filter by scope (`user`, `system`, `all`) and state (`active`, `inactive`, `failed`), navigate with pagination, inspect unit status, view real-time journalctl logs in an embedded dark terminal window with copyable commands, and execute lifecycle actions (`start`, `stop`, `restart`, `enable`, `disable`).
 - **Storage & Mounts** — Disk usage overview with visual usage bars, automatic filtering of pseudo/virtual filesystems (`tmpfs`, `devpts`), and external storage detection (`/mnt`, `/media`, `/sdcard`).
 - **Process Management** — Interactive process monitor with sorting by CPU, memory, PID, user, or name, supporting both standard `procps` and `busybox ps`. Terminate processes with admin privileges (`kill -9`).
-- **Network & Diagnostics** — 
+- **Network & Diagnostics** —
   - Detailed interface status with IPv4, IPv6, MAC, MTU, carrier state, and RX/TX packet & byte counters.
   - WiFi status and nearby network scanning supporting `nmcli`, `iw`, `iwconfig`, `wpa_cli`, and `/proc/net/wireless` (SSID, BSSID, signal strength, channel, frequency, bitrate, and security).
   - DNS configuration with automatic provider identification (Cloudflare, Google, Quad9, AdGuard, OpenDNS, Local Gateway).
@@ -137,7 +137,7 @@ systemctl --user enable --now lavender
 
 ### Access
 
-Open `http://<device-ip>:8080` in your web browser. 
+Open `http://<device-ip>:8080` in your web browser.
 - The **Overview** page (`/`) is publicly viewable without authentication for quick device telemetry.
 - Protected pages and administrative actions require signing in with your Linux system credentials.
 

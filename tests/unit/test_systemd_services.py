@@ -1,6 +1,7 @@
 """
 Unit tests for dashboard.services.systemd.
 """
+
 import json
 from unittest.mock import patch
 
@@ -183,18 +184,22 @@ class TestGetAllUnits:
 class TestGetRecentLogs:
     @patch("dashboard.services.systemd.run_command")
     def test_parses_json_entries(self, mock_run):
-        entry1 = json.dumps({
-            "__REALTIME_TIMESTAMP": "1698400000000000",
-            "MESSAGE": "Service started",
-            "PRIORITY": 6,
-            "_SYSTEMD_UNIT": "jellyfin.service",
-        })
-        entry2 = json.dumps({
-            "__REALTIME_TIMESTAMP": "1698400001000000",
-            "MESSAGE": "Error occurred",
-            "PRIORITY": 3,
-            "_COMM": "kernel",
-        })
+        entry1 = json.dumps(
+            {
+                "__REALTIME_TIMESTAMP": "1698400000000000",
+                "MESSAGE": "Service started",
+                "PRIORITY": 6,
+                "_SYSTEMD_UNIT": "jellyfin.service",
+            }
+        )
+        entry2 = json.dumps(
+            {
+                "__REALTIME_TIMESTAMP": "1698400001000000",
+                "MESSAGE": "Error occurred",
+                "PRIORITY": 3,
+                "_COMM": "kernel",
+            }
+        )
         mock_run.return_value = (0, f"{entry1}\n{entry2}\n", "")
         logs = systemd.get_recent_logs(lines=10)
         assert len(logs) == 2
@@ -207,11 +212,13 @@ class TestGetRecentLogs:
     @patch("dashboard.services.systemd.run_command")
     def test_truncates_long_messages(self, mock_run):
         long_msg = "x" * 300
-        entry = json.dumps({
-            "__REALTIME_TIMESTAMP": "1698400000000000",
-            "MESSAGE": long_msg,
-            "PRIORITY": 6,
-        })
+        entry = json.dumps(
+            {
+                "__REALTIME_TIMESTAMP": "1698400000000000",
+                "MESSAGE": long_msg,
+                "PRIORITY": 6,
+            }
+        )
         mock_run.return_value = (0, f"{entry}\n", "")
         logs = systemd.get_recent_logs()
         assert len(logs[0]["message"]) == 201
@@ -219,10 +226,12 @@ class TestGetRecentLogs:
 
     @patch("dashboard.services.systemd.run_command")
     def test_warning_level(self, mock_run):
-        entry = json.dumps({
-            "MESSAGE": "warn",
-            "PRIORITY": 4,
-        })
+        entry = json.dumps(
+            {
+                "MESSAGE": "warn",
+                "PRIORITY": 4,
+            }
+        )
         mock_run.return_value = (0, f"{entry}\n", "")
         logs = systemd.get_recent_logs()
         assert logs[0]["level"] == "warning"

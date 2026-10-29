@@ -3,6 +3,7 @@ Network and WiFi management for Lavender dashboard.
 Supports postmarketOS (Alpine / busybox / wpa_cli), Debian/Ubuntu (nmcli / iwconfig / iw),
 and standard Linux kernel sysfs / procfs.
 """
+
 import os
 import re
 import socket
@@ -41,7 +42,19 @@ def get_known_dns_provider(ip: str) -> str:
         return "OpenDNS"
     if ip in ("94.140.14.14", "94.140.15.15"):
         return "AdGuard DNS"
-    if ip.startswith(("192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.2", "172.30.", "172.31.")):
+    if ip.startswith(
+        (
+            "192.168.",
+            "10.",
+            "172.16.",
+            "172.17.",
+            "172.18.",
+            "172.19.",
+            "172.2",
+            "172.30.",
+            "172.31.",
+        )
+    ):
         return "Local Router / Gateway"
     return "ISP / Custom DNS"
 
@@ -53,18 +66,21 @@ def get_gateways() -> list[dict]:
     if code == 0 and out.strip().startswith("["):
         try:
             import json
+
             routes = json.loads(out)
             for r in routes:
                 gw = r.get("gateway")
                 dev = r.get("dev")
                 if gw and dev:
-                    gateways.append({
-                        "gateway": gw,
-                        "interface": dev,
-                        "protocol": r.get("protocol", "static"),
-                        "metric": r.get("metric", 0),
-                        "prefsrc": r.get("prefsrc", "")
-                    })
+                    gateways.append(
+                        {
+                            "gateway": gw,
+                            "interface": dev,
+                            "protocol": r.get("protocol", "static"),
+                            "metric": r.get("metric", 0),
+                            "prefsrc": r.get("prefsrc", ""),
+                        }
+                    )
             if gateways:
                 return gateways
         except Exception:
@@ -78,13 +94,15 @@ def get_gateways() -> list[dict]:
                 continue
             m = re.match(r"default\s+via\s+(\S+)\s+dev\s+(\S+)", line)
             if m:
-                gateways.append({
-                    "gateway": m.group(1),
-                    "interface": m.group(2),
-                    "protocol": "dhcp" if "dhcp" in line else "static",
-                    "metric": 0,
-                    "prefsrc": ""
-                })
+                gateways.append(
+                    {
+                        "gateway": m.group(1),
+                        "interface": m.group(2),
+                        "protocol": "dhcp" if "dhcp" in line else "static",
+                        "metric": 0,
+                        "prefsrc": "",
+                    }
+                )
     return gateways
 
 
@@ -105,6 +123,7 @@ def get_ip_addresses() -> list[dict]:
     if code == 0 and out.strip().startswith("["):
         try:
             import json
+
             raw_list = json.loads(out)
             for item in raw_list:
                 name = item.get("ifname", "")
@@ -112,7 +131,7 @@ def get_ip_addresses() -> list[dict]:
                     continue
 
                 cat = "ethernet"
-                is_loopback = (name == "lo" or item.get("link_type") == "loopback")
+                is_loopback = name == "lo" or item.get("link_type") == "loopback"
                 is_wireless = (
                     os.path.exists(f"/sys/class/net/{name}/wireless")
                     or os.path.exists(f"/sys/class/net/{name}/phy80211")
@@ -136,7 +155,10 @@ def get_ip_addresses() -> list[dict]:
                     cat = "bridge"
                 elif is_virtual:
                     cat = "virtual"
-                elif name.startswith(("eth", "enp", "eno", "ens")) or item.get("link_type") == "ether":
+                elif (
+                    name.startswith(("eth", "enp", "eno", "ens"))
+                    or item.get("link_type") == "ether"
+                ):
                     cat = "ethernet"
 
                 mac = item.get("address")
@@ -171,23 +193,30 @@ def get_ip_addresses() -> list[dict]:
                     flat_addresses.append(cidr)
 
                     if addr.get("family") == "inet":
-                        ipv4_list.append({
-                            "address": local_ip,
-                            "cidr": cidr,
-                            "broadcast": addr.get("broadcast"),
-                            "scope": addr.get("scope", "global"),
-                        })
+                        ipv4_list.append(
+                            {
+                                "address": local_ip,
+                                "cidr": cidr,
+                                "broadcast": addr.get("broadcast"),
+                                "scope": addr.get("scope", "global"),
+                            }
+                        )
                     elif addr.get("family") == "inet6":
-                        ipv6_list.append({
-                            "address": local_ip,
-                            "cidr": cidr,
-                            "scope": addr.get("scope", "link"),
-                        })
+                        ipv6_list.append(
+                            {
+                                "address": local_ip,
+                                "cidr": cidr,
+                                "scope": addr.get("scope", "link"),
+                            }
+                        )
 
                 stats = {
-                    "rx_bytes": 0, "tx_bytes": 0,
-                    "rx_packets": 0, "tx_packets": 0,
-                    "rx_errors": 0, "tx_errors": 0,
+                    "rx_bytes": 0,
+                    "tx_bytes": 0,
+                    "rx_packets": 0,
+                    "tx_packets": 0,
+                    "rx_errors": 0,
+                    "tx_errors": 0,
                 }
                 stat_path = f"/sys/class/net/{name}/statistics"
                 if os.path.exists(stat_path):
@@ -207,31 +236,33 @@ def get_ip_addresses() -> list[dict]:
                 except Exception:
                     pass
 
-                interfaces.append({
-                    "name": name,
-                    "type": cat,
-                    "category": cat,
-                    "state": state,
-                    "is_up": ("UP" in flags and state != "DOWN"),
-                    "is_default": (name == default_dev),
-                    "mac": mac,
-                    "mtu": mtu,
-                    "speed": speed_str,
-                    "flags": flags,
-                    "addresses": flat_addresses,
-                    "ipv4": ipv4_list,
-                    "ipv6": ipv6_list,
-                    "rx_bytes_fmt": format_bytes(stats["rx_bytes"]),
-                    "tx_bytes_fmt": format_bytes(stats["tx_bytes"]),
-                    "stats": stats,
-                })
+                interfaces.append(
+                    {
+                        "name": name,
+                        "type": cat,
+                        "category": cat,
+                        "state": state,
+                        "is_up": ("UP" in flags and state != "DOWN"),
+                        "is_default": (name == default_dev),
+                        "mac": mac,
+                        "mtu": mtu,
+                        "speed": speed_str,
+                        "flags": flags,
+                        "addresses": flat_addresses,
+                        "ipv4": ipv4_list,
+                        "ipv6": ipv6_list,
+                        "rx_bytes_fmt": format_bytes(stats["rx_bytes"]),
+                        "tx_bytes_fmt": format_bytes(stats["tx_bytes"]),
+                        "stats": stats,
+                    }
+                )
         except Exception:
             interfaces = []
 
     # 2. Fallback to /sys/class/net and ip -o addr
     if not interfaces and os.path.exists("/sys/class/net"):
         for name in os.listdir("/sys/class/net"):
-            is_loopback = (name == "lo")
+            is_loopback = name == "lo"
             is_wireless = (
                 os.path.exists(f"/sys/class/net/{name}/wireless")
                 or os.path.exists(f"/sys/class/net/{name}/phy80211")
@@ -242,7 +273,15 @@ def get_ip_addresses() -> list[dict]:
                 or name == "docker0"
                 or name.startswith("br-")
             )
-            cat = "loopback" if is_loopback else ("wireless" if is_wireless else ("bridge" if is_bridge else "ethernet"))
+            cat = (
+                "loopback"
+                if is_loopback
+                else (
+                    "wireless"
+                    if is_wireless
+                    else ("bridge" if is_bridge else "ethernet")
+                )
+            )
 
             mtu = 0
             try:
@@ -267,7 +306,14 @@ def get_ip_addresses() -> list[dict]:
             except Exception:
                 pass
 
-            stats = {"rx_bytes": 0, "tx_bytes": 0, "rx_packets": 0, "tx_packets": 0, "rx_errors": 0, "tx_errors": 0}
+            stats = {
+                "rx_bytes": 0,
+                "tx_bytes": 0,
+                "rx_packets": 0,
+                "tx_packets": 0,
+                "rx_errors": 0,
+                "tx_errors": 0,
+            }
             stat_path = f"/sys/class/net/{name}/statistics"
             if os.path.exists(stat_path):
                 for k in stats.keys():
@@ -277,24 +323,26 @@ def get_ip_addresses() -> list[dict]:
                     except Exception:
                         pass
 
-            interfaces.append({
-                "name": name,
-                "type": cat,
-                "category": cat,
-                "state": state,
-                "is_up": (state == "UP"),
-                "is_default": (name == default_dev),
-                "mac": mac,
-                "mtu": mtu,
-                "speed": None,
-                "flags": ["UP"] if state == "UP" else [],
-                "addresses": [],
-                "ipv4": [],
-                "ipv6": [],
-                "rx_bytes_fmt": format_bytes(stats["rx_bytes"]),
-                "tx_bytes_fmt": format_bytes(stats["tx_bytes"]),
-                "stats": stats,
-            })
+            interfaces.append(
+                {
+                    "name": name,
+                    "type": cat,
+                    "category": cat,
+                    "state": state,
+                    "is_up": (state == "UP"),
+                    "is_default": (name == default_dev),
+                    "mac": mac,
+                    "mtu": mtu,
+                    "speed": None,
+                    "flags": ["UP"] if state == "UP" else [],
+                    "addresses": [],
+                    "ipv4": [],
+                    "ipv6": [],
+                    "rx_bytes_fmt": format_bytes(stats["rx_bytes"]),
+                    "tx_bytes_fmt": format_bytes(stats["tx_bytes"]),
+                    "stats": stats,
+                }
+            )
 
         code, out, _ = run_command(["ip", "-o", "addr", "show"], timeout=5)
         if code == 0:
@@ -311,14 +359,23 @@ def get_ip_addresses() -> list[dict]:
                         if ip_cidr not in cur["addresses"]:
                             cur["addresses"].append(ip_cidr)
                         if family == "inet":
-                            cur["ipv4"].append({"address": ip_clean, "cidr": ip_cidr, "scope": "global"})
+                            cur["ipv4"].append(
+                                {
+                                    "address": ip_clean,
+                                    "cidr": ip_cidr,
+                                    "scope": "global",
+                                }
+                            )
                         else:
-                            cur["ipv6"].append({"address": ip_clean, "cidr": ip_cidr, "scope": "link"})
+                            cur["ipv6"].append(
+                                {"address": ip_clean, "cidr": ip_cidr, "scope": "link"}
+                            )
 
     def sort_key(iface):
         score = 100
         name = iface.get("name", "")
-        # Tailscale interfaces should be deprioritized (lower priority = higher score)
+        # Tailscale interfaces should be deprioritized (lower priority = higher
+        # score)
         is_tailscale = name.startswith("tailscale")
         if is_tailscale:
             score = 80  # Lower priority than wireless, bridge, virtual
@@ -397,17 +454,26 @@ def get_wifi_info() -> dict:
     # 1. Try nmcli
     if which("nmcli"):
         try:
-            code, out, _ = run_command([
-                "nmcli", "-t", "-f",
-                "active,ssid,bssid,mode,chan,freq,rate,signal,security",
-                "dev", "wifi", "list", "--rescan", "no"
-            ], timeout=4)
+            code, out, _ = run_command(
+                [
+                    "nmcli",
+                    "-t",
+                    "-f",
+                    "active,ssid,bssid,mode,chan,freq,rate,signal,security",
+                    "dev",
+                    "wifi",
+                    "list",
+                    "--rescan",
+                    "no",
+                ],
+                timeout=4,
+            )
             if code == 0 and out:
                 nearby = []
                 for line in out.splitlines():
                     parts = re.split(r"(?<!\\):", line)
                     if len(parts) >= 8:
-                        is_active = (parts[0].strip().lower() == "yes")
+                        is_active = parts[0].strip().lower() == "yes"
                         raw_ssid = parts[1].replace(r"\:", ":").strip()
                         raw_bssid = parts[2].replace(r"\:", ":").strip()
                         mode = parts[3].strip()
@@ -479,9 +545,13 @@ def get_wifi_info() -> dict:
                     try:
                         q_parts = qual_m.group(1).split("/")
                         if len(q_parts) == 2 and float(q_parts[1]) > 0:
-                            q_percent = int((float(q_parts[0]) / float(q_parts[1])) * 100)
+                            q_percent = int(
+                                (float(q_parts[0]) / float(q_parts[1])) * 100
+                            )
                             if wifi_data["signal_percent"] is None:
-                                wifi_data["signal_percent"] = min(100, max(0, q_percent))
+                                wifi_data["signal_percent"] = min(
+                                    100, max(0, q_percent)
+                                )
                     except Exception:
                         pass
 
@@ -573,17 +643,24 @@ def scan_wifi_networks() -> list[dict]:
     if which("nmcli"):
         try:
             run_command(["nmcli", "dev", "wifi", "rescan"], timeout=6)
-            code, out, _ = run_command([
-                "nmcli", "-t", "-f",
-                "active,ssid,bssid,mode,chan,freq,rate,signal,security",
-                "dev", "wifi", "list"
-            ], timeout=5)
+            code, out, _ = run_command(
+                [
+                    "nmcli",
+                    "-t",
+                    "-f",
+                    "active,ssid,bssid,mode,chan,freq,rate,signal,security",
+                    "dev",
+                    "wifi",
+                    "list",
+                ],
+                timeout=5,
+            )
             if code == 0 and out:
                 results = []
                 for line in out.splitlines():
                     parts = re.split(r"(?<!\\):", line)
                     if len(parts) >= 8:
-                        is_active = (parts[0].strip().lower() == "yes")
+                        is_active = parts[0].strip().lower() == "yes"
                         raw_ssid = parts[1].replace(r"\:", ":").strip()
                         raw_bssid = parts[2].replace(r"\:", ":").strip()
                         mode = parts[3].strip()
@@ -594,17 +671,19 @@ def scan_wifi_networks() -> list[dict]:
                         sec = parts[8].strip() if len(parts) > 8 else ""
 
                         sig_num = int(sig) if sig.isdigit() else 0
-                        results.append({
-                            "ssid": raw_ssid or "<Hidden SSID>",
-                            "bssid": raw_bssid,
-                            "mode": mode,
-                            "channel": chan,
-                            "frequency": freq,
-                            "rate": rate,
-                            "signal": sig_num,
-                            "security": sec or "Open",
-                            "is_current": is_active,
-                        })
+                        results.append(
+                            {
+                                "ssid": raw_ssid or "<Hidden SSID>",
+                                "bssid": raw_bssid,
+                                "mode": mode,
+                                "channel": chan,
+                                "frequency": freq,
+                                "rate": rate,
+                                "signal": sig_num,
+                                "security": sec or "Open",
+                                "is_current": is_active,
+                            }
+                        )
                 return results[:25]
         except Exception:
             pass
@@ -712,12 +791,14 @@ def get_dns_info() -> dict:
     for idx, s in enumerate(raw_servers):
         is_stub = s.startswith("127.")
         provider = get_known_dns_provider(s)
-        servers_list.append({
-            "ip": s,
-            "provider": provider,
-            "is_primary": (idx == 0),
-            "is_stub": is_stub,
-        })
+        servers_list.append(
+            {
+                "ip": s,
+                "provider": provider,
+                "is_primary": (idx == 0),
+                "is_stub": is_stub,
+            }
+        )
 
     return {
         "servers": servers_list,
@@ -800,7 +881,9 @@ def ping_test(target: str = "8.8.8.8", count: int = 3) -> dict:
         }
 
     count = max(1, min(count, 10))
-    code, out, err = run_command(["ping", "-c", str(count), "-W", "2", target], timeout=12 + count * 2)
+    code, out, err = run_command(
+        ["ping", "-c", str(count), "-W", "2", target], timeout=12 + count * 2
+    )
 
     result = {
         "target": target,
@@ -816,7 +899,11 @@ def ping_test(target: str = "8.8.8.8", count: int = 3) -> dict:
         "mdev_latency": None,
     }
 
-    stat_m = re.search(r"(\d+)\s+packets transmitted,\s+(\d+)\s+(?:packets\s+)?received.*?([\d.]+)%\s+packet loss", out, re.IGNORECASE)
+    stat_m = re.search(
+        r"(\d+)\s+packets transmitted,\s+(\d+)\s+(?:packets\s+)?received.*?([\d.]+)%\s+packet loss",
+        out,
+        re.IGNORECASE,
+    )
     if stat_m:
         tx = int(stat_m.group(1))
         rx = int(stat_m.group(2))
@@ -829,16 +916,22 @@ def ping_test(target: str = "8.8.8.8", count: int = 3) -> dict:
     elif "64 bytes from" in out or "bytes from" in out:
         result["received"] = len(re.findall(r"bytes from", out))
         result["success"] = True
-        result["packet_loss_percent"] = max(0.0, ((count - result["received"]) / count) * 100.0)
+        result["packet_loss_percent"] = max(
+            0.0, ((count - result["received"]) / count) * 100.0
+        )
 
-    rtt_m = re.search(r"rtt\s+min/avg/max/mdev\s*=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)", out)
+    rtt_m = re.search(
+        r"rtt\s+min/avg/max/mdev\s*=\s*([\d.]+)/([\d.]+)/([\d.]+)/([\d.]+)", out
+    )
     if rtt_m:
         result["min_latency"] = float(rtt_m.group(1))
         result["avg_latency"] = float(rtt_m.group(2))
         result["max_latency"] = float(rtt_m.group(3))
         result["mdev_latency"] = float(rtt_m.group(4))
     else:
-        bb_m = re.search(r"(?:round-trip|rtt)\s+min/avg/max\s*=\s*([\d.]+)/([\d.]+)/([\d.]+)", out)
+        bb_m = re.search(
+            r"(?:round-trip|rtt)\s+min/avg/max\s*=\s*([\d.]+)/([\d.]+)/([\d.]+)", out
+        )
         if bb_m:
             result["min_latency"] = float(bb_m.group(1))
             result["avg_latency"] = float(bb_m.group(2))
@@ -888,7 +981,9 @@ def get_network_summary() -> dict:
 
     dns_info = get_dns_info()
     primary_dns = dns_info["servers"][0]["ip"] if dns_info["servers"] else None
-    primary_dns_provider = dns_info["servers"][0]["provider"] if dns_info["servers"] else None
+    primary_dns_provider = (
+        dns_info["servers"][0]["provider"] if dns_info["servers"] else None
+    )
 
     wifi = get_wifi_info()
 

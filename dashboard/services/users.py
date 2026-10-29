@@ -1,6 +1,7 @@
 """
 User, session, and permission management service for Lavender.
 """
+
 import os
 import shutil
 import subprocess
@@ -28,7 +29,6 @@ GROUP_METADATA = {
     "root": ("Privileged", "Superuser root account and access"),
     "adm": ("Privileged", "System monitoring and log inspection"),
     "lxd": ("Privileged", "LXD container hypervisor control"),
-
     # Phone & Hardware Subsystems
     "audio": ("Hardware", "Audio playback, microphone, and sound card access"),
     "video": ("Hardware", "GPU acceleration, display server, and framebuffer"),
@@ -45,7 +45,6 @@ GROUP_METADATA = {
     "dip": ("Hardware", "Dial-up IP / modem connection routing"),
     "lp": ("Hardware", "Line printer and printing subsystems"),
     "lpadmin": ("Hardware", "Configure printers and print queues"),
-
     # Service / Daemon Accounts
     "caddy": ("Services", "Caddy reverse proxy and web server"),
     "grafana": ("Services", "Grafana telemetry and dashboarding"),
@@ -99,18 +98,24 @@ def get_user_ssh_keys(username: str) -> list[dict]:
                         if i + 1 < len(parts):
                             key_data = parts[i + 1]
                         if i + 2 < len(parts):
-                            comment = " ".join(parts[i + 2:])
+                            comment = " ".join(parts[i + 2 :])
                         break
 
                 if key_type:
-                    preview = f"{key_data[:10]}...{key_data[-10:]}" if len(key_data) > 20 else key_data
-                    keys.append({
-                        "index": idx,
-                        "type": key_type,
-                        "preview": preview,
-                        "comment": comment or "No comment",
-                        "raw": line,
-                    })
+                    preview = (
+                        f"{key_data[:10]}...{key_data[-10:]}"
+                        if len(key_data) > 20
+                        else key_data
+                    )
+                    keys.append(
+                        {
+                            "index": idx,
+                            "type": key_type,
+                            "preview": preview,
+                            "comment": comment or "No comment",
+                            "raw": line,
+                        }
+                    )
     except Exception:
         pass
     return keys
@@ -119,7 +124,9 @@ def get_user_ssh_keys(username: str) -> list[dict]:
 def add_user_ssh_key(username: str, key_content: str) -> bool:
     """Add a public key to the user's authorized_keys file."""
     clean_key = key_content.strip()
-    if not clean_key or not any(clean_key.startswith(p) for p in ("ssh-", "ecdsa-", "sk-")):
+    if not clean_key or not any(
+        clean_key.startswith(p) for p in ("ssh-", "ecdsa-", "sk-")
+    ):
         return False
 
     path = get_user_ssh_path(username)
@@ -163,9 +170,9 @@ def get_home_storage_info(home_path: str) -> Optional[dict]:
         total, used, free = shutil.disk_usage(home_path)
         percent = round((used / total) * 100, 1) if total > 0 else 0
         return {
-            "total_gb": round(total / (1024 ** 3), 1),
-            "used_gb": round(used / (1024 ** 3), 1),
-            "free_gb": round(free / (1024 ** 3), 1),
+            "total_gb": round(total / (1024**3), 1),
+            "used_gb": round(used / (1024**3), 1),
+            "free_gb": round(free / (1024**3), 1),
             "percent_used": percent,
         }
     except Exception:
@@ -189,29 +196,33 @@ def get_human_users(current_username: Optional[str] = None) -> list[dict]:
     for u in raw_users:
         uname = u["name"]
         groups = user_to_groups.get(uname, [])
-        is_admin = ("wheel" in groups or "sudo" in groups or uname == "root" or u["uid"] == 0)
-        is_current = (uname == current_username)
+        is_admin = (
+            "wheel" in groups or "sudo" in groups or uname == "root" or u["uid"] == 0
+        )
+        is_current = uname == current_username
         is_active = uname in active_user_names
         home_path = u.get("home", "")
         home_exists = os.path.isdir(home_path)
         storage = get_home_storage_info(home_path) if home_exists else None
         ssh_keys = get_user_ssh_keys(uname)
 
-        human_users.append({
-            "name": uname,
-            "uid": u["uid"],
-            "gid": u["gid"],
-            "home": home_path,
-            "shell": u.get("shell", "/bin/sh"),
-            "comment": u.get("comment", ""),
-            "groups": groups,
-            "is_admin": is_admin,
-            "is_current": is_current,
-            "is_active": is_active,
-            "home_exists": home_exists,
-            "home_storage": storage,
-            "ssh_keys_count": len(ssh_keys),
-        })
+        human_users.append(
+            {
+                "name": uname,
+                "uid": u["uid"],
+                "gid": u["gid"],
+                "home": home_path,
+                "shell": u.get("shell", "/bin/sh"),
+                "comment": u.get("comment", ""),
+                "groups": groups,
+                "is_admin": is_admin,
+                "is_current": is_current,
+                "is_active": is_active,
+                "home_exists": home_exists,
+                "home_storage": storage,
+                "ssh_keys_count": len(ssh_keys),
+            }
+        )
 
     return human_users
 
@@ -230,15 +241,17 @@ def get_system_users() -> list[dict]:
     for u in all_users:
         if not u.get("is_human", False):
             uname = u["name"]
-            system_users.append({
-                "name": uname,
-                "uid": u["uid"],
-                "gid": u["gid"],
-                "home": u.get("home", ""),
-                "shell": u.get("shell", ""),
-                "comment": u.get("comment", ""),
-                "groups": user_to_groups.get(uname, []),
-            })
+            system_users.append(
+                {
+                    "name": uname,
+                    "uid": u["uid"],
+                    "gid": u["gid"],
+                    "home": u.get("home", ""),
+                    "shell": u.get("shell", ""),
+                    "comment": u.get("comment", ""),
+                    "groups": user_to_groups.get(uname, []),
+                }
+            )
     return system_users
 
 
@@ -254,26 +267,45 @@ def get_categorized_groups() -> list[dict]:
 
         if name in GROUP_METADATA:
             cat, desc = GROUP_METADATA[name]
-        elif name.startswith("systemd-") or name in ("avahi", "chrony", "caddy", "grafana", "netdata", "pulse", "pipewire"):
+        elif name.startswith("systemd-") or name in (
+            "avahi",
+            "chrony",
+            "caddy",
+            "grafana",
+            "netdata",
+            "pulse",
+            "pipewire",
+        ):
             cat = "Services"
             desc = f"Service daemon account for {name}"
-        elif gid < 100 or name in ("bin", "daemon", "sys", "tty", "users", "nogroup", "nobody"):
+        elif gid < 100 or name in (
+            "bin",
+            "daemon",
+            "sys",
+            "tty",
+            "users",
+            "nogroup",
+            "nobody",
+        ):
             cat = "System"
             desc = "Internal Linux system group"
         else:
             cat = "General"
             desc = f"Local user / system group ({name})"
 
-        categorized.append({
-            "name": name,
-            "gid": gid,
-            "members": members,
-            "category": cat,
-            "description": desc,
-            "member_count": len(members),
-        })
+        categorized.append(
+            {
+                "name": name,
+                "gid": gid,
+                "members": members,
+                "category": cat,
+                "description": desc,
+                "member_count": len(members),
+            }
+        )
 
-    # Sort: Privileged first, Hardware second, Services third, then System/General
+    # Sort: Privileged first, Hardware second, Services third, then
+    # System/General
     order = {"Privileged": 0, "Hardware": 1, "Services": 2, "General": 3, "System": 4}
     categorized.sort(key=lambda x: (order.get(x["category"], 9), x["name"]))
     return categorized
@@ -303,7 +335,7 @@ def get_security_posture() -> dict:
             sshd_active = True
         elif not sshd_active:
             code, out, _ = run_command(["systemctl", "is-active", "ssh"], timeout=3)
-            sshd_active = (code == 0 and "active" in out)
+            sshd_active = code == 0 and "active" in out
     except Exception:
         pass
 
@@ -328,7 +360,9 @@ def get_security_posture() -> dict:
                 pass
 
     return {
-        "elevation_engine": "sudo" if has_sudo else ("doas" if has_doas else "polkit/none"),
+        "elevation_engine": (
+            "sudo" if has_sudo else ("doas" if has_doas else "polkit/none")
+        ),
         "has_sudo": has_sudo,
         "has_doas": has_doas,
         "visudo_ok": visudo_ok,

@@ -56,7 +56,7 @@ function showToast(message, type = 'info') {
         error: '#f85149',
         warning: '#d29922',
     };
-    
+
     const toast = document.createElement('div');
     toast.textContent = message;
     toast.style.cssText = `
@@ -75,14 +75,14 @@ function showToast(message, type = 'info') {
         transform: translateY(10px);
         transition: all 0.2s;
     `;
-    
+
     document.body.appendChild(toast);
-    
+
     requestAnimationFrame(function() {
         toast.style.opacity = '1';
         toast.style.transform = 'translateY(0)';
     });
-    
+
     setTimeout(function() {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(10px)';
@@ -124,7 +124,7 @@ function sidebarToggle() {
     const toggleBtn = document.getElementById('sidebar-toggle');
     const sidebar = document.querySelector('.sidebar');
     const main = document.querySelector('.main');
-    
+
     // Restore saved state
     const collapsed = localStorage.getItem('sidebar-collapsed') === 'true';
     if (collapsed) {
@@ -132,7 +132,7 @@ function sidebarToggle() {
         if (main) main.classList.add('sidebar-collapsed');
         toggleBtn.classList.add('active');
     }
-    
+
     toggleBtn.addEventListener('click', function() {
         const isCollapsed = sidebar.classList.toggle('collapsed');
         if (main) main.classList.toggle('sidebar-collapsed', isCollapsed);

@@ -1,6 +1,11 @@
 """
 FastAPI application for Lavender.
 """
+
+from typing import Optional
+from dashboard.services.device_info import get_system_info
+from dashboard.auth.deps import get_current_session, require_session
+from dashboard.auth.session import UserSession, session_store
 import os
 import asyncio
 import subprocess
@@ -15,11 +20,8 @@ from slowapi import _rate_limit_exceeded_handler
 
 from dashboard.config import SESSION_COOKIE_NAME, APP_VERSION
 import logging
-logger = logging.getLogger(__name__)
 
-from dashboard.auth.session import UserSession, session_store
-from dashboard.auth.deps import get_current_session, require_session
-from dashboard.services.device_info import get_system_info
+logger = logging.getLogger(__name__)
 
 
 def _get_git_hash() -> str:
@@ -44,12 +46,15 @@ class Templates:
 
     def __init__(self, directory: str):
         from jinja2 import Environment, FileSystemLoader
+
         self._env = Environment(
             loader=FileSystemLoader(directory),
             autoescape=False,
         )
 
-    def TemplateResponse(self, request: Request, name: str, context: dict) -> HTMLResponse:
+    def TemplateResponse(
+        self, request: Request, name: str, context: dict
+    ) -> HTMLResponse:
         """Render a template. Signature matches Jinja2Templates for drop-in use."""
         tmpl = self._env.get_template(name)
         session = getattr(request.state, "session", None)
@@ -79,8 +84,10 @@ async def lifespan(app: FastAPI):
 
     # Pre-seed active session for current local user for localhost access
     try:
-        import getpass, pwd
+        import getpass
+        import pwd
         from dashboard.auth.session import UserSession
+
         cur_user = getpass.getuser()
         pw = pwd.getpwnam(cur_user)
         dev_sid = "dev-session-active"
@@ -117,6 +124,7 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # Attach rate limiter to app state
 from dashboard.api.auth import limiter as auth_limiter  # noqa: E402
+
 app.state.limiter = auth_limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -180,9 +188,6 @@ PAGES: dict[str, tuple[str, str]] = {
 }
 
 
-from typing import Optional
-
-
 def _register_page(path: str, template_name: str, summary: str) -> None:
     if path == "/":
         # Homepage is public — accessible without authentication
@@ -191,8 +196,11 @@ def _register_page(path: str, template_name: str, summary: str) -> None:
             session: Optional[UserSession] = Depends(get_current_session),
         ) -> HTMLResponse:
             return templates.TemplateResponse(
-                request=request, name=template_name, context={"request": request, "session": session}
+                request=request,
+                name=template_name,
+                context={"request": request, "session": session},
             )
+
     else:
         # All other pages require authentication
         async def page(
@@ -200,7 +208,9 @@ def _register_page(path: str, template_name: str, summary: str) -> None:
             session: UserSession = Depends(require_session),
         ) -> HTMLResponse:
             return templates.TemplateResponse(
-                request=request, name=template_name, context={"request": request, "session": session}
+                request=request,
+                name=template_name,
+                context={"request": request, "session": session},
             )
 
     page.__name__ = f"page_{template_name.removesuffix('.html')}"
@@ -211,7 +221,8 @@ for _path, (_template, _summary) in PAGES.items():
     _register_page(_path, _template, _summary)
 
 
-@app.get("/battery", response_class=RedirectResponse, summary="Redirect to live overview")
+@app.get(
+    "/battery", response_class=RedirectResponse, summary="Redirect to live overview"
+)
 async def page_battery_redirect() -> RedirectResponse:
     return RedirectResponse(url="/", status_code=307)
-

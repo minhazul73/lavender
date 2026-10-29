@@ -105,7 +105,7 @@ function loadDisks() {
             document.getElementById('disks-table').innerHTML = renderDisks(disks);
         })
         .catch(e => {
-            document.getElementById('disks-table').innerHTML = 
+            document.getElementById('disks-table').innerHTML =
                 '<tr><td colspan="6" class="text-center text-muted">Failed to load disk info</td></tr>';
         });
 }
@@ -137,7 +137,7 @@ function loadMounts() {
             document.getElementById('mounts-table').innerHTML = renderMounts(mounts);
         })
         .catch(e => {
-            document.getElementById('mounts-table').innerHTML = 
+            document.getElementById('mounts-table').innerHTML =
                 '<tr><td colspan="5" class="text-center text-muted">Failed to load mounts</td></tr>';
         });
 }
@@ -157,7 +157,7 @@ function renderMounts(mounts) {
             <td class="mono small">${m.fs}</td>
             <td class="mono small">${m.options}</td>
             <td>
-                ${m.fs !== 'proc' && m.fs !== 'sysfs' && m.fs !== 'devtmpfs' && m.fs !== 'tmpfs' ? 
+                ${m.fs !== 'proc' && m.fs !== 'sysfs' && m.fs !== 'devtmpfs' && m.fs !== 'tmpfs' ?
                     `<button class="btn btn-xs btn-danger" onclick="confirmUnmount('${m.target}')">Unmount</button>` : ''}
             </td>
         </tr>`;
@@ -207,19 +207,19 @@ document.getElementById('confirm-unmount').addEventListener('click', function() 
     const mountPoint = document.getElementById('unmount-mount').textContent;
     this.disabled = true;
     this.textContent = 'Unmounting...';
-    
+
     fetch(`/api/system/storage/unmount?mount_point=${encodeURIComponent(mountPoint)}`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('unmount-modal').innerHTML = 
+                document.getElementById('unmount-modal').innerHTML =
                     '<div class="modal-backdrop"></div><div class="modal-content">' +
                     '<h3>✓ Unmounted</h3><p>' + mountPoint + ' has been unmounted.</p>' +
                     '<div class="modal-actions">' +
                     '<button class="btn" onclick="closeModal(\'unmount-modal\'); loadMounts();">Close</button>' +
                     '</div></div>';
             } else {
-                document.getElementById('unmount-modal').innerHTML = 
+                document.getElementById('unmount-modal').innerHTML =
                     '<div class="modal-backdrop"></div><div class="modal-content">' +
                     '<h3>✗ Failed</h3><p>' + escapeHtml(data.error || 'Unknown error') + '</p>' +
                     '<div class="modal-actions">' +
@@ -228,7 +228,7 @@ document.getElementById('confirm-unmount').addEventListener('click', function() 
             }
         })
         .catch(e => {
-            document.getElementById('unmount-modal').innerHTML = 
+            document.getElementById('unmount-modal').innerHTML =
                 '<div class="modal-backdrop"></div><div class="modal-content">' +
                 '<h3>✗ Failed</h3><p>' + escapeHtml(e.message || 'Unknown error') + '</p>' +
                 '<div class="modal-actions">' +

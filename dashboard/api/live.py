@@ -5,6 +5,9 @@ Clients subscribe to specific metrics via query params:
   ?metrics=cpu,ram,thermal,battery,network
 """
 
+from fastapi import HTTPException, Depends
+from dashboard.auth.session import UserSession
+from dashboard.auth.deps import get_current_session
 import asyncio
 import json
 import logging
@@ -13,7 +16,6 @@ from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 
 from dashboard.services.live import get_live_monitor
-
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +70,6 @@ async def sse_generator(metrics: list[str] | None):
         raise
     finally:
         await monitor.remove_client()
-
-
-from dashboard.auth.deps import get_current_session
-from dashboard.auth.session import UserSession
-from fastapi import HTTPException, Depends
 
 
 @router.get("/device/live")
