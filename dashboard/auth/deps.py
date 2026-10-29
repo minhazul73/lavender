@@ -4,11 +4,9 @@ FastAPI dependencies for authentication and authorization.
 
 from typing import Optional
 from fastapi import Request, Depends, HTTPException, status
-from fastapi.responses import RedirectResponse
 
 from dashboard.config import SESSION_COOKIE_NAME
-from dashboard.auth.session import UserSession, session_store
-from dashboard.auth.bridge import verify_sudo_password
+from dashboard.auth.session import session_store, UserSession
 
 
 async def get_current_session(request: Request) -> Optional[UserSession]:
@@ -77,9 +75,10 @@ async def require_admin(
     request: Request,
     session: UserSession = Depends(require_session),
 ) -> UserSession:
-    """
-    Ensure authenticated user has elevated administrative privileges.
-    Accepts on-the-fly password validation via 'X-Admin-Password' header if not already elevated.
+    """Ensure authenticated user has elevated administrative privileges.
+
+    Accepts on-the-fly password validation via 'X-Admin-Password' header
+    if not already elevated.
     """
     if session.is_elevated():
         return session
