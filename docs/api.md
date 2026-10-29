@@ -20,26 +20,26 @@ All API endpoints are mounted under the FastAPI application with the following p
 
 | Method | Path | Access | Description |
 |:---|:---|:---|:---|
-| `GET` | `/api/system/services?scope={user\|system\|all}` | Public | List systemd services. |
+| `GET` | `/api/system/services?scope={user\|system\|all}` | Optional session | List systemd services. |
 | `GET` | `/api/system/services/{service_name}?user={bool}` | Authenticated | Get detailed service status. |
 | `GET` | `/api/system/services/{service_name}/logs?lines={n}&user={bool}` | Authenticated | Fetch recent service journal logs. |
 | `POST` | `/api/system/services/{service_name}/{action}?user={bool}` | Authenticated (Admin for system) | Run action (`start`, `stop`, `restart`, `enable`, `disable`). |
-| `GET` | `/api/system/storage` | Public | Get filesystem and disk usage statistics. |
-| `GET` | `/api/system/processes?sort_by={cpu\|mem\|pid\|user\|name}&limit={n}` | Public | Get process list, load averages, and human-readable memory stats. |
+| `GET` | `/api/system/storage` | Optional session | Get filesystem and disk usage statistics. |
+| `GET` | `/api/system/processes?sort_by={cpu\|mem\|pid\|user\|name}&limit={n}` | Optional session | Get process list, load averages, and human-readable memory stats. |
 | `POST` | `/api/system/processes/kill?pid={n}` | Admin | Terminate process by PID. |
-| `GET` | `/api/system/memory` | Public | Get human-readable and raw memory statistics. |
-| `GET` | `/api/system/logs?lines={n}` | Public | Fetch recent system journal entries. |
+| `GET` | `/api/system/memory` | Optional session | Get human-readable and raw memory statistics. |
+| `GET` | `/api/system/logs?lines={n}` | Optional session | Fetch recent system journal entries. |
 
 ## Device & Hardware (`/api/device/*`)
 
 | Method | Path | Access | Description |
 |:---|:---|:---|:---|
-| `GET` | `/api/device/info` | Public | Get detected device model, OS distribution, kernel, architecture, and hostname. |
+| `GET` | `/api/device/info` | Optional session | Get detected device model, OS distribution, kernel, architecture, and hostname. |
 | `GET` | `/api/device/network` | Authenticated | Get interface details, WiFi state, DNS servers, gateways, and summary. |
 | `GET` | `/api/device/network/ping?target={host}&count={n}` | Authenticated | Perform ping latency test. |
 | `GET` | `/api/device/network/dns-query?domain={domain}` | Authenticated | Measure DNS lookup latency. |
 | `POST` | `/api/device/network/wifi-scan` | Authenticated | Trigger scan for nearby wireless networks. |
-| `GET` | `/api/device/battery` | Public | Get battery status, thermal zones, CPU frequencies, available CPU scaling governors, and system uptime. |
+| `GET` | `/api/device/battery` | Optional session | Get battery status, thermal zones, CPU frequencies, available CPU scaling governors, and system uptime. |
 | `GET` | `/api/device/packages?refresh={bool}&include_list={bool}` | Authenticated | Get package overview: backend info, installed count, upgradable list, and optionally the full installed package list. |
 | `POST` | `/api/device/packages/upgrade?package={name}` | Admin | Upgrade all packages, or a single package when `package` is specified. |
 | `POST` | `/api/device/packages/install?package={name}` | Admin | Install a package. |
@@ -57,7 +57,7 @@ All API endpoints are mounted under the FastAPI application with the following p
 | `POST` | `/api/device/power/poweroff` | Admin | Power off device. |
 | `POST` | `/api/device/power/suspend` | Admin | Suspend device. |
 | `POST` | `/api/device/power/governor?governor={name}` | Admin | Set CPU frequency governor. |
-| `GET` | `/api/device/power/state` | Public | Get active CPU governor and scheduled power actions. |
+| `GET` | `/api/device/power/state` | Optional session | Get active CPU governor and scheduled power actions. |
 | `POST` | `/api/device/power/schedule` | Admin | Schedule a timed reboot or shutdown. |
 | `POST` | `/api/device/power/cancel-scheduled` | Admin | Cancel pending scheduled shutdown or reboot. |
 
@@ -85,3 +85,9 @@ If metric collection fails, the event omits `data` and includes `error: "collect
 | `thermal` | 5s | 20 | Multi-zone temperature readings |
 | `battery` | 3s | 30 | Capacity, voltage, power draw, temperature |
 | `network` | 2s | 30 | RX/TX throughput rates |
+
+## Access Levels
+
+- **Optional session** — `get_current_session()`: The endpoint works without authentication but may provide additional context or elevated access when a valid session cookie is present. Root users (UID 0) receive permanent elevation.
+- **Authenticated** — `require_session()`: Requires a valid signed session cookie.
+- **Admin** — `require_admin()`: Requires a valid session with active administrative elevation.

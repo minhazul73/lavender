@@ -26,3 +26,8 @@ When a user authenticates via `/auth/login`, credentials are verified sequential
 
 ### 4. Rate Limiting
 - Login requests are rate-limited to 10 attempts per minute (`LOGIN_RATE_LIMIT`) using `slowapi` to defend against brute-force attacks.
+
+### 5. Async Command Execution
+- `run_command_async()`: Non-blocking subprocess execution with configurable timeout, process cleanup on expiry, and structured return of `(exit_code, stdout, stderr)`.
+- `run_sudo_async()`: Async sudo wrapper that inherits the same timeout and cleanup semantics.
+- `run_user_service_async()`: Executes `systemctl --user` commands by injecting `XDG_RUNTIME_DIR` (`/run/user/<uid>`) and `DBUS_SESSION_BUS_ADDRESS` into the environment, preventing "Failed to connect to bus" errors in non-interactive daemon sessions.

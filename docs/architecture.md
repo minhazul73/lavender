@@ -59,19 +59,21 @@ Lavender is a lightweight, responsive FastAPI web dashboard designed for Linux s
 
 ### 3. Business & Service Layer
 - **Encapsulated Services:** Located in `dashboard/services/`. Each module is responsible for a single subsystem:
-  - `live.py`: RingBuffer data structures and asynchronous MetricCollectors.
+  - `live.py`: RingBuffer data structures, `CollectorStats` health tracking, and asynchronous `MetricCollector` subclasses (CPU, RAM, thermal, battery, network rate).
   - `device_info.py`: Dynamic hardware and OS discovery across Device Tree, DMI/SMBIOS, and `/etc/os-release`.
-  - `systemd.py`: Wrapper for `systemctl` (system and user sessions) and `journalctl`.
+  - `systemd.py`: Wrapper for `systemctl` (system and user sessions) and `journalctl` with structured JSON log parsing and ISO 8601 timestamp conversion.
   - `storage.py`: Disk partition parsing (`df -h`) and external mount detection.
   - `processes.py`: Process listing supporting both procps and BusyBox formats.
-  - `network.py`: Adapter status, IP address resolution, and Wi-Fi scanning.
+  - `network.py`: Adapter status, IP address resolution, gateway discovery, DNS provider identification, and Wi-Fi scanning.
   - `battery.py`: Sysfs and UPower battery/thermal monitoring, CPU frequency/governor management, and system uptime.
-  - `packages.py`: Multi-distribution package manager abstraction (Alpine `apk`, Debian/Ubuntu `apt`, Arch `pacman`, Fedora `dnf`).
-  - `power.py`: System power operations (`reboot`, `poweroff`, `suspend`).
+  - `packages.py`: Multi-distribution package manager abstraction (Alpine `apk`, Debian/Ubuntu `apt`, Arch `pacman`, Fedora `dnf`) with 60-second in-memory caching.
+  - `power.py`: System power operations (`reboot`, `poweroff`, `suspend`) and scheduled power actions.
   - `users.py`: User, group, access control inspection, active sessions, and login history.
 
 ### 4. System Interface Layer
 - **`dependencies.py` & `dashboard/auth/bridge.py`:**
   - Direct execution of system binaries (`subprocess.run`, `asyncio.create_subprocess_exec`).
+  - Async subprocess wrappers (`run_command_async`, `run_sudo_async`) for non-blocking I/O with timeout and process cleanup.
+  - User-scoped service execution (`run_user_service_async`) that injects `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` for `systemctl --user` commands.
   - Native Linux PAM integration via `python-pam`.
   - Elevation management via temporary `sudo -v` tickets.
