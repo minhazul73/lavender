@@ -7,3 +7,6 @@ slowapi>=0.1.9
 python-multipart>=0.0.9
 python-pam>=2.0.0
 six>=1.16.0
+pre-commit>=3.3.0
+flake8>=6.0.0
+black>=23.3.0

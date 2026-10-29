@@ -2,6 +2,29 @@
 
 # Lavender
 
+## Development
+
+To ensure consistent code quality, this project uses `pre-commit` hooks.
+
+### Installation
+
+1. Install the development dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Install the pre-commit hooks:
+   ```bash
+   pre-commit install
+   ```
+
+### Usage
+
+The hooks will run automatically on `git commit`. To run them manually on all files:
+
+```bash
+pre-commit run --all-files
+```
+
 A lightweight, responsive FastAPI web dashboard for Linux system management and real-time device monitoring. Built with a sleek dark-theme UI, native Linux PAM authentication, Cockpit-style administrative elevation, and real-time Server-Sent Events (SSE) streaming.
 
 Originally designed for postmarketOS on ARM64 mobile devices (such as the Redmi Note 7 `lavender`), it features dynamic hardware and OS detection that makes it equally well-suited for single-board computers (Raspberry Pi, Pine64), Linux phones, laptops, and home servers.
