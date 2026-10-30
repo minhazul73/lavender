@@ -3,10 +3,10 @@ Unit tests for authentication module.
 """
 
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 from dashboard.auth.session import UserSession, SessionStore
 from dashboard.auth.bridge import verify_linux_credentials, AuthError
-from dashboard.auth.deps import get_current_session, require_session
+from dashboard.auth.deps import require_session
 
 
 class TestUserSession:

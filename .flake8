@@ -2,5 +2,7 @@
 max-line-length = 88
 
 # Black formats with line break before binary operator — ignore W503 to avoid conflicts.
+# Black also reformats slices with spaces around the colon (e.g. `a[1 : 2]`), which E203 flags.
 ignore =
     W503
+    E203

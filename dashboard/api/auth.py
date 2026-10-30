@@ -85,7 +85,7 @@ async def api_login(
             url=f"/login?error=Invalid+username+or+password&next={next}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected login error for %s", username)
         if is_json:
             raise HTTPException(status_code=500, detail="Login system error")
