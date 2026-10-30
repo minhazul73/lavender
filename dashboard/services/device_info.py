@@ -1,7 +1,8 @@
 """
 System and device information detection service for Lavender.
-Dynamically discovers hardware model, OS distribution, kernel, architecture, and hostname.
-Avoids hardcoding any specific phone or board model.
+Dynamically discovers hardware model, OS distribution, kernel,
+architecture, and hostname. Avoids hardcoding any specific phone
+or board model.
 """
 
 import os

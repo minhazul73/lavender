@@ -15,8 +15,8 @@ import asyncio
 import os
 import time
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 from dashboard.config import (
     SSE_THERMAL_INTERVAL_MS,
@@ -1192,7 +1192,10 @@ class NetworkRateCollector(MetricCollector):
 
     @staticmethod
     def _default_route_interface() -> Optional[str]:
-        """Find the interface with default gateway (Destination == 00000000) from /proc/net/route."""
+        """Find the interface with the default route in /proc/net/route.
+
+        The default route is identified by Destination == 00000000.
+        """
         text = _read_file("/proc/net/route")
         if not text:
             return None
@@ -1284,7 +1287,7 @@ class NetworkRateCollector(MetricCollector):
 
             return (
                 down_penalty,  # 0 for up/unknown, 1 for down
-                virtual_penalty,  # 0 for physical/cellular/usb/wifi, 1 for Tailscale/VPN
+                virtual_penalty,  # physical/cellular/usb/wifi = 0, Tailscale/VPN = 1
                 default_score,  # 0 if physical default route, 1 otherwise
                 traffic_score,  # 0 if interface has recorded traffic, 1 if 0 bytes
                 cat_prio,  # 1: WiFi, 2: Ethernet, 3: USB, 4: Cellular, 5: Other

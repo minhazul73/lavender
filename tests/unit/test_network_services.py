@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, mock_open
 from dashboard.services.network import (
     format_bytes,
     get_known_dns_provider,
@@ -43,7 +43,10 @@ class TestNetworkServices(unittest.TestCase):
         # Test with JSON output
         mock_run_command.return_value = (
             0,
-            '[{"gateway": "192.168.1.1", "dev": "eth0", "protocol": "dhcp", "metric": 100}]',
+            (
+                '[{"gateway": "192.168.1.1", "dev": "eth0", '
+                '"protocol": "dhcp", "metric": 100}]'
+            ),
             "",
         )
         gateways = get_gateways()
@@ -71,7 +74,13 @@ class TestNetworkServices(unittest.TestCase):
         mock_exists.return_value = True
         mock_run_command.return_value = (
             0,
-            '[\n{\n"ifname": "eth0",\n"address": "00:1a:2b:3c:4d:5e",\n"mtu": 1500,\n"flags": ["UP", "LOWER_UP"],\n"operstate": "UP",\n"addr_info": [\n{\n"local": "192.168.1.100",\n"prefixlen": 24,\n"family": "inet",\n"scope": "global"\n}\n]\n}\n]',
+            (
+                '[\n{\n"ifname": "eth0",\n"address": "00:1a:2b:3c:4d:5e",\n'
+                '"mtu": 1500,\n"flags": ["UP", "LOWER_UP"],\n'
+                '"operstate": "UP",\n"addr_info": [\n{\n'
+                '"local": "192.168.1.100",\n"prefixlen": 24,\n'
+                '"family": "inet",\n"scope": "global"\n}\n]\n}\n]'
+            ),
             "",
         )
 
@@ -169,7 +178,20 @@ class TestNetworkServices(unittest.TestCase):
         # Test with iwconfig output
         mock_run_command.return_value = (
             0,
-            'wlan0     IEEE 802.11  ESSID:"MyWiFi"  Nickname:""\n          Mode:Managed  Frequency:2.437 GHz  Access Point: 00:1A:2B:3C:4D:5E\n          Bit Rate=54 Mb/s   Tx-Power=20 dBm\n          Retry short limit:7   RTS thr:off   Fragment thr:off\n          Power Management:on\n          Link Quality=80/100  Signal level=-40 dBm\n          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0\n          Tx excessive retries:0  Invalid misc:0   Missed beacon:0',
+            (
+                'wlan0     IEEE 802.11  ESSID:"MyWiFi"  Nickname:""\n'
+                "          Mode:Managed  Frequency:2.437 GHz  "
+                "Access Point: 00:1A:2B:3C:4D:5E\n"
+                "          Bit Rate=54 Mb/s   Tx-Power=20 dBm\n"
+                "          Retry short limit:7   RTS thr:off   "
+                "Fragment thr:off\n"
+                "          Power Management:on\n"
+                "          Link Quality=80/100  Signal level=-40 dBm\n"
+                "          Rx invalid nwid:0  Rx invalid crypt:0  "
+                "Rx invalid frag:0\n"
+                "          Tx excessive retries:0  Invalid misc:0   "
+                "Missed beacon:0"
+            ),
             "",
         )
         wifi_info = get_wifi_info()

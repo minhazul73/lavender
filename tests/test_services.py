@@ -2,23 +2,20 @@
 Unit tests for dashboard service modules.
 """
 
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from dashboard.services.device_info import (
-    get_device_model,
     get_os_info,
     get_system_info,
 )
 from dashboard.services.storage import (
     get_disk_usage,
-    get_mounts,
     _is_external_mount,
     _parse_pct,
 )
 from dashboard.services.network import format_bytes, get_known_dns_provider
-from dashboard.services.packages import get_package_manager, NullPackageManager
-from dashboard.services.power import reboot, poweroff, suspend, get_scheduled_shutdown
+from dashboard.services.packages import get_package_manager
+from dashboard.services.power import reboot, get_scheduled_shutdown
 
 
 class TestDeviceInfoService:
@@ -101,7 +98,8 @@ class TestNetworkService:
     def test_primary_interface_prioritizes_wifi_ethernet_usb_over_tailscale(
         self, monkeypatch
     ):
-        """Test that WiFi, Ethernet, and USB interfaces are prioritized over Tailscale."""
+        """Test that WiFi, Ethernet, and USB interfaces are prioritized
+        over Tailscale."""
         from dashboard.services.live import NetworkRateCollector
 
         collector = NetworkRateCollector()
