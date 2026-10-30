@@ -1,7 +1,8 @@
 """
 Native Linux PAM Authentication & Execution Engine.
-Directly interfaces with Linux PAM (/lib/security / pam_unix) and local systemd sessions.
-Eliminates any need for OpenSSH daemon or network loopback sockets.
+Directly interfaces with Linux PAM (/lib/security / pam_unix) and local
+systemd sessions. Eliminates any need for OpenSSH daemon or network
+loopback sockets.
 """
 
 import os
@@ -191,7 +192,7 @@ async def run_command_async(
             )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
-    except asyncio.TimeoutExpired:
+    except TimeoutError:
         try:
             proc.kill()
         except Exception:
@@ -221,7 +222,7 @@ async def run_user_service_async(
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
-    except asyncio.TimeoutExpired:
+    except TimeoutError:
         try:
             proc.kill()
         except Exception:
@@ -267,7 +268,8 @@ async def run_sudo_async(
     """
     Execute a privileged command with sudo.
     If password is provided, pipes it to `sudo -S`.
-    If password is None, uses `sudo -n` (non-interactive) relying on active elevation ticket or NOPASSWD.
+    If password is None, uses `sudo -n` (non-interactive) relying on the
+    active elevation ticket or NOPASSWD.
     """
     if password:
         full_cmd = ["sudo", "-S", "-p", ""] + cmd
@@ -289,7 +291,7 @@ async def run_sudo_async(
             timeout=timeout,
         )
         return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
-    except asyncio.TimeoutExpired:
+    except TimeoutError:
         try:
             proc.kill()
         except Exception:
