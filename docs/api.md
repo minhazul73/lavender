@@ -20,7 +20,7 @@ All API endpoints are mounted under the FastAPI application with the following p
 
 | Method | Path | Access | Description |
 |:---|:---|:---|:---|
-| `GET` | `/api/system/services?scope={user\|system\|all}` | Optional session | List systemd services. |
+| `GET` | `/api/system/services?scope={user\|system\|all}` | Optional session | List systemd services. Returns `{services, count}`, each entry tagged with its `scope`. |
 | `GET` | `/api/system/services/{service_name}?user={bool}` | Authenticated | Get detailed service status. |
 | `GET` | `/api/system/services/{service_name}/logs?lines={n}&user={bool}` | Authenticated | Fetch recent service journal logs. |
 | `POST` | `/api/system/services/{service_name}/{action}?user={bool}` | Authenticated (Admin for system) | Run action (`start`, `stop`, `restart`, `enable`, `disable`). |
@@ -65,7 +65,7 @@ All API endpoints are mounted under the FastAPI application with the following p
 
 | Method | Path | Access | Description |
 |:---|:---|:---|:---|
-| `GET` | `/api/device/live?metrics=cpu,ram,thermal,battery,network` | Public | Real-time Server-Sent Events stream. |
+| `GET` | `/api/device/live?metrics=cpu,ram,thermal,battery,network` | Optional session | Real-time Server-Sent Events stream. |
 
 ### SSE Event Format
 Each event is a JSON object:
@@ -90,4 +90,4 @@ If metric collection fails, the event omits `data` and includes `error: "collect
 
 - **Optional session** — `get_current_session()`: The endpoint works without authentication but may provide additional context or elevated access when a valid session cookie is present. Root users (UID 0) receive permanent elevation.
 - **Authenticated** — `require_session()`: Requires a valid signed session cookie.
-- **Admin** — `require_admin()`: Requires a valid session with active administrative elevation.
+- **Admin** — `require_admin()`: Requires a valid session with active administrative elevation. Alternatively, an un-elevated but authenticated caller may supply the password inline via the `X-Admin-Password` request header; on successful `sudo -v` validation the session is elevated for the remainder of its timeout window before the request proceeds.
