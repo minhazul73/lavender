@@ -59,7 +59,8 @@ polling interval and rolling history buffer for sparklines.
 - `dashboard/services/live.py:82` — `RingBuffer`
 - `dashboard/services/live.py:120` — `CollectorStats`
 - `dashboard/services/live.py:128` — `MetricCollector` base
-- `dashboard/services/live.py:1062` — `NetworkRateCollector`
+- `dashboard/services/live.py:1047` — `NetworkRateCollector` (class def)
+- `dashboard/services/live.py:1055-1064` — `NetworkRateCollector.__slots__`
 - Tests: `tests/unit/test_live_api.py`, `tests/unit/test_live_services.py`,
   `tests/unit/test_network_services.py`, `tests/test_services.py`
 
@@ -205,8 +206,12 @@ and the browser EventSource client.
 
 **Performance improvements:**
 - No polling: one persistent connection instead of N HTTP round-trips per
-  metric per interval. Per-metric intervals mean slow-changing metrics
-  (thermal, 5 s) don't share CPU's 1 s cadence.
+  metric per interval. The SSE push cadence is a uniform 1 s for every
+  requested metric (`asyncio.sleep(1)` at the end of the generator loop);
+  the per-metric `SSE_*_INTERVAL_MS` constants in `dashboard/config.py` govern
+  how often each **background collector** refreshes its ring buffer, not how
+  often events are pushed — so a slow-changing metric (thermal, 5 s) is still
+  pushed every 1 s, it simply receives a fresh buffer value less often.
 - Client-side: per-metric callback avoids parsing/re-dispatching every event
   through every widget; bounded buffers prevent unbounded memory growth on
   long-open tabs.
@@ -288,7 +293,9 @@ and the async command-execution engine used across all privileged endpoints.
   on a phone).
 
 **Code references:**
-- `dashboard/auth/bridge.py:146-205` — async runners
+- `dashboard/auth/bridge.py:175` — `run_command_async()` (timeout + kill/reap)
+- `dashboard/auth/bridge.py:205` — `run_user_service_async()` (timeout + kill/reap)
+- `dashboard/auth/bridge.py:263` — `run_sudo_async()` (timeout + kill/reap)
 - Tests: `tests/unit/test_auth_deps.py`, `tests/test_auth.py`
 
 **Benchmarks:** none recorded.

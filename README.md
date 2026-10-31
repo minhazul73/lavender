@@ -80,6 +80,8 @@ Detailed documentation for Lavender is organized into modular guides in the [`do
 - [Authentication & Security](docs/auth.md) — Native PAM, shadow verification, sudo/doas elevation, and session store.
 - [API Reference](docs/api.md) — Complete REST and SSE endpoint reference with request/response specs.
 - [Services & Subsystems](docs/services.md) — Internal Python service modules and host Linux subsystem adapters.
+- [Optimized Modules](docs/optimized-modules.md) — Inventory of performance/resource optimizations with code references.
+- [Module-Specific Guides](docs/optimized/) — Deep dives into each optimized module (SSE collectors, package cache, LRU device info, journal parsing, process RSS, SSE transport, static cache-busting, battery fetch, async subprocess, React SPA cutover).
 
 ---
 

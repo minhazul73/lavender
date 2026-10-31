@@ -18,17 +18,23 @@
 
 ## Usage
 
-The asset hash is injected by the FastAPI application setup. In the current
-React SPA build, hashed bundles are referenced directly in the SPA's HTML
-entry point:
+The asset hash is injected by the FastAPI application setup. The current UI is
+the legacy Jinja2 + vanilla-JS stack (`dashboard/templates/`, which inject
+the hash via `url_for`):
+
+```html
+<link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v={{ git_hash }}">
+<script src="{{ url_for('static', path='script.js') }}?v={{ git_hash }}"></script>
+```
+
+When the React SPA cutover lands (see
+[`10-frontend-react-spa.md`](10-frontend-react-spa.md)), hashed bundles are
+referenced directly in the SPA's HTML entry point:
 
 ```html
 <link rel="stylesheet" href="/static/css/main.<hash>.css">
 <script src="/static/js/main.<hash>.js"></script>
 ```
-
-The legacy Jinja2 templates in `dashboard/templates/` also inject the hash via
-`url_for`, but the SPA is the primary UI.
 
 ## Caveats
 

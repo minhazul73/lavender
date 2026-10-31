@@ -6,8 +6,9 @@ to make the dashboard maintainable.
 ## Key changes
 
 - **Scaffold.** Vite + React + TS, auth, theme, test suite.
-- **Phase 3:** all dashboard pages migrated.
-- **Phase 4 cutover:** Jinja2 removed, SPA served by the FastAPI backend.
+- **Phase 3:** all dashboard pages migrated (in the companion repo).
+- **Phase 4 cutover:** Jinja2 removed, SPA served by the FastAPI backend
+  (in the companion repo).
 - **SSE hook optimization** (see [`06-sse-transport.md`](06-sse-transport.md)).
 
 ## Performance / resource improvements
@@ -18,9 +19,13 @@ to make the dashboard maintainable.
 
 ## Usage
 
-This is the primary user interface for the Lavender dashboard. Developers work
-within the `frontend/src/` directory, using standard React, TypeScript, and
-Vite workflows.
+**This module lives in the companion `lavender-react` repository, not in this
+codebase.** The FastAPI backend in this repo still serves the legacy Jinja2 +
+vanilla-JS UI (`dashboard/templates/`, `dashboard/static/`) while the React
+SPA is under development. See the note in `docs/architecture.md` §1.
+
+Developers work within the `frontend/src/` directory of the companion repo,
+using standard React, TypeScript, and Vite workflows.
 
 **Key entry points:**
 - `frontend/src/main.tsx`: React app entry
@@ -37,10 +42,12 @@ Vite workflows.
   Ensure `bun` is installed and configured in the PATH.
 - **`useSSE` hook.** The SSE logic has been migrated and optimized into a React
   hook (`frontend/src/hooks/useSSE.ts`) for easier consumption by components.
+- **Not yet live.** Until the Phase 4 cutover lands in this backend, the SPA is
+  not the UI a user sees; `dashboard/templates/` remains the current UI.
 
 ## Code references
 
-- `frontend/src/` — SPA source
+- `frontend/src/` — SPA source (companion repo)
 - `frontend/src/hooks/useSSE.ts` — SSE hook
 - `frontend/src/pages/Overview/OverviewPage.tsx` — sparkline buffering
 

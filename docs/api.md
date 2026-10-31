@@ -81,16 +81,19 @@ If metric collection fails, the event omits `data` and includes `error: "collect
 | Metric | Interval | Buffer Size | Description |
 |:---|:---|:---|:---|
 | `cpu` | 1s | 30 | Per-core usage, frequency, load averages |
-| `ram` | 1s | 20 | Total, used, free, swap, percentage |
-| `thermal` | 1s | 20 | Multi-zone temperature readings |
-| `battery` | 1s | 30 | Capacity, voltage, power draw, temperature |
-| `network` | 1s | 30 | RX/TX throughput rates |
+| `ram` | 3s | 20 | Total, used, free, swap, percentage |
+| `thermal` | 5s | 20 | Multi-zone temperature readings |
+| `battery` | 3s | 30 | Capacity, voltage, power draw, temperature |
+| `network` | 2s | 30 | RX/TX throughput rates |
 
-All metrics are pushed once per second — the SSE endpoint iterates every
+The **SSE push cadence is fixed at 1 s** — the endpoint iterates every
 requested metric inside a single `while True` loop with a single
-`asyncio.sleep(1)` at the end (`dashboard/api/live.py:51-68`). The per-metric
-`SSE_*_INTERVAL_MS` constants in `dashboard/config.py` describe collector
-polling cadence in `dashboard/services/live.py`, not the SSE push cadence.
+`asyncio.sleep(1)` at the end (`dashboard/api/live.py:48-68`). The per-metric
+intervals and buffer sizes above describe each **collector's own polling
+cadence** in `dashboard/services/live.py` (`SSE_*_INTERVAL_MS` /
+`SSE_*_BUFFER` in `dashboard/config.py`); a slow-changing metric such as
+thermal is still pushed every 1 s, it is just collected less often, so its
+sparkline buffer receives a fresh value less frequently.
 
 ## Access Levels
 
