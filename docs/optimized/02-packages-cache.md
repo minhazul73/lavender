@@ -52,7 +52,7 @@ operations.
 
 - `dashboard/services/packages.py:15` — `_PACKAGES_CACHE`
 - `dashboard/services/packages.py:22` — `invalidate_packages_cache()`
-- `dashboard/services/packages.py:621-632` — TTL check + store in
+- `dashboard/services/packages.py:621-632` — `get_installed_packages()`
   `get_installed_packages()`
 
 ## Tests

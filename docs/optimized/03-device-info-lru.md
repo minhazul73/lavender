@@ -7,7 +7,7 @@
 ## Key changes
 
 - Result is memoized with `@lru_cache(maxsize=1)` at
-  `dashboard/services/device_info.py:156` on `get_system_info()`, because
+  `dashboard/services/device_info.py:157` on `get_system_info()`, because
   hardware and OS identity do not change at runtime.
 
 ## Performance improvements
@@ -37,7 +37,7 @@ info = get_system_info()  # first call: full probe chain; later: cache hit
 
 ## Code references
 
-- `dashboard/services/device_info.py:156` — `@lru_cache(maxsize=1)` on
+- `dashboard/services/device_info.py:157` — `@lru_cache(maxsize=1)` on
   `get_system_info()`
 
 ## Tests
