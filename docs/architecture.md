@@ -43,8 +43,9 @@ Lavender is a lightweight, responsive FastAPI web dashboard designed for Linux s
 
 ### 1. Presentation Layer
 - **Jinja2 Templates:** Located in `dashboard/templates/`. Renders server-side HTML.
-- **Static Assets:** Located in `dashboard/static/`. Pure vanilla JavaScript (ES6+), CSS custom properties, and icons. The legacy Jinja2 templates in `dashboard/templates/` remain as a fallback but the React SPA (`dashboard/frontend/`) is now the primary UI.
+- **Static Assets:** Located in `dashboard/static/`. Pure vanilla JavaScript (ES6+), CSS custom properties, and icons. No heavy front-end frameworks (React/Vue/Angular) are used, keeping memory footprints negligible.
 - **Real-Time Client:** `live.js` connects via Server-Sent Events (`EventSource`) to receive streaming updates for CPU, RAM, thermal, battery, and network without polling overhead.
+- **Note:** A React SPA cutover is documented in `docs/optimized/10-frontend-react-spa.md` and lives in the companion `lavender-react` repository; it is not part of this codebase.
 
 ### 2. Transport & Routing Layer
 - **FastAPI Routers:** Modular routers in `dashboard/api/`:

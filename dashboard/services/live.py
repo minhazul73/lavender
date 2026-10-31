@@ -575,6 +575,61 @@ THERMAL_NAME_MAP = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Thermal Collector
+# ---------------------------------------------------------------------------
+
+
+def _scan_hwmon(hwmon_path: str, seen_names: set, zones: List[dict]) -> None:
+    """Scan /sys/class/hwmon for thermal sensors."""
+    if not os.path.isdir(hwmon_path):
+        return
+    for hwmon_name in sorted(os.listdir(hwmon_path)):
+        hwmon_dir = os.path.join(hwmon_path, hwmon_name)
+        dev_type = _read_file(os.path.join(hwmon_dir, "name")) or "unknown"
+        for temp_i in range(10):
+            temp_file = os.path.join(hwmon_dir, f"temp{temp_i}_input")
+            temp_val = _read_int(temp_file, 0)
+            if temp_val <= 0:
+                continue
+            label = (
+                _read_file(os.path.join(hwmon_dir, f"temp{temp_i}_label"))
+                or f"hwmon-{hwmon_name}"
+            )
+            norm_type = dev_type.replace("-", "_")
+            if norm_type in seen_names:
+                continue
+            seen_names.add(norm_type)
+            zones.append(_build_zone(label, dev_type, temp_val))
+
+
+def _scan_platform(platform_path: str, seen_names: set, zones: List[dict]) -> None:
+    """Scan /sys/bus/platform/devices for thermal sensors."""
+    if not os.path.isdir(platform_path):
+        return
+    for dev_name in sorted(os.listdir(platform_path)):
+        if "thermal" not in dev_name.lower() and "temp" not in dev_name.lower():
+            continue
+        dev_dir = os.path.join(platform_path, dev_name)
+        temp_val = _read_int(os.path.join(dev_dir, "temp"), 0)
+        if temp_val > 0:
+            zones.append(_build_zone(dev_name, "platform-thermal", temp_val))
+
+
+def _scan_thermal_class(thermal_path: str, seen_names: set, zones: List[dict]) -> None:
+    """Scan /sys/class/thermal for legacy thermal zones."""
+    if not os.path.isdir(thermal_path):
+        return
+    for zone_name in sorted(os.listdir(thermal_path)):
+        zone_dir = os.path.join(thermal_path, zone_name)
+        dev_type = _read_file(os.path.join(zone_dir, "type")) or "thermal"
+        norm_type = dev_type.replace("-", "_")
+        temp_val = _read_int(os.path.join(zone_dir, "temp"), 0)
+        if temp_val > 0 and norm_type not in seen_names:
+            seen_names.add(norm_type)
+            zones.append(_build_zone(zone_name, dev_type, temp_val))
+
+
 class ThermalCollector(MetricCollector):
     """Collects thermal zone data from hwmon and platform device sysfs.
 
@@ -601,97 +656,9 @@ class ThermalCollector(MetricCollector):
         zones: List[dict] = []
         seen_names: set = set()
 
-        # 1) hwmon thermal zones
-        hwmon_path = "/sys/class/hwmon"
-        if os.path.isdir(hwmon_path):
-            for hwmon_name in sorted(os.listdir(hwmon_path)):
-                hwmon_dir = os.path.join(hwmon_path, hwmon_name)
-                name_file = os.path.join(hwmon_dir, "name")
-                dev_type = _read_file(name_file) or "unknown"
-                for temp_i in range(10):  # hwmon typically has temp1..tempN
-                    temp_file = os.path.join(hwmon_dir, f"temp{temp_i}_input")
-                    temp_val = _read_int(temp_file, 0)
-                    if temp_val <= 0:
-                        continue  # no sensor here
-                    label_file = os.path.join(hwmon_dir, f"temp{temp_i}_label")
-                    label = _read_file(label_file) or f"hwmon-{hwmon_name}"
-                    tc = temp_val / 1000.0
-                    warning = tc >= 70.0
-                    crit = tc >= 90.0
-                    zone_name = f"{label}" if label else f"hwmon-{hwmon_name}-{temp_i}"
-                    norm_type = dev_type.replace("-", "_")
-                    if norm_type in seen_names:
-                        # already found via a previous source (e.g. platform)
-                        continue
-                    seen_names.add(norm_type)
-                    zones.append(
-                        {
-                            "name": zone_name,
-                            "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
-                            "type": dev_type,
-                            "temp_millicelsius": temp_val,
-                            "temp_celsius": tc,
-                            "warning": warning,
-                            "crit": crit,
-                        }
-                    )
-
-        # 2) platform device thermal (qcom, mediatek, etc.)
-        platform_path = "/sys/bus/platform/devices"
-        if os.path.isdir(platform_path):
-            for dev_name in sorted(os.listdir(platform_path)):
-                if "thermal" not in dev_name.lower() and "temp" not in dev_name.lower():
-                    continue
-                dev_dir = os.path.join(platform_path, dev_name)
-                temp_file = os.path.join(dev_dir, "temp")
-                temp_val = _read_int(temp_file, 0)
-                if temp_val > 0:
-                    tc = temp_val / 1000.0
-                    warning = tc >= 70.0
-                    crit = tc >= 90.0
-                    zones.append(
-                        {
-                            "name": dev_name,
-                            "display_name": THERMAL_NAME_MAP.get(dev_name, dev_name),
-                            "type": "platform-thermal",
-                            "temp_millicelsius": temp_val,
-                            "temp_celsius": tc,
-                            "warning": warning,
-                            "crit": crit,
-                        }
-                    )
-
-        # 3) legacy thermal sysfs (some kernels)
-        thermal_path = "/sys/class/thermal"
-        if os.path.isdir(thermal_path):
-            for zone_name in sorted(os.listdir(thermal_path)):
-                zone_dir = os.path.join(thermal_path, zone_name)
-                type_file = os.path.join(zone_dir, "type")
-                dev_type = _read_file(type_file) or "thermal"
-                # Normalize: use underscores consistently for dedup key
-                norm_type = dev_type.replace("-", "_")
-                temp_file = os.path.join(zone_dir, "temp")
-                temp_val = _read_int(temp_file, 0)
-                if temp_val > 0:
-                    # Skip duplicates already found via hwmon (same dev_type,
-                    # normalized)
-                    if norm_type in seen_names:
-                        continue
-                    seen_names.add(norm_type)
-                    tc = temp_val / 1000.0
-                    warning = tc >= 70.0
-                    crit = tc >= 90.0
-                    zones.append(
-                        {
-                            "name": zone_name,
-                            "display_name": THERMAL_NAME_MAP.get(dev_type, zone_name),
-                            "type": dev_type,
-                            "temp_millicelsius": temp_val,
-                            "temp_celsius": tc,
-                            "warning": warning,
-                            "crit": crit,
-                        }
-                    )
+        _scan_hwmon("/sys/class/hwmon", seen_names, zones)
+        _scan_platform("/sys/bus/platform/devices", seen_names, zones)
+        _scan_thermal_class("/sys/class/thermal", seen_names, zones)
 
         return zones
 
@@ -709,30 +676,99 @@ class ThermalCollector(MetricCollector):
 # ---------------------------------------------------------------------------
 
 
+# Battery aggregation helpers
+
+
+def _agg_max(current: Optional[float], value: float) -> float:
+    if current is None or value > current:
+        return value
+    return current
+
+
+def _bat_temp_c(raw: int) -> float:
+    """sysfs battery temp: >1000 is millidegrees C, else 0.1 degrees C."""
+    return raw / 1000.0 if raw > 1000 else raw / 10.0
+
+
+def _parse_uevent_icon(uevent: Optional[str]) -> Optional[str]:
+    if not uevent:
+        return None
+    for line in uevent.splitlines():
+        if line.startswith("POWER_SUPPLY_ICON="):
+            return line.split("=", 1)[1].strip()
+    return None
+
+
+def _read_charge_state(status: Optional[str]) -> str:
+    """Map sysfs `status` text to canonical state (max precedence:
+    charging > discharging > full > not charging)."""
+    st = (status or "").lower()
+    if st == "charging":
+        return "charging"
+    if st == "discharging":
+        return "discharging"
+    if st in ("full", "fully-charged"):
+        return "full"
+    if st in ("not charging", "idle"):
+        return "not charging"
+    return "unknown"
+
+
 @dataclass
-class BatteryInfo:
-    percentage: Optional[int] = None
-    state: str = "unknown"
-    temperature: Optional[float] = None
+class _BatteryAggregation:
+    pct_sum: int = 0
+    pct_count: int = 0
+    charge_state: str = "unknown"
+    temp_c: Optional[float] = None
     voltage: Optional[float] = None
     energy_rate: Optional[float] = None
-    time_to_full: Optional[int] = None  # seconds
-    time_to_empty: Optional[int] = None
-    energy: Optional[float] = None  # Wh
-    energy_full: Optional[float] = None
-    capacity: Optional[int] = None  # design capacity Wh
-    discharging: bool = False
-    charging: bool = False
     online: bool = False
     serial: Optional[str] = None
     vendor: str = ""
     model: str = ""
     icon_name: str = ""
     has_history: bool = False
-    # Derived
-    battery_state: str = "unknown"
-    battery_level: str = ""
-    battery_capacity_str: str = ""
+    energy: Optional[float] = None
+    energy_full: Optional[float] = None
+    capacity_num: int = 0
+    capacity_den: int = 0
+    found: bool = False  # at least one battery device present
+
+
+def aggregation_to_dict(ag: _BatteryAggregation) -> dict:
+    """Convert _BatteryAggregation to dict with derived fields."""
+    result = {
+        "percentage": ag.pct_sum // ag.pct_count if ag.pct_count > 0 else None,
+        "state": ag.charge_state,
+        "temperature": ag.temp_c,
+        "voltage": ag.voltage,
+        "energy_rate": ag.energy_rate,
+        "time_to_full": None,
+        "time_to_empty": None,
+        "online": ag.online,
+        "serial": ag.serial,
+        "vendor": ag.vendor,
+        "model": ag.model,
+        "icon_name": ag.icon_name,
+        "has_history": ag.has_history,
+        "energy": ag.energy,
+        "energy_full": ag.energy_full,
+        "capacity": (
+            round((ag.capacity_num / ag.capacity_den) * 100, 1)
+            if ag.capacity_den > 0
+            else None
+        ),
+        "charging": ag.charge_state in ("charging", "full"),
+        "discharging": ag.charge_state == "discharging",
+        "battery_state": ag.charge_state,
+        "battery_level": f"{ag.pct_sum // ag.pct_count}%" if ag.pct_count > 0 else "",
+        "battery_capacity_str": (
+            f"{round((ag.capacity_num / ag.capacity_den) * 100, 1)}%"
+            if ag.capacity_den > 0
+            else ("unknown" if ag.has_history else "N/A" if ag.found else "")
+        ),
+    }
+    return result
 
 
 class BatteryCollector(MetricCollector):
@@ -795,203 +831,81 @@ class BatteryCollector(MetricCollector):
         return info
 
     def _collect_sysfs(self) -> dict:
-        """Read all battery-related sysfs entries in one pass."""
+        """Read all battery-related sysfs entries in one pass using aggregation."""
         batteries = self._discover_batteries()
-        result: dict = {
-            "percentage": None,
-            "state": "unknown",
-            "temperature": None,
-            "voltage": None,
-            "energy_rate": None,
-            "time_to_full": None,
-            "time_to_empty": None,
-            "energy": None,
-            "energy_full": None,
-            "capacity": None,
-            "charging": False,
-            "discharging": False,
-            "online": False,
-            "serial": None,
-            "vendor": "",
-            "model": "",
-            "icon_name": "",
-            "has_history": False,
-            "battery_state": "unknown",
-            "battery_level": "",
-            "battery_capacity_str": "",
-        }
-
         if not batteries:
-            return result
+            return aggregation_to_dict(_BatteryAggregation())
 
-        # Aggregate from sysfs
-        total_pct = 0
-        pct_count = 0
-        charge_state = "unknown"
-        temp = None
-        volt = None
-        energy_rate = None
-        online = False
-        serial = None
-        vendor = ""
-        model = ""
-        icon_name = ""
-        has_history = False
-        energy = None
-        energy_full = None
-        capacity = None
-        capacity_num = 0
-        capacity_den = 0
-
+        ag = _BatteryAggregation()
         for batt in batteries:
-            cap_file = f"/sys/class/power_supply/{batt}/capacity"
-            cap = _read_int(cap_file)
+            ag.found = True
+            base = f"/sys/class/power_supply/{batt}"
+
+            cap = _read_int(f"{base}/capacity")
             if cap >= 0:
-                total_pct += cap
-                pct_count += 1
+                ag.pct_sum += cap
+                ag.pct_count += 1
 
-            status_file = f"/sys/class/power_supply/{batt}/status"
-            status = _read_file(status_file)
-            if status:
-                st = status.lower()
-                if st == "charging":
-                    charge_state = "charging"
-                elif st == "discharging":
-                    charge_state = "discharging"
-                elif st in ("full", "fully-charged"):
-                    charge_state = "full"
-                elif st in ("not charging", "idle"):
-                    charge_state = "not charging"
+            st = _read_file(f"{base}/status")
+            if st:
+                ag.charge_state = _read_charge_state(st)  # last battery wins
 
-            online_file = f"/sys/class/power_supply/{batt}/online"
-            online_val = _read_int(online_file, 0)
-            if online_val:
-                online = True
+            if _read_int(f"{base}/online", 0):
+                ag.online = True
 
-            temp_file = f"/sys/class/power_supply/{batt}/temp"
-            tv = _read_int(temp_file, 0)
+            tv = _read_int(f"{base}/temp", 0)
             if tv > 0:
-                if tv > 1000:
-                    temp_c = tv / 1000.0
-                else:
-                    temp_c = tv / 10.0
-                if temp is None or temp_c > temp:
-                    temp = temp_c
+                ag.temp_c = _agg_max(ag.temp_c, _bat_temp_c(tv))
 
-            volt_file = f"/sys/class/power_supply/{batt}/voltage_now"
-            v = _read_int(volt_file, 0)
+            v = _read_int(f"{base}/voltage_now", 0)
             if v > 0:
-                voltage_val = v / 1_000_000.0
-                if volt is None or voltage_val > volt:
-                    volt = voltage_val
+                ag.voltage = _agg_max(ag.voltage, v / 1_000_000.0)
 
-            energy_rate_file = f"/sys/class/power_supply/{batt}/power_now"
-            er = _read_int(energy_rate_file, 0)
+            er = _read_int(f"{base}/power_now", 0)
             if er > 0:
-                rate_val = er / 1_000_000.0  # uW -> W
-                if energy_rate is None or rate_val > energy_rate:
-                    energy_rate = rate_val
+                ag.energy_rate = _agg_max(ag.energy_rate, er / 1_000_000.0)
             elif v > 0:
-                curr_file = f"/sys/class/power_supply/{batt}/current_now"
-                cr = _read_int(curr_file, 0)
-                if cr != 0:
-                    rate_val = abs(cr * v) / 1_000_000_000_000.0
-                    if energy_rate is None or rate_val > energy_rate:
-                        energy_rate = rate_val
+                cr = _read_int(f"{base}/current_now", 0)
+                if cr:
+                    ag.energy_rate = _agg_max(ag.energy_rate, abs(cr * v) / 1e12)
 
-            serial_file = f"/sys/class/power_supply/{batt}/serial_number"
-            s = _read_file(serial_file)
-            if s:
-                serial = s
+            ag.serial = _read_file(f"{base}/serial_number") or ag.serial
+            ag.vendor = _read_file(f"{base}/manufacturer") or ag.vendor
+            ag.model = _read_file(f"{base}/model_name") or ag.model
+            ag.icon_name = (
+                _parse_uevent_icon(_read_file(f"{base}/uevent")) or ag.icon_name
+            )
 
-            vendor_file = f"/sys/class/power_supply/{batt}/manufacturer"
-            v2 = _read_file(vendor_file)
-            if v2:
-                vendor = v2
-
-            model_file = f"/sys/class/power_supply/{batt}/model_name"
-            m = _read_file(model_file)
-            if m:
-                model = m
-
-            icon_file = f"/sys/class/power_supply/{batt}/uevent"
-            iev = _read_file(icon_file)
-            if iev:
-                for line2 in iev.splitlines():
-                    if line2.startswith("POWER_SUPPLY_ICON="):
-                        icon_name = line2.split("=", 1)[1].strip()
-
-            efd_file = f"/sys/class/power_supply/{batt}/energy_full_design"
-            efd = _read_int(efd_file, 0)
+            efd = _read_int(f"{base}/energy_full_design", 0)
+            ef = _read_int(f"{base}/energy_full", 0)
             if efd > 0:
-                has_history = True
-
-            ef_file = f"/sys/class/power_supply/{batt}/energy_full"
-            ef = _read_int(ef_file, 0)
+                ag.has_history = True
             if ef > 0:
-                energy_full = ef / 1_000_000.0
+                ag.energy_full = ef / 1_000_000.0
             elif v > 0:
-                cf_file = f"/sys/class/power_supply/{batt}/charge_full"
-                cf = _read_int(cf_file, 0)
+                cf = _read_int(f"{base}/charge_full", 0)
                 if cf > 0:
-                    energy_full = (cf * v) / 1_000_000_000_000.0
+                    ag.energy_full = (cf * v) / 1e12
 
             if efd > 0 and ef > 0:
-                capacity_num += ef
-                capacity_den += efd
+                ag.capacity_num += ef
+                ag.capacity_den += efd
             else:
-                cfd_file = f"/sys/class/power_supply/{batt}/charge_full_design"
-                cfd = _read_int(cfd_file, 0)
-                cf_file = f"/sys/class/power_supply/{batt}/charge_full"
-                cf = _read_int(cf_file, 0)
+                cfd = _read_int(f"{base}/charge_full_design", 0)
+                cf = _read_int(f"{base}/charge_full", 0)
                 if cfd > 0 and cf > 0:
-                    capacity_num += cf
-                    capacity_den += cfd
+                    ag.capacity_num += cf
+                    ag.capacity_den += cfd
 
-            e_file = f"/sys/class/power_supply/{batt}/energy_now"
-            e = _read_int(e_file, 0)
+            e = _read_int(f"{base}/energy_now", 0)
             if e > 0:
-                energy = e / 1_000_000.0
+                ag.energy = e / 1_000_000.0
             elif v > 0:
-                cn_file = f"/sys/class/power_supply/{batt}/charge_now"
-                cn = _read_int(cn_file, 0)
+                cn = _read_int(f"{base}/charge_now", 0)
                 if cn > 0:
-                    energy = (cn * v) / 1_000_000_000_000.0
+                    ag.energy = (cn * v) / 1e12
 
-        if pct_count > 0:
-            result["percentage"] = total_pct // pct_count
-        result["state"] = charge_state
-        result["temperature"] = temp
-        result["voltage"] = volt
-        result["energy_rate"] = energy_rate
-        result["online"] = online
-        result["serial"] = serial
-        result["vendor"] = vendor
-        result["model"] = model
-        result["icon_name"] = icon_name
-        result["has_history"] = has_history
-        result["energy"] = energy
-        result["energy_full"] = energy_full
-        if capacity_den > 0:
-            capacity = round((capacity_num / capacity_den) * 100, 1)
-        result["capacity"] = capacity
-
-        # Derive human-readable fields
-        pct = result["percentage"]
-        if pct is not None:
-            result["battery_level"] = f"{pct}%"
-        result["battery_state"] = charge_state
-        if result["capacity"] is not None:
-            result["battery_capacity_str"] = f"{result['capacity']}%"
-        elif result["has_history"]:
-            result["battery_capacity_str"] = "unknown"
-        else:
-            result["battery_capacity_str"] = "N/A"
-
-        result["charging"] = charge_state in ("charging", "full")
-        result["discharging"] = charge_state == "discharging"
-
-        return result
+        return aggregation_to_dict(ag)
 
     def _discover_batteries(self) -> List[str]:
         """Find battery devices in /sys/class/power_supply."""

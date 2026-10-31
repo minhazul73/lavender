@@ -28,7 +28,7 @@ and the browser EventSource client.
 
 **Backend:**
 ```python
-from dashboard.api.live import sse_generator
+from dashboard.api.live import live_sse, sse_generator
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 
@@ -41,14 +41,19 @@ async def live_metrics_api(metrics: str = "all"):
 ```
 
 **Frontend (`live.js`):**
-```javascript
-import { setupSSE } from './live.js';
+`dashboard/static/live.js` is a vanilla script (IIFE) that attaches its SSE
+helpers to `window` — it does **not** use ES module exports. Include it with a
+regular `<script>` tag and call `setupSSE()` from the global scope:
 
-setupSSE({ metrics: ['cpu', 'ram'],
-           onMetric: (metric, data) => {
-               // Update UI for specific metric
-               if (metric === 'cpu') { /* ... */ }
-           }});
+```html
+<script src="/static/live.js"></script>
+<script>
+  setupSSE({ metrics: ['cpu', 'ram'],
+             onMetric: (metric, data) => {
+                 // Update UI for specific metric
+                 if (metric === 'cpu') { /* ... */ }
+             }});
+</script>
 ```
 
 ## Caveats

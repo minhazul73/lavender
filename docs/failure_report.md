@@ -5,23 +5,17 @@
 
 ---
 
-## Status: 7 failures fixed, suite green
+## Status: suite green
 
-The 7 failing tests in `tests/unit/test_battery_service.py`
-(`TestGetCpuFrequencies`, `TestGetCpuScalingAvailable`, `TestSetCpuGovernor`)
-were caused by a mock misuse: `patch.object(battery.os, "path.isdir", ...)`
-sets a literal attribute named `path.isdir` on the `os` module, which does not
-exist. `patch.object` does not split dotted attribute names — the correct form
-is `patch.object(battery.os.path, "isdir", ...)`.
-
-All 7 tests now pass. Full suite: **572 passed, 0 failed**.
+No failures are currently outstanding. The full pytest suite reports
+**572 passed, 0 failed** (1 deprecation warning from `slowapi`).
 
 ---
 
 ## Historical failures (for reference)
 
-The pytest cache at `.pytest_cache/v/cache/lastfailed` records 31 tests
-that failed in a prior run (7 + 12 + 12 across the three tables below). All have since been fixed and currently pass.
+The pytest cache at `.pytest_cache/v/cache/lastfailed` records **42 tests**
+that failed in a prior run. All have since been fixed and currently pass.
 
 ### `tests/unit/test_battery_service.py` (7 entries — fixed 2026-10-31)
 
@@ -34,6 +28,13 @@ that failed in a prior run (7 + 12 + 12 across the three tables below). All have
 | `TestGetCpuScalingAvailable::test_scaling_read_error` | Fixed |
 | `TestSetCpuGovernor::test_cpupower_fails_fallback_sysfs` | Fixed |
 | `TestSetCpuGovernor::test_all_governor_writes_fail` | Fixed |
+
+The 7 failing tests in `tests/unit/test_battery_service.py`
+(`TestGetCpuFrequencies`, `TestGetCpuScalingAvailable`, `TestSetCpuGovernor`)
+were caused by a mock misuse: `patch.object(battery.os, "path.isdir", ...)`
+sets a literal attribute named `path.isdir` on the `os` module, which does not
+exist. `patch.object` does not split dotted attribute names — the correct form
+is `patch.object(battery.os.path, "isdir", ...)`.
 
 ### `tests/unit/test_packages.py` (12 entries)
 
@@ -67,6 +68,14 @@ that failed in a prior run (7 + 12 + 12 across the three tables below). All have
 | `TestAuthBridge::test_verify_linux_credentials_shadow_success` | Fixed |
 | `TestAuthBridge::test_verify_sudo_password_failure` | Fixed |
 | `TestAuthBridge::test_verify_sudo_password_success` | Fixed |
+
+### Remaining historical entries (11)
+
+The other 11 entries in `.pytest_cache/v/cache/lastfailed` span
+`tests/test_api.py`, `tests/test_auth.py`, `tests/unit/test_auth_deps.py`,
+`tests/unit/test_device_api.py`, `tests/unit/test_device_info_api.py`,
+`tests/unit/test_device_power_api.py`, `tests/unit/test_live_api.py`, and
+`tests/unit/test_system_api.py`. All have been fixed and currently pass.
 
 ---
 
