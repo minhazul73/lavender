@@ -34,7 +34,7 @@ pkgs = get_installed_packages()              # cached, 60 s TTL
 pkgs = get_installed_packages(force_refresh=True)  # bypass cache
 ```
 
-API surface: `GET /api/packages/installed`, plus install/remove/upgrade
+API surface: `GET /api/device/packages`, plus install/remove/upgrade
 endpoints, all of which call `invalidate_packages_cache()` after mutating
 operations.
 

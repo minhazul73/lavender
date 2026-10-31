@@ -18,15 +18,17 @@
 
 ## Usage
 
-The asset hash is automatically injected by Jinja2 templates for static files:
+The asset hash is injected by the FastAPI application setup. In the current
+React SPA build, hashed bundles are referenced directly in the SPA's HTML
+entry point:
 
-```jinja2
-<link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v={{ git_hash }}">
-<script src="{{ url_for('static', path='js/main.js') }}?v={{ git_hash }}"></script>
+```html
+<link rel="stylesheet" href="/static/css/main.<hash>.css">
+<script src="/static/js/main.<hash>.js"></script>
 ```
 
-This is primarily handled by the FastAPI application setup and transparent to
-most developers.
+The legacy Jinja2 templates in `dashboard/templates/` also inject the hash via
+`url_for`, but the SPA is the primary UI.
 
 ## Caveats
 

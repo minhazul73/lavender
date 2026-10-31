@@ -20,8 +20,8 @@ All 7 tests now pass. Full suite: **572 passed, 0 failed**.
 
 ## Historical failures (for reference)
 
-The pytest cache at `.pytest_cache/v/cache/lastfailed` records 24 tests
-that failed in a prior run. All have since been fixed and currently pass.
+The pytest cache at `.pytest_cache/v/cache/lastfailed` records 31 tests
+that failed in a prior run (7 + 12 + 12 across the three tables below). All have since been fixed and currently pass.
 
 ### `tests/unit/test_battery_service.py` (7 entries — fixed 2026-10-31)
 
@@ -73,7 +73,7 @@ that failed in a prior run. All have since been fixed and currently pass.
 ## Notes
 
 - No stack traces or error snippets were available in the source file.
-- The current test suite reports **357 passed, 0 failed**.
+- The current test suite reports **572 passed, 0 failed**.
 - If failure entries are expected, the source file may not have been
   populated correctly by the test runner. Verify the command that
   generates `/tmp/lavender-failures.txt` captures `pytest` stderr/stdout

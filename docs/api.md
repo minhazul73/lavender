@@ -81,10 +81,16 @@ If metric collection fails, the event omits `data` and includes `error: "collect
 | Metric | Interval | Buffer Size | Description |
 |:---|:---|:---|:---|
 | `cpu` | 1s | 30 | Per-core usage, frequency, load averages |
-| `ram` | 3s | 20 | Total, used, free, swap, percentage |
-| `thermal` | 5s | 20 | Multi-zone temperature readings |
-| `battery` | 3s | 30 | Capacity, voltage, power draw, temperature |
-| `network` | 2s | 30 | RX/TX throughput rates |
+| `ram` | 1s | 20 | Total, used, free, swap, percentage |
+| `thermal` | 1s | 20 | Multi-zone temperature readings |
+| `battery` | 1s | 30 | Capacity, voltage, power draw, temperature |
+| `network` | 1s | 30 | RX/TX throughput rates |
+
+All metrics are pushed once per second — the SSE endpoint iterates every
+requested metric inside a single `while True` loop with a single
+`asyncio.sleep(1)` at the end (`dashboard/api/live.py:51-68`). The per-metric
+`SSE_*_INTERVAL_MS` constants in `dashboard/config.py` describe collector
+polling cadence in `dashboard/services/live.py`, not the SSE push cadence.
 
 ## Access Levels
 

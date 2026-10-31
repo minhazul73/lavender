@@ -59,7 +59,7 @@ polling interval and rolling history buffer for sparklines.
 - `dashboard/services/live.py:82` — `RingBuffer`
 - `dashboard/services/live.py:120` — `CollectorStats`
 - `dashboard/services/live.py:128` — `MetricCollector` base
-- `dashboard/services/live.py:1123` — `NetworkRateCollector`
+- `dashboard/services/live.py:1062` — `NetworkRateCollector`
 - Tests: `tests/unit/test_live_api.py`, `tests/unit/test_live_services.py`,
   `tests/unit/test_network_services.py`, `tests/test_services.py`
 
@@ -150,7 +150,7 @@ and structured JSON log retrieval.
   regex string-slicing failures).
 
 **Code references:**
-- `dashboard/services/systemd.py:229-258` — `get_recent_logs()`
+- `dashboard/services/systemd.py:295` — `get_recent_logs()`
 - `dashboard/static/live.js` — epoch heuristic (legacy UI)
 - Tests: `tests/unit/test_systemd_logs.py`, `tests/test_api.py`
   (`test_system_logs_api`)
@@ -180,7 +180,7 @@ kill-by-PID.
   on the client side.
 
 **Code references:**
-- `dashboard/services/processes.py:145-160` — `get_system_load()`
+- `dashboard/services/processes.py:148` — `get_system_load()`
 - Tests: `tests/unit/test_processes.py`
 
 **Benchmarks:** none recorded.
