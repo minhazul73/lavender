@@ -7,8 +7,13 @@ and the browser EventSource client.
 
 - **Uniform 1 s push interval.** All metrics are pushed once per second — the
   SSE endpoint iterates every requested metric inside a single `while True`
-  loop with one `asyncio.sleep(1)` at the end (`dashboard/api/live.py:51-68`).
-  SSE chosen over WebSocket to keep the stack light.
+  loop with one `asyncio.sleep(1)` at the end (`dashboard/api/live.py:48-68`).
+  SSE chosen over WebSocket to keep the stack light. The per-metric
+  `SSE_*_INTERVAL_MS` constants in `dashboard/config.py` govern how often each
+  **background collector** refreshes its ring buffer (CPU 1 s, RAM 3 s,
+  thermal 5 s, battery 3 s, network 2 s) — not the push cadence — so a
+  slow-changing metric is still pushed every 1 s, it simply receives a fresh
+  buffer value less often.
 - **`onMetric` callback.** The client dispatches each event through a
   per-metric callback instead of a generic handler with metric sniffing, and
   sparkline buffer growth is bounded client-side.
@@ -18,8 +23,9 @@ and the browser EventSource client.
 ## Performance improvements
 
 - No polling: one persistent connection instead of N HTTP round-trips per
-  metric per interval. Per-metric intervals mean slow-changing metrics
-  (thermal, 5 s) don't share CPU's 1 s cadence.
+  metric per interval. Every metric — regardless of its collector cadence —
+  shares the same 1 s push loop, so the client gets a steady stream and each
+  widget only updates when its own callback fires.
 - Client-side: per-metric callback avoids parsing/re-dispatching every event
   through every widget; bounded buffers prevent unbounded memory growth on
   long-open tabs.

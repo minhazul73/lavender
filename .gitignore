@@ -7,3 +7,6 @@ venv/
 *.egg-info/
 dist/
 build/
+.coverage
+affected_endpoints.md
+failing_tests.txt

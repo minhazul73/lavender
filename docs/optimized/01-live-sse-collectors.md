@@ -63,7 +63,8 @@ The response is an SSE stream; each event carries `metric`, `data`, and
 - `dashboard/services/live.py:82` — `RingBuffer`
 - `dashboard/services/live.py:120` — `CollectorStats`
 - `dashboard/services/live.py:128` — `MetricCollector` base
-- `dashboard/services/live.py:1062` — `NetworkRateCollector`
+- `dashboard/services/live.py:1047` — `NetworkRateCollector` (class def)
+- `dashboard/services/live.py:1055-1064` — `NetworkRateCollector.__slots__`
 
 ## Tests
 
