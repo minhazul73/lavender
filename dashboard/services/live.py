@@ -15,8 +15,8 @@ import asyncio
 import os
 import time
 from collections import deque
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
 
 from dashboard.config import (
     SSE_THERMAL_INTERVAL_MS,
@@ -526,6 +526,24 @@ class ThermalZone:
     temp_celsius: Optional[float] = None
     warning: bool = False
     crit: bool = False
+
+
+# Thermal zone name mapping for readable labels
+THERMAL_WARNING_C = 70.0
+THERMAL_CRIT_C = 90.0
+
+
+def _build_zone(name: str, dev_type: str, temp_millicelsius: int) -> dict:
+    tc = temp_millicelsius / 1000.0
+    return {
+        "name": name,
+        "display_name": THERMAL_NAME_MAP.get(dev_type, name),
+        "type": dev_type,
+        "temp_millicelsius": temp_millicelsius,
+        "temp_celsius": tc,
+        "warning": tc >= THERMAL_WARNING_C,
+        "crit": tc >= THERMAL_CRIT_C,
+    }
 
 
 # Thermal zone name mapping for readable labels
@@ -1192,7 +1210,8 @@ class NetworkRateCollector(MetricCollector):
 
     @staticmethod
     def _default_route_interface() -> Optional[str]:
-        """Find the interface with default gateway (Destination == 00000000) from /proc/net/route."""
+        """Find the interface with default gateway (Destination == 00000000)
+        from /proc/net/route."""
         text = _read_file("/proc/net/route")
         if not text:
             return None
@@ -1284,7 +1303,8 @@ class NetworkRateCollector(MetricCollector):
 
             return (
                 down_penalty,  # 0 for up/unknown, 1 for down
-                virtual_penalty,  # 0 for physical/cellular/usb/wifi, 1 for Tailscale/VPN
+                virtual_penalty,  # 0 for physical/cellular/usb/wifi,
+                # 1 for Tailscale/VPN
                 default_score,  # 0 if physical default route, 1 otherwise
                 traffic_score,  # 0 if interface has recorded traffic, 1 if 0 bytes
                 cat_prio,  # 1: WiFi, 2: Ethernet, 3: USB, 4: Cellular, 5: Other

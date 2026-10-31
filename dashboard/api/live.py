@@ -5,7 +5,7 @@ Clients subscribe to specific metrics via query params:
   ?metrics=cpu,ram,thermal,battery,network
 """
 
-from fastapi import HTTPException, Depends
+from fastapi import Depends
 from dashboard.auth.session import UserSession
 from dashboard.auth.deps import get_current_session
 import asyncio

@@ -4,7 +4,6 @@ User, session, and permission management service for Lavender.
 
 import os
 import shutil
-import subprocess
 from typing import Optional
 
 from dashboard.dependencies import (
@@ -256,7 +255,8 @@ def get_system_users() -> list[dict]:
 
 
 def get_categorized_groups() -> list[dict]:
-    """Parse /etc/group and classify groups into Privileged, Hardware, Services, System."""
+    """Parse /etc/group and classify groups into Privileged, Hardware,
+    Services, System."""
     raw_groups = parse_groups()
     categorized = []
 

@@ -8,11 +8,6 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 
 from dashboard.auth.session import UserSession
 from dashboard.auth.deps import require_session, require_admin, get_current_session
-from dashboard.dependencies import (
-    run_command,
-    parse_passwd_users,
-    parse_groups,
-)
 from dashboard.auth.bridge import (
     run_user_service_async,
     run_sudo_async,
@@ -21,13 +16,11 @@ from dashboard.services.systemd import (
     list_services,
     get_service_status,
     get_service_logs,
-    service_action,
     get_recent_logs,
 )
 from dashboard.services.processes import (
     get_top_processes,
     get_system_load,
-    kill_process,
     get_memory_info,
     get_memory_human,
 )

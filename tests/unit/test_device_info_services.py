@@ -35,7 +35,7 @@ class TestDeviceInfoServices(unittest.TestCase):
     def test_get_os_info(self, mock_file, mock_exists):
         mock_exists.side_effect = lambda p: p == "/etc/os-release"
         mock_file.return_value = mock_open(
-            read_data='NAME="postmarketOS"\nPRETTY_NAME="postmarketOS v26.06"\nVERSION_ID="26.06"\nID="postmarketos"\n'
+            read_data='NAME="postmarketOS"\nPRETTY_NAME="postmarketOS v26.06"\nVERSION_ID="26.06"\nID="postmarketos"\n',  # noqa: E501
         ).return_value
 
         os_info = get_os_info()

@@ -1,15 +1,13 @@
 """
 Network and WiFi management for Lavender dashboard.
-Supports postmarketOS (Alpine / busybox / wpa_cli), Debian/Ubuntu (nmcli / iwconfig / iw),
-and standard Linux kernel sysfs / procfs.
+Supports postmarketOS (Alpine / busybox / wpa_cli), Debian/Ubuntu (nmcli /
+iwconfig / iw), and standard Linux kernel sysfs / procfs.
 """
 
 import os
 import re
 import socket
-import subprocess
 import time
-from typing import Optional
 
 from dashboard.dependencies import run_command, which
 
@@ -900,7 +898,7 @@ def ping_test(target: str = "8.8.8.8", count: int = 3) -> dict:
     }
 
     stat_m = re.search(
-        r"(\d+)\s+packets transmitted,\s+(\d+)\s+(?:packets\s+)?received.*?([\d.]+)%\s+packet loss",
+        r"(\d+)\s+packets transmitted,\s+(\d+)\s+(?:packets\s+)?received.*?([\d.]+)%\s+packet loss",  # noqa: E501
         out,
         re.IGNORECASE,
     )

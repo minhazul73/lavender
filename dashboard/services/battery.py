@@ -2,7 +2,6 @@
 Battery, thermal, and CPU frequency management.
 """
 
-import subprocess
 import os
 
 from dashboard.dependencies import run_command, run_sudo_command
@@ -345,7 +344,10 @@ def set_cpu_governor(governor: str) -> dict:
     if avail and clean_gov not in avail:
         return {
             "success": False,
-            "error": f"Governor '{clean_gov}' not supported. Available: {', '.join(avail)}",
+            "error": (
+                f"Governor '{clean_gov}' not supported. "
+                f"Available: {', '.join(avail)}"
+            ),
         }
 
     # 1. Try cpupower command

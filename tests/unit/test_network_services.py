@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, mock_open
 from dashboard.services.network import (
     format_bytes,
     get_known_dns_provider,
@@ -43,7 +43,7 @@ class TestNetworkServices(unittest.TestCase):
         # Test with JSON output
         mock_run_command.return_value = (
             0,
-            '[{"gateway": "192.168.1.1", "dev": "eth0", "protocol": "dhcp", "metric": 100}]',
+            '[{"gateway": "192.168.1.1", "dev": "eth0", "protocol": "dhcp", "metric": 100}]',  # noqa: E501
             "",
         )
         gateways = get_gateways()
@@ -71,7 +71,7 @@ class TestNetworkServices(unittest.TestCase):
         mock_exists.return_value = True
         mock_run_command.return_value = (
             0,
-            '[\n{\n"ifname": "eth0",\n"address": "00:1a:2b:3c:4d:5e",\n"mtu": 1500,\n"flags": ["UP", "LOWER_UP"],\n"operstate": "UP",\n"addr_info": [\n{\n"local": "192.168.1.100",\n"prefixlen": 24,\n"family": "inet",\n"scope": "global"\n}\n]\n}\n]',
+            '[\n{\n"ifname": "eth0",\n"address": "00:1a:2b:3c:4d:5e",\n"mtu": 1500,\n"flags": ["UP", "LOWER_UP"],\n"operstate": "UP",\n"addr_info": [\n{\n"local": "192.168.1.100",\n"prefixlen": 24,\n"family": "inet",\n"scope": "global"\n}\n]\n}\n]',  # noqa: E501
             "",
         )
 
@@ -169,7 +169,7 @@ class TestNetworkServices(unittest.TestCase):
         # Test with iwconfig output
         mock_run_command.return_value = (
             0,
-            'wlan0     IEEE 802.11  ESSID:"MyWiFi"  Nickname:""\n          Mode:Managed  Frequency:2.437 GHz  Access Point: 00:1A:2B:3C:4D:5E\n          Bit Rate=54 Mb/s   Tx-Power=20 dBm\n          Retry short limit:7   RTS thr:off   Fragment thr:off\n          Power Management:on\n          Link Quality=80/100  Signal level=-40 dBm\n          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0\n          Tx excessive retries:0  Invalid misc:0   Missed beacon:0',
+            'wlan0     IEEE 802.11  ESSID:"MyWiFi"  Nickname:""\n          Mode:Managed  Frequency:2.437 GHz  Access Point: 00:1A:2B:3C:4D:5E\n          Bit Rate=54 Mb/s   Tx-Power=20 dBm\n          Retry short limit:7   RTS thr:off   Fragment thr:off\n          Power Management:on\n          Link Quality=80/100  Signal level=-40 dBm\n          Rx invalid nwid:0  Rx invalid crypt:0  Rx invalid frag:0\n          Tx excessive retries:0  Invalid misc:0   Missed beacon:0',  # noqa: E501
             "",
         )
         wifi_info = get_wifi_info()
@@ -196,3 +196,187 @@ class TestNetworkServices(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDnsLookup:
+    """dns_lookup failure scenarios and edge cases."""
+
+    def test_empty_domain(self):
+        from dashboard.services.network import dns_lookup
+
+        result = dns_lookup("")
+        assert result["success"] is False
+        assert "error" in result
+
+    def test_whitespace_only_domain(self):
+        from dashboard.services.network import dns_lookup
+
+        result = dns_lookup("   ")
+        assert result["success"] is False
+        assert "error" in result
+
+    def test_invalid_domain_format_no_tld(self):
+        from dashboard.services.network import dns_lookup
+
+        result = dns_lookup("localhost")
+        assert result["success"] is False
+        assert "error" in result
+
+    def test_invalid_domain_format_special_chars(self):
+        from dashboard.services.network import dns_lookup
+
+        result = dns_lookup("example.com<script>")
+        assert result["success"] is False
+        assert "error" in result
+
+    def test_dns_resolution_failure(self):
+        from dashboard.services.network import dns_lookup
+        import socket
+        from unittest.mock import patch
+
+        with patch(
+            "socket.getaddrinfo", side_effect=socket.gaierror("Name resolution failed")
+        ):
+            result = dns_lookup("nonexistent.example.invalid")
+            assert result["success"] is False
+            assert "error" in result
+            assert result["ipv4"] == []
+            assert result["ipv6"] == []
+            assert result["count"] == 0
+
+
+class TestPingTest:
+    """ping_test failure scenarios and edge cases."""
+
+    def test_empty_target_defaults_to_google(self):
+        from dashboard.services.network import ping_test
+        from unittest.mock import patch
+
+        mock_run = patch(
+            "dashboard.services.network.run_command",
+            return_value=(0, "3 packets transmitted, 3 received", ""),
+        )
+        with mock_run:
+            result = ping_test("")
+            assert result["target"] == "8.8.8.8"
+
+    def test_invalid_target_characters(self):
+        from dashboard.services.network import ping_test
+
+        result = ping_test("http://evil.com")
+        assert result["success"] is False
+        assert "error" in result
+
+    def test_ping_command_fails(self):
+        from dashboard.services.network import ping_test
+        from unittest.mock import patch
+
+        with patch(
+            "dashboard.services.network.run_command",
+            return_value=(1, "", "ping: unknown host"),
+        ):
+            result = ping_test("127.0.0.1", count=1)
+            assert result["success"] is False
+            assert result["packet_loss_percent"] == 100.0
+
+    def test_busybox_ping_output_fallback(self):
+        """Test busybox-style ping output with 'bytes from' pattern."""
+        from dashboard.services.network import ping_test
+        from unittest.mock import patch
+
+        busybox_output = (
+            "64 bytes from 127.0.0.1: seq=0 ttl=64 time=0.1 ms\n"
+            "64 bytes from 127.0.0.1: seq=1 ttl=64 time=0.2 ms"
+        )
+        with patch(
+            "dashboard.services.network.run_command",
+            return_value=(0, busybox_output, ""),
+        ):
+            result = ping_test("127.0.0.1", count=2)
+            assert result["success"] is True
+            assert result["received"] == 2
+
+
+class TestDnsInfo:
+    """get_dns_info failure scenarios."""
+
+    def test_missing_resolv_conf(self):
+        """Test get_dns_info when resolv.conf files don't exist."""
+        from dashboard.services.network import get_dns_info
+        from unittest.mock import patch
+
+        with patch("os.path.exists", return_value=False):
+            with patch(
+                "dashboard.services.network.run_command", return_value=(1, "", "")
+            ):
+                with patch("dashboard.services.network.which", return_value=None):
+                    with patch("builtins.open", side_effect=FileNotFoundError):
+                        result = get_dns_info()
+                        assert "servers" in result
+                        assert "upstream_ips" in result
+                        assert isinstance(result["servers"], list)
+
+    def test_resolv_conf_only_comments(self):
+        """Test get_dns_info handles comment-only resolv.conf gracefully."""
+        from dashboard.services.network import get_dns_info
+        from unittest.mock import patch, mock_open
+
+        with patch("os.path.exists", side_effect=lambda p: p == "/etc/resolv.conf"):
+            with patch(
+                "dashboard.services.network.run_command", return_value=(1, "", "")
+            ):
+                with patch("dashboard.services.network.which", return_value=None):
+                    with patch(
+                        "builtins.open",
+                        mock_open(read_data="# just a comment\n# nothing here\n"),
+                    ):
+                        result = get_dns_info()
+                        assert isinstance(result.get("servers"), list)
+
+
+class TestScanWifiNetworks:
+    """scan_wifi_networks failure scenarios."""
+
+    def test_scan_wifi_networks_no_command(self):
+        from dashboard.services.network import scan_wifi_networks
+        from unittest.mock import patch
+
+        with patch("dashboard.services.network.which", return_value=None):
+            result = scan_wifi_networks()
+            assert isinstance(result, list)
+            assert result == []
+
+    def test_scan_wifi_networks_empty_output(self):
+        from dashboard.services.network import scan_wifi_networks
+        from unittest.mock import patch
+
+        with patch("dashboard.services.network.which", return_value="/usr/bin/nmcli"):
+            with patch(
+                "dashboard.services.network.run_command", return_value=(0, "", "")
+            ):
+                result = scan_wifi_networks()
+                assert isinstance(result, list)
+                assert len(result) == 0
+
+
+class TestGetNetworkSummary:
+    """get_network_summary failure scenarios."""
+
+    def test_network_summary_handles_missing_sysfs(self):
+        """Test get_network_summary when all underlying calls return empty."""
+        from dashboard.services.network import get_network_summary
+        from unittest.mock import patch
+
+        with patch("dashboard.services.network.get_gateways", return_value=[]):
+            with patch("dashboard.services.network.get_ip_addresses", return_value=[]):
+                with patch(
+                    "dashboard.services.network.get_dns_info",
+                    return_value={"servers": [], "upstream_ips": []},
+                ):
+                    with patch(
+                        "dashboard.services.network.get_wifi_info", return_value={}
+                    ):
+                        result = get_network_summary()
+                        assert "is_online" in result
+                        assert "primary_interface" in result
+                        assert result["is_online"] is False

@@ -4,9 +4,7 @@ Systemd service management.
 
 import datetime
 import json
-import subprocess
 import re
-from typing import Optional
 
 from dashboard.dependencies import run_command, run_sudo_command
 
@@ -111,7 +109,7 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
     if not out.strip() and not user:
         sudo_code, sudo_out, sudo_err = run_sudo_command(cmd, timeout=15)
         if sudo_out.strip():
-            code, out, err = sudo_code, sudo_out, sudo_err
+            _, out, err = sudo_code, sudo_out, sudo_err
 
     # Parse key info
     info = {
@@ -149,7 +147,7 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
                 info["unit_file_state"] = m.group(1)
         if "Active:" in line:
             m = re.search(
-                r"Active:\s+([a-zA-Z\-]+)(?:\s+\(([^)]+)\))?(?:;\s*(.+)|(?:\s+since\s+(.+)))?",
+                r"Active:\s+([a-zA-Z\-]+)(?:\s+\(([^)]+)\))?(?:;\s*(.+)|(?:\s+since\s+(.+)))?",  # noqa: E501
                 line,
             )
             if m:

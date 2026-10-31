@@ -2,5 +2,7 @@
 max-line-length = 88
 
 # Black formats with line break before binary operator — ignore W503 to avoid conflicts.
+# Also ignore E203 whitespace before ':' which black intentionally adds in slices.
 ignore =
-    W503
+    W503,
+    E203

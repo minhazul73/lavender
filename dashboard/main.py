@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from dashboard.config import SESSION_COOKIE_NAME, APP_VERSION
+from dashboard.config import APP_VERSION
 import logging
 
 logger = logging.getLogger(__name__)

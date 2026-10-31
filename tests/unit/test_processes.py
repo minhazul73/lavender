@@ -11,9 +11,9 @@ class TestTopProcesses:
     @patch("dashboard.services.processes.run_command")
     def test_procps_format_sorted_by_mem(self, mock_run):
         ps_out = (
-            "USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\n"
-            "root           1  0.0  0.1  16764  2048 ?        Ss   12:00   0:01 /sbin/init\n"
-            "rahat       1234 10.0  5.0 100000 20480 ?        S    12:01   0:10 python3 app.py\n"
+            "USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\n"  # noqa: E501
+            "root           1  0.0  0.1  16764  2048 ?        Ss   12:00   0:01 /sbin/init\n"  # noqa: E501
+            "rahat       1234 10.0  5.0 100000 20480 ?        S    12:01   0:10 python3 app.py\n"  # noqa: E501
         )
         mock_run.return_value = (0, ps_out, "")
         with patch(
