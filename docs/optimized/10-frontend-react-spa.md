@@ -1,14 +1,15 @@
 # Frontend cutover: React SPA (`frontend/`, Phase 3–4)
 
-**Purpose:** Replaced the Jinja2 + vanilla-JS UI with a Vite + React + TS SPA
+**Purpose:** Replace the Jinja2 + vanilla-JS UI with a Vite + React + TS SPA
 to make the dashboard maintainable.
 
 ## Key changes
 
 - **Scaffold.** Vite + React + TS, auth, theme, test suite.
 - **Phase 3:** all dashboard pages migrated (in the companion repo).
-- **Phase 4 cutover:** Jinja2 removed, SPA served by the FastAPI backend
-  (in the companion repo).
+- **Phase 4 cutover:** Jinja2 will be removed and the SPA served by the
+  FastAPI backend. The companion repository owns the SPA work; Phase 4 also
+  requires backend changes in this repository.
 - **SSE hook optimization** (see [`06-sse-transport.md`](06-sse-transport.md)).
 
 ## Performance / resource improvements

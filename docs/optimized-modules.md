@@ -207,8 +207,8 @@ and the browser EventSource client.
 **Performance improvements:**
 - No polling: one persistent connection instead of N HTTP round-trips per
   metric per interval. The SSE push cadence is a uniform 1 s for every
-  requested metric (`asyncio.sleep(1)` at the end of the generator loop);
-  the per-metric `SSE_*_INTERVAL_MS` constants in `dashboard/config.py` govern
+  requested metric (`asyncio.sleep(1)` at the end of the generator loop).
+  The per-metric `SSE_*_INTERVAL_MS` constants in `dashboard/config.py` govern
   how often each **background collector** refreshes its ring buffer, not how
   often events are pushed — so a slow-changing metric (thermal, 5 s) is still
   pushed every 1 s, it simply receives a fresh buffer value less often.

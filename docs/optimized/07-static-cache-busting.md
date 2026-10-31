@@ -23,8 +23,8 @@ the legacy Jinja2 + vanilla-JS stack (`dashboard/templates/`, which inject
 the hash via `url_for`):
 
 ```html
-<link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v={{ git_hash }}">
-<script src="{{ url_for('static', path='script.js') }}?v={{ git_hash }}"></script>
+<link rel="stylesheet" href="/static/style.css?v={{ git_hash }}">
+<script src="/static/script.js?v={{ git_hash }}"></script>
 ```
 
 When the React SPA cutover lands (see
