@@ -98,8 +98,6 @@ class TestNetworkService:
     def test_primary_interface_prioritizes_wifi_ethernet_usb_over_tailscale(
         self, monkeypatch
     ):
-        """Test that WiFi, Ethernet, and USB interfaces are prioritized
-        over Tailscale."""
         from dashboard.services.live import NetworkRateCollector
 
         collector = NetworkRateCollector()

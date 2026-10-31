@@ -255,10 +255,8 @@ def get_system_users() -> list[dict]:
 
 
 def get_categorized_groups() -> list[dict]:
-    """Parse /etc/group and classify groups.
-
-    Categories: Privileged, Hardware, Services, System.
-    """
+    """Parse /etc/group and classify groups into Privileged, Hardware,
+    Services, System."""
     raw_groups = parse_groups()
     categorized = []
 

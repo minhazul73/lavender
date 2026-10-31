@@ -18,27 +18,7 @@ class TestBatteryServices(unittest.TestCase):
             (0, "/org/freedesktop/UPower/devices/battery_BAT0\n", ""),
             (
                 0,
-                "  native-path:          BAT0\n"
-                "  vendor:               TestVendor\n"
-                "  model:                TestModel\n"
-                "  power supply:         yes\n"
-                "  updated:              Sat 24 Oct 2026 12:00:00 PM UTC (10s ago)\n"
-                "  has history:          yes\n"
-                "  has statistics:       yes\n"
-                "  present:              yes\n"
-                "  rechargeable:         yes\n"
-                "  state:                charging\n"
-                "  warning level:        none\n"
-                "  energy:               45 Wh\n"
-                "  energy-empty:         0 Wh\n"
-                "  energy-full:          50 Wh\n"
-                "  energy-full-design:   50 Wh\n"
-                "  energy-rate:          10 W\n"
-                "  voltage:              12.5 V\n"
-                "  charge-cycles:        100\n"
-                "  percentage:           90%\n"
-                "  capacity:             100%\n"
-                "  technology:           lithium-ion\n",
+                "  native-path:          BAT0\n  vendor:               TestVendor\n  model:                TestModel\n  power supply:         yes\n  updated:              Sat 24 Oct 2026 12:00:00 PM UTC (10s ago)\n  has history:          yes\n  has statistics:       yes\n  present:              yes\n  rechargeable:         yes\n  state:                charging\n  warning level:        none\n  energy:               45 Wh\n  energy-empty:         0 Wh\n  energy-full:          50 Wh\n  energy-full-design:   50 Wh\n  energy-rate:          10 W\n  voltage:              12.5 V\n  charge-cycles:        100\n  percentage:           90%\n  capacity:             100%\n  technology:           lithium-ion\n",  # noqa: E501
                 "",
             ),
         ]

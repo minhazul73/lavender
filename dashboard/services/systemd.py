@@ -107,9 +107,9 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
     # Try with sudo for system services only if direct failed completely (no
     # output returned)
     if not out.strip() and not user:
-        _, sudo_out, sudo_err = run_sudo_command(cmd, timeout=15)
+        sudo_code, sudo_out, sudo_err = run_sudo_command(cmd, timeout=15)
         if sudo_out.strip():
-            out, err = sudo_out, sudo_err
+            _, out, err = sudo_code, sudo_out, sudo_err
 
     # Parse key info
     info = {
@@ -147,8 +147,7 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
                 info["unit_file_state"] = m.group(1)
         if "Active:" in line:
             m = re.search(
-                r"Active:\s+([a-zA-Z\-]+)(?:\s+\(([^)]+)\))?"
-                r"(?:;\s*(.+)|(?:\s+since\s+(.+)))?",
+                r"Active:\s+([a-zA-Z\-]+)(?:\s+\(([^)]+)\))?(?:;\s*(.+)|(?:\s+since\s+(.+)))?",  # noqa: E501
                 line,
             )
             if m:
