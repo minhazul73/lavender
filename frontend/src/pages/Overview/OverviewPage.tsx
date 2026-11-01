@@ -591,23 +591,28 @@ export const OverviewPage: React.FC = () => {
         {/* CPU Card */}
         <section className="card card-cpu" style={{ position: 'relative' }}>
           <div className="card-header">
-            <span className="card-icon card-icon-cpu">
-              <Cpu size={13} />
-            </span>
-            <span className="card-title">CPU</span>
-            <span
-              className="card-subtitle font-mono"
-              id="cpu-load"
-              style={{
-                color: cpuLoad5 > 7 ? 'var(--red)' : cpuLoad5 > 3 ? 'var(--yellow)' : 'inherit',
-                fontWeight: 600,
-              }}
-            >
-              {cpuLoad5.toFixed(2)}
-            </span>
-            <Link to="/processes" className="card-link">
-              Processes →
-            </Link>
+            <div className="card-header-left">
+              <span className="card-icon card-icon-cpu">
+                <Cpu size={13} />
+              </span>
+              <span className="card-title">CPU</span>
+            </div>
+            <div className="card-header-right">
+              <span
+                className="card-subtitle font-mono"
+                id="cpu-load"
+                style={{
+                  fontSize: '12px',
+                  color: cpuLoad5 > 7 ? 'var(--red)' : cpuLoad5 > 3 ? 'var(--yellow)' : 'inherit',
+                  fontWeight: 600,
+                }}
+              >
+                {cpuLoad5.toFixed(2)}
+              </span>
+              <Link to="/processes" className="card-link">
+                Processes →
+              </Link>
+            </div>
           </div>
           <div className="card-body">
             <div className="cpu-cores-grid" id="cpu-cores-grid">

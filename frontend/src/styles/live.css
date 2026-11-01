@@ -72,6 +72,23 @@
     gap: 8px;
 }
 
+.overview-dashboard .card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.overview-dashboard .card-header-right {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.overview-dashboard .card-subtitle {
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .overview-dashboard .card-title {
     font-size: 12px;
     font-weight: 700;

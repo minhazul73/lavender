@@ -3,6 +3,7 @@ __pycache__/
 .env
 .env.local
 .venv/
+.tracks/
 venv/
 dist/
 build/

@@ -25,6 +25,23 @@
   gap: 12px;
 }
 
+.card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.card-header-right {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.card-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .card-title {
   font-size: 1.05rem;
   font-weight: 600;
