@@ -52,7 +52,7 @@ def is_session_admin(session: Optional[UserSession]) -> bool:
     """Check if session is currently elevated or has admin status."""
     if not session:
         return False
-    return bool(session.is_elevated() or session.is_admin)
+    return bool(session.is_elevated())
 
 
 @router.get("/files", summary="List files and directories in a path")

@@ -105,7 +105,7 @@ async def api_login(
             "success": True,
             "username": username,
             "redirect": safe_next,
-            "is_admin": session.is_admin,
+            "is_admin": session.is_elevated(),
             "can_elevate": session.can_elevate(),
         })
     else:

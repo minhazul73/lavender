@@ -37,8 +37,15 @@ async def lifespan(app: FastAPI):
     # Pre-seed active session for current local user for localhost development access
     try:
         import getpass, pwd
+        from server.auth.bridge import get_local_user_info
         cur_user = getpass.getuser()
         pw = pwd.getpwnam(cur_user)
+        try:
+            user_info = get_local_user_info(cur_user)
+            groups = user_info.get("groups", [])
+        except Exception:
+            groups = [cur_user]
+        is_root = (pw.pw_uid == 0 or cur_user == "root")
         dev_sid = "dev-session-active"
         session_store._sessions[dev_sid] = UserSession(
             session_id=dev_sid,
@@ -47,8 +54,8 @@ async def lifespan(app: FastAPI):
             gid=pw.pw_gid,
             home=pw.pw_dir,
             shell=pw.pw_shell,
-            groups=["wheel", "sudo", cur_user],
-            is_admin=True,
+            groups=groups,
+            is_admin=is_root,
         )
     except Exception:
         pass

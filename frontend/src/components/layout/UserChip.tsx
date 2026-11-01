@@ -109,14 +109,18 @@ export const UserChip: React.FC = () => {
             type="button"
             onClick={() => openElevationModal()}
             className="btn btn-xs btn-secondary"
-            title={`Elevate permissions for ${session.username}`}
+            id="btn-elevate"
+            title={`Turn on administrative access for ${session.username}`}
             style={{
               padding: '2px 8px',
               fontSize: '0.72rem',
               borderRadius: 'var(--radius-full)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
             }}
           >
-            <Lock size={11} /> Admin
+            <Lock size={11} /> Turn on
           </button>
         ) : null}
 
