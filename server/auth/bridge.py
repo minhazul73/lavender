@@ -144,22 +144,15 @@ async def authenticate_user(username: str, password: str) -> dict:
     return user_info
 
 
-async def run_command_async(cmd: list[str] | str, timeout: int = 30) -> tuple[int, str, str]:
+async def run_command_async(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     """Execute a local command asynchronously."""
     proc = None
     try:
-        if isinstance(cmd, str):
-            proc = await asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-        else:
-            proc = await asyncio.create_subprocess_exec(
-                cmd[0], *cmd[1:],
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+        proc = await asyncio.create_subprocess_exec(
+            cmd[0], *cmd[1:],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
     except (asyncio.TimeoutError, TimeoutError):
