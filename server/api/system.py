@@ -3,6 +3,7 @@ API routes for system-related operations.
 Protected with session authentication and privilege verification.
 """
 import asyncio
+import re
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Depends
 
@@ -35,6 +36,18 @@ from server.services.storage import get_disk_usage, unmount
 
 router = APIRouter()
 
+SERVICE_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
+
+
+def validate_service_name(name: str) -> str:
+    """Validate systemd service/unit name to prevent argument injection."""
+    if not name or len(name) > 256 or not SERVICE_NAME_REGEX.match(name):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid service name format: {name!r}",
+        )
+    return name
+
 
 # ---- Systemd Services ----
 
@@ -59,6 +72,7 @@ async def api_service_status(
     session: UserSession = Depends(require_session),
 ):
     """Get detailed status for a service."""
+    validate_service_name(service_name)
     status = get_service_status(service_name, user=user)
     return status
 
@@ -72,6 +86,7 @@ async def api_service_logs(
     session: UserSession = Depends(require_session),
 ):
     """Get recent logs for a service."""
+    validate_service_name(service_name)
     logs = get_service_logs(service_name, lines=lines, user=user)
     return {"logs": logs, "service": service_name}
 
@@ -89,6 +104,7 @@ async def api_service_action(
     User services run under authenticated user's session.
     System services require administrative elevation.
     """
+    validate_service_name(service_name)
     valid_actions = ["start", "stop", "restart", "enable", "disable"]
     if action not in valid_actions:
         raise HTTPException(status_code=400, detail=f"Invalid action: {action}")

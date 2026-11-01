@@ -63,3 +63,44 @@ async def test_get_system_logs(auth_client):
         assert "service" in first
         assert "level" in first
 
+
+@pytest.mark.asyncio
+async def test_service_action_rejects_flag_injection(auth_client):
+    res = await auth_client.post("/api/services/--version/restart")
+    assert res.status_code == 400
+    assert "Invalid service name" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_service_action_rejects_metacharacters(auth_client):
+    res = await auth_client.post("/api/services/nginx;rm/restart")
+    assert res.status_code == 400
+    assert "Invalid service name" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_service_logs_rejects_invalid_service_name(auth_client):
+    res = await auth_client.get("/api/services/--all/logs")
+    assert res.status_code == 400
+    assert "Invalid service name" in res.json()["detail"]
+
+
+def test_validate_service_name_unit():
+    from fastapi import HTTPException
+    from server.api.system import validate_service_name
+
+    # Valid service names
+    assert validate_service_name("nginx") == "nginx"
+    assert validate_service_name("nginx.service") == "nginx.service"
+    assert validate_service_name("getty@tty1") == "getty@tty1"
+    assert validate_service_name("systemd-resolved") == "systemd-resolved"
+    assert validate_service_name("user@1000.service") == "user@1000.service"
+
+    # Invalid service names
+    for bad in ["--version", "-H", "nginx;rm", "nginx|sh", "nginx rm", "", "a" * 257]:
+        with pytest.raises(HTTPException) as exc_info:
+            validate_service_name(bad)
+        assert exc_info.value.status_code == 400
+        assert "Invalid service name" in exc_info.value.detail
+
+
