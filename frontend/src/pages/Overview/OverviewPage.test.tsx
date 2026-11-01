@@ -233,3 +233,114 @@ describe('OverviewPage', () => {
   });
 });
 
+// Characterization: sparkline helpers
+// These functions are copied verbatim from OverviewPage.tsx for testing.
+// When T-030 extracts them to utils/sparkline.ts, these tests will move there.
+function normalizeBuffer(buf: number[], targetLen = 30): number[] {
+  if (!buf || buf.length === 0) return new Array(targetLen).fill(0);
+  if (buf.length >= targetLen) return buf.slice(buf.length - targetLen);
+  const pad = new Array(targetLen - buf.length).fill(buf[0]);
+  return [...pad, ...buf];
+}
+
+function buildSparkPaths(
+  buf: number[],
+  w = 100,
+  h = 32,
+  minRange = 10,
+  clampMin?: number,
+  clampMax?: number
+): { line: string; area: string } {
+  if (!buf || buf.length < 2) return { line: '', area: '' };
+
+  let min = Math.min(...buf);
+  let max = Math.max(...buf);
+
+  if (clampMin !== undefined) min = Math.min(min, clampMin);
+  if (clampMax !== undefined) max = Math.max(max, clampMax);
+
+  const currentRange = max - min;
+  if (currentRange < minRange) {
+    const padRange = (minRange - currentRange) / 2;
+    min = clampMin !== undefined ? Math.max(clampMin, min - padRange) : min - padRange;
+    max = clampMax !== undefined ? Math.min(clampMax, max + padRange) : max + padRange;
+  }
+  const range = max - min || 1;
+  const pad = h * 0.08;
+
+  const pts = buf.map((v, i) => ({
+    x: parseFloat(((i / (buf.length - 1)) * w).toFixed(2)),
+    y: parseFloat((pad + (1 - (v - min) / range) * (h - pad * 2)).toFixed(2)),
+  }));
+
+  const t = 0.4;
+  const ctrlPts = (
+    p0: { x: number; y: number },
+    p1: { x: number; y: number },
+    p2: { x: number; y: number },
+    p3: { x: number; y: number }
+  ) => ({
+    cp1x: p1.x + (p2.x - p0.x) * t,
+    cp1y: p1.y + (p2.y - p0.y) * t,
+    cp2x: p2.x - (p3.x - p1.x) * t,
+    cp2y: p2.y - (p3.y - p1.y) * t,
+  });
+
+  let line = `M${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c = ctrlPts(p0, p1, p2, p3);
+    line += ` C${c.cp1x.toFixed(2)},${c.cp1y.toFixed(2)} ${c.cp2x.toFixed(2)},${c.cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  }
+
+  const last = pts[pts.length - 1];
+  const area = `${line} L${last.x},${h} L${pts[0].x},${h} Z`;
+  return { line, area };
+}
+
+describe('normalizeBuffer', () => {
+  it('pads a short buffer by repeating oldest element', () => {
+    const result = normalizeBuffer([1, 2, 3], 5);
+    expect(result).toHaveLength(5);
+    expect(result[0]).toBe(1);
+    expect(result[4]).toBe(3);
+  });
+  it('returns zeros for empty or null buffer', () => {
+    const empty = normalizeBuffer([], 5);
+    expect(empty).toEqual([0, 0, 0, 0, 0]);
+  });
+  it('truncates a buffer longer than targetLen', () => {
+    const long = Array.from({ length: 40 }, (_, i) => i);
+    const result = normalizeBuffer(long, 30);
+    expect(result).toHaveLength(30);
+    expect(result[0]).toBe(10);
+    expect(result[29]).toBe(39);
+  });
+  it('returns buffer unchanged if already targetLen', () => {
+    const buf = Array(30).fill(5);
+    expect(normalizeBuffer(buf, 30)).toEqual(buf);
+  });
+});
+
+describe('buildSparkPaths', () => {
+  it('returns area and line string paths', () => {
+    const buf = Array(30).fill(50);
+    const result = buildSparkPaths(buf, 200, 40);
+    expect(typeof result.area).toBe('string');
+    expect(typeof result.line).toBe('string');
+    expect(result.area.startsWith('M')).toBe(true);
+  });
+  it('handles empty/zero buffer without throwing', () => {
+    const result = buildSparkPaths(Array(30).fill(0), 200, 40);
+    expect(result.line).toBeTruthy();
+  });
+  it('returns empty strings for buffer with less than 2 points', () => {
+    expect(buildSparkPaths([])).toEqual({ line: '', area: '' });
+    expect(buildSparkPaths([42])).toEqual({ line: '', area: '' });
+  });
+});
+
+
