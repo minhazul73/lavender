@@ -57,15 +57,21 @@ def verify_linux_credentials(username: str, password: str) -> bool:
     if not password:
         return False
 
-    # 1. Direct shadow verification (instant, works if user is in shadow group or root)
+    # 1. Direct shadow verification (if available; spwd/crypt removed in Python 3.13)
     try:
-        import spwd
-        import crypt
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            import spwd
+            import crypt
+
         sp = spwd.getspnam(username)
         if sp and sp.sp_pwdp:
             if crypt.crypt(password, sp.sp_pwdp) == sp.sp_pwdp:
                 logger.info("Direct shadow authentication successful for user %s", username)
                 return True
+    except (ImportError, ModuleNotFoundError):
+        logger.debug("Direct shadow auth unavailable: spwd/crypt not present in this Python environment")
     except Exception as exc:
         logger.debug("Direct shadow auth unavailable: %s", exc)
 
