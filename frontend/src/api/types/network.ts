@@ -148,3 +148,4 @@ export interface DnsQueryResponse {
   success: boolean;
   error?: string;
 }
+

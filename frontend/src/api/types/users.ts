@@ -87,3 +87,4 @@ export interface UsersOverviewResponse {
   current_user?: UserProfile;
   sudoers?: Record<string, unknown>;
 }
+

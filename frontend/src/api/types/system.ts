@@ -12,3 +12,4 @@ export interface SystemLogsResponse {
   count?: number;
   service?: string;
 }
+

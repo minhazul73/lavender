@@ -24,3 +24,4 @@ export interface ElevationResponse {
   is_admin: boolean;
   expires_in: number;
 }
+

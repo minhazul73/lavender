@@ -7,3 +7,4 @@ export interface PowerStateResponse {
     remaining_minutes: number;
   } | null;
 }
+

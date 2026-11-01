@@ -96,3 +96,4 @@ export interface BookmarksResponse {
   bookmarks: BookmarkItem[];
   disks: StorageDiskItem[];
 }
+

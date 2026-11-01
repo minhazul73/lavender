@@ -16,3 +16,4 @@ export interface PackagesOverviewResponse {
   upgradable: PackageItem[];
   installed: PackageItem[];
 }
+
