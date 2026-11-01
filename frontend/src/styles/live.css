@@ -1079,6 +1079,11 @@
    Thermal Card — Gauge UI
    ====================================================== */
 
+/* Thermal Card header: keep icon and title together on the left */
+.card-thermal .card-header {
+    justify-content: flex-start;
+}
+
 /* Card body: distribute zones evenly to fill card height without dead space */
 .thermal-card-body {
     padding: 0;

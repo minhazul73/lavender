@@ -1081,10 +1081,12 @@ export const OverviewPage: React.FC = () => {
         {/* Thermal Card */}
         <section className="card card-thermal" style={{ position: 'relative' }}>
           <div className="card-header">
-            <span className="card-icon" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--orange)' }}>
-              <Thermometer size={13} />
-            </span>
-            <span className="card-title">THERMAL</span>
+            <div className="card-header-left">
+              <span className="card-icon" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--orange)' }}>
+                <Thermometer size={13} />
+              </span>
+              <span className="card-title">THERMAL</span>
+            </div>
           </div>
           <div className="card-body thermal-card-body">
             <div id="thermal-top" className="thermal-zones">
