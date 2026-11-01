@@ -9,6 +9,10 @@ PORT = int(os.environ.get("LAVENDER_PORT", os.environ.get("PORT", "8080")))
 HOST = os.environ.get("LAVENDER_HOST", os.environ.get("HOST", "0.0.0.0"))
 DEBUG = os.environ.get("LAVENDER_DEBUG", "false").lower() in ("1", "true", "yes")
 
+# Comma-separated list of allowed CORS origins; empty means same-origin only
+CORS_ORIGINS_RAW = os.environ.get("LAVENDER_CORS_ORIGINS", "")
+CORS_ORIGINS: list[str] = [o.strip() for o in CORS_ORIGINS_RAW.split(",") if o.strip()]
+
 # Application Version (SemVer: < 1.0 indicates development / pre-release status)
 APP_VERSION = "0.4.0"
 

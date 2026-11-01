@@ -9,11 +9,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from server.core.config import APP_VERSION, REQUIRE_AUTH_FOR_HOMEPAGE, DEBUG
+from server.core.config import APP_VERSION, REQUIRE_AUTH_FOR_HOMEPAGE, DEBUG, CORS_ORIGINS
 from server.auth.session import UserSession, session_store
 from server.auth.deps import get_current_session
 
@@ -78,6 +79,14 @@ app = FastAPI(
 
 # Trust all hosts since we bind to 0.0.0.0
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS if CORS_ORIGINS else [],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 # Attach rate limiter to app state
 from server.api.auth import limiter as auth_limiter  # noqa: E402
