@@ -331,4 +331,99 @@ describe('UsersPage', () => {
     expect(document.querySelector('.session-item-row')).toBeInTheDocument();
     expect(document.querySelector('.history-item-row')).toBeInTheDocument();
   });
+
+  describe('UsersPage Characterization', () => {
+    it('switches between accounts, sessions, and groups tabs', async () => {
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockUsersData);
+
+      render(
+        <ToastProvider>
+          <MemoryRouter>
+            <UsersPage />
+          </MemoryRouter>
+        </ToastProvider>
+      );
+
+      // Accounts tab active initially
+      expect((await screen.findAllByText('rahat')).length).toBeGreaterThan(0);
+      expect(screen.getByText('/home/rahat')).toBeInTheDocument();
+
+      // Switch to Groups tab
+      const groupsTab = screen.getByRole('button', { name: /Groups & Hardware/i });
+      act(() => {
+        fireEvent.click(groupsTab);
+      });
+      expect(await screen.findByText('Administrative elevation privileges')).toBeInTheDocument();
+      expect(screen.getByText('wheel')).toBeInTheDocument();
+
+      // Switch to Active Sessions tab
+      const sessionsTab = screen.getByRole('button', { name: /Active Sessions/i });
+      act(() => {
+        fireEvent.click(sessionsTab);
+      });
+      expect(await screen.findByText('Active Terminal & Remote Logins')).toBeInTheDocument();
+      expect(screen.getAllByText('pts/0').length).toBeGreaterThanOrEqual(1);
+
+      // Switch back to Accounts tab
+      const accountsTab = screen.getByRole('button', { name: /Accounts & Users/i });
+      act(() => {
+        fireEvent.click(accountsTab);
+      });
+      expect(await screen.findByText('/home/rahat')).toBeInTheDocument();
+    });
+
+    it('opens SSH Keys modal when Manage Keys is clicked', async () => {
+      (api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+        if (url.includes('/ssh-keys')) {
+          return Promise.resolve({
+            username: 'rahat',
+            keys: ['ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG5... user@laptop'],
+          });
+        }
+        return Promise.resolve(mockUsersData);
+      });
+
+      render(
+        <ToastProvider>
+          <MemoryRouter>
+            <UsersPage />
+          </MemoryRouter>
+        </ToastProvider>
+      );
+
+      await screen.findAllByText('rahat');
+
+      const sshBtn = screen.getByRole('button', { name: /SSH Keys \(1\)/i });
+      act(() => {
+        fireEvent.click(sshBtn);
+      });
+
+      expect(await screen.findByText(/Authorized SSH Keys: rahat/i)).toBeInTheDocument();
+      expect(screen.getByText(/user@laptop/i)).toBeInTheDocument();
+    });
+
+    it('opens Password Change modal when Change Password button is clicked', async () => {
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockUsersData);
+
+      render(
+        <ToastProvider>
+          <MemoryRouter>
+            <UsersPage />
+          </MemoryRouter>
+        </ToastProvider>
+      );
+
+      await screen.findAllByText('rahat');
+
+      const pwdBtn = screen.getAllByRole('button', { name: /Password/i })[0];
+      act(() => {
+        fireEvent.click(pwdBtn);
+      });
+
+      expect(await screen.findByText(/Change Password: rahat/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Enter new password/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Repeat new password/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Update Password/i })).toBeInTheDocument();
+    });
+  });
 });

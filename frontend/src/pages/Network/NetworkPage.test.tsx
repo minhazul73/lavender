@@ -304,4 +304,111 @@ describe('NetworkPage', () => {
     expect(screen.getByText('DNS Resolution')).toBeInTheDocument();
     expect(screen.getByText('Internet Connectivity')).toBeInTheDocument();
   });
+
+  describe('NetworkPage Characterization', () => {
+    it('switches to WiFi tab and triggers scan on button click', async () => {
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockNetworkData);
+      (api.post as ReturnType<typeof vi.fn>).mockResolvedValue({
+        networks: [
+          { ssid: 'ScannedNetwork', signal: 88, security: 'WPA2', frequency: '5180 MHz' },
+        ],
+      });
+
+      render(
+        <ToastProvider>
+          <MemoryRouter>
+            <NetworkPage />
+          </MemoryRouter>
+        </ToastProvider>
+      );
+
+      await screen.findByText('eth0');
+
+      const wifiTabBtn = screen.getByRole('button', { name: /WiFi/i });
+      act(() => {
+        fireEvent.click(wifiTabBtn);
+      });
+
+      expect(await screen.findByText('Connected Network')).toBeInTheDocument();
+      expect(screen.getByText('GuestWifi')).toBeInTheDocument();
+
+      const scanBtn = screen.getByRole('button', { name: /Scan Wireless Networks/i });
+      act(() => {
+        fireEvent.click(scanBtn);
+      });
+
+      expect(api.post).toHaveBeenCalledWith('/api/network/wifi-scan');
+      expect(await screen.findByText('ScannedNetwork')).toBeInTheDocument();
+    });
+
+    it('filters interface list by search query', async () => {
+      (api.get as ReturnType<typeof vi.fn>).mockResolvedValue(mockNetworkData);
+
+      render(
+        <ToastProvider>
+          <MemoryRouter>
+            <NetworkPage />
+          </MemoryRouter>
+        </ToastProvider>
+      );
+
+      await screen.findByText('eth0');
+
+      const searchInput = screen.getByPlaceholderText(/Filter interfaces/i);
+      act(() => {
+        fireEvent.change(searchInput, { target: { value: 'wlan' } });
+      });
+
+      expect(screen.getByText('wlan0')).toBeInTheDocument();
+      expect(screen.queryByText('eth0')).not.toBeInTheDocument();
+    });
+
+    it('submits DNS query tool and displays output', async () => {
+      (api.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+        if (url.includes('/dns-query')) {
+          return Promise.resolve({
+            domain: 'example.com',
+            resolved_ip: '93.184.216.34',
+            time_ms: 14.5,
+            latency_ms: 14.5,
+            ipv4: ['93.184.216.34'],
+            ipv6: [],
+            count: 1,
+            success: true,
+          });
+        }
+        return Promise.resolve(mockNetworkData);
+      });
+
+      render(
+        <ToastProvider>
+          <MemoryRouter>
+            <NetworkPage />
+          </MemoryRouter>
+        </ToastProvider>
+      );
+
+      await screen.findByText('eth0');
+
+      const dnsTabBtn = screen.getByRole('button', { name: /DNS/i });
+      act(() => {
+        fireEvent.click(dnsTabBtn);
+      });
+
+      expect(await screen.findByText('Upstream DNS Servers')).toBeInTheDocument();
+
+      const domainInput = screen.getByPlaceholderText(/e\.g\. google\.com/i);
+      act(() => {
+        fireEvent.change(domainInput, { target: { value: 'example.com' } });
+      });
+
+      const resolveBtn = screen.getByRole('button', { name: /^Resolve$/i });
+      act(() => {
+        fireEvent.click(resolveBtn);
+      });
+
+      expect(await screen.findByText(/14\.5 ms/i)).toBeInTheDocument();
+      expect(screen.getAllByText('93.184.216.34').length).toBeGreaterThan(0);
+    });
+  });
 });
