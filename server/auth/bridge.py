@@ -151,68 +151,21 @@ async def authenticate_user(username: str, password: str) -> dict:
 
 
 async def run_command_async(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
-    """Execute a local command asynchronously."""
-    proc = None
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            cmd[0], *cmd[1:],
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
-    except (asyncio.TimeoutError, TimeoutError):
-        if proc:
-            try:
-                proc.kill()
-                await proc.wait()
-            except Exception:
-                pass
-        return -1, "", "Command timed out"
-    except Exception as e:
-        if proc:
-            try:
-                proc.kill()
-                await proc.wait()
-            except Exception:
-                pass
-        return -1, "", str(e)
+    """Execute a local command asynchronously via the shared executor."""
+    from server.core.executor import get_executor
+    result = await get_executor().run(cmd, timeout=float(timeout))
+    return result.returncode, result.stdout, result.stderr
 
 
 async def run_user_service_async(uid: int, cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
-    """
-    Execute systemctl --user command ensuring proper XDG and D-Bus runtime variables.
-    Prevents 'Failed to connect to bus: No such file or directory' errors.
-    """
-    env = os.environ.copy()
-    env["XDG_RUNTIME_DIR"] = f"/run/user/{uid}"
-    env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{uid}/systemd/private"
-    proc = None
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            cmd[0], *cmd[1:],
-            env=env,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
-    except (asyncio.TimeoutError, TimeoutError):
-        if proc:
-            try:
-                proc.kill()
-                await proc.wait()
-            except Exception:
-                pass
-        return -1, "", "Command timed out"
-    except Exception as e:
-        if proc:
-            try:
-                proc.kill()
-                await proc.wait()
-            except Exception:
-                pass
-        return -1, "", str(e)
+    """Execute a systemctl --user command with the correct XDG env for the uid."""
+    from server.core.executor import get_executor
+    env_overrides = {
+        "XDG_RUNTIME_DIR": f"/run/user/{uid}",
+        "DBUS_SESSION_BUS_ADDRESS": f"unix:path=/run/user/{uid}/systemd/private",
+    }
+    result = await get_executor().run(cmd, timeout=float(timeout), env_overrides=env_overrides)
+    return result.returncode, result.stdout, result.stderr
 
 
 async def verify_sudo_password(password: str) -> tuple[bool, str]:
@@ -244,47 +197,16 @@ async def run_sudo_async(
     password: Optional[str] = None,
     timeout: int = 30,
 ) -> tuple[int, str, str]:
-    """
-    Execute a privileged command with sudo.
-    If password is provided, pipes it to `sudo -S`.
-    If password is None, uses `sudo -n` (non-interactive) relying on active elevation ticket or NOPASSWD.
-    """
+    """Execute a privileged command with sudo via the shared executor."""
+    from server.core.executor import get_executor
     if password:
         full_cmd = ["sudo", "-S", "-p", ""] + cmd
-        stdin_input = f"{password}\n".encode()
+        stdin_data = f"{password}\n"
+        result = await get_executor().run_with_stdin(full_cmd, stdin_data, timeout=float(timeout))
     else:
         full_cmd = ["sudo", "-n"] + cmd
-        stdin_input = None
-
-    proc = None
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            full_cmd[0], *full_cmd[1:],
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(
-            proc.communicate(input=stdin_input),
-            timeout=timeout,
-        )
-        return proc.returncode or 0, stdout.decode().strip(), stderr.decode().strip()
-    except (asyncio.TimeoutError, TimeoutError):
-        if proc:
-            try:
-                proc.kill()
-                await proc.wait()
-            except Exception:
-                pass
-        return -1, "", "Command timed out"
-    except Exception as e:
-        if proc:
-            try:
-                proc.kill()
-                await proc.wait()
-            except Exception:
-                pass
-        return -1, "", str(e)
+        result = await get_executor().run(full_cmd, timeout=float(timeout))
+    return result.returncode, result.stdout, result.stderr
 
 
 async def drop_sudo_ticket() -> None:
