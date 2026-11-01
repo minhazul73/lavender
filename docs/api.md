@@ -10,9 +10,9 @@ All API endpoints are mounted under the FastAPI application with the following p
 
 | Method | Path | Access | Description |
 |:---|:---|:---|:---|
-| `POST` | `/auth/login` | Public (rate-limited) | Authenticate Linux user credentials. Accepts Form and JSON payloads, sets signed `HttpOnly` cookie. |
-| `GET`, `POST` | `/auth/logout` | Public (optional session) | Terminate the session when present, drop the sudo ticket, and clear the cookie. |
-| `GET` | `/auth/me` | Authenticated | Get current active session details and privilege status. |
+| `POST` | `/auth/login` | Public (rate-limited) | Authenticate Linux user credentials. Accepts Form and JSON payloads, sets signed `HttpOnly` cookie. JSON callers get `200 {"success", "username", "redirect", "is_admin", "can_elevate"}`; form callers get a `303` redirect to the sanitized `next` (site-relative only). On failure: JSON gets `400` (missing/invalid payload) or `401` (bad credentials); form gets `303` back to `/login?error=…`. |
+| `GET`, `POST` | `/auth/logout` | Public (optional session) | Terminate the session when present, drop the sudo ticket, and clear the cookie. `POST` with `Accept: application/json` returns `200 {"success": true}`; everything else gets `303` to `/login?msg=Logged+out+successfully`. |
+| `GET` | `/auth/me` | Authenticated | Get current active session details and privilege status. Returns `200` with the session profile when a valid signed cookie is present. Without a session: HTML/any non-`/api` path gets `307` redirect to `/login?next=…`; paths under `/api` get `401`. |
 | `POST` | `/auth/elevate` | Authenticated | Elevate to administrative privileges (payload: `{"password": "..."}`). |
 | `POST` | `/auth/drop-admin` | Authenticated | Drop active elevation and revoke sudo timestamp ticket. |
 
@@ -20,7 +20,7 @@ All API endpoints are mounted under the FastAPI application with the following p
 
 | Method | Path | Access | Description |
 |:---|:---|:---|:---|
-| `GET` | `/api/system/services?scope={user\|system\|all}` | Optional session | List systemd services. Returns `{services, count}`, each entry tagged with its `scope`. |
+| `GET` | `/api/system/services?scope={user\|system\|all}` | Optional session | List systemd services. Returns `{services, count}`, each entry tagged with its `scope`. `scope=user` returns only user services; `scope=system` returns only system services; `scope=all` or omitted returns both. |
 | `GET` | `/api/system/services/{service_name}?user={bool}` | Authenticated | Get detailed service status. |
 | `GET` | `/api/system/services/{service_name}/logs?lines={n}&user={bool}` | Authenticated | Fetch recent service journal logs. |
 | `POST` | `/api/system/services/{service_name}/{action}?user={bool}` | Authenticated (Admin for system) | Run action (`start`, `stop`, `restart`, `enable`, `disable`). |
@@ -98,5 +98,7 @@ sparkline buffer receives a fresh value less frequently.
 ## Access Levels
 
 - **Optional session** — `get_current_session()`: The endpoint works without authentication but may provide additional context or elevated access when a valid session cookie is present. Root users (UID 0) receive permanent elevation.
-- **Authenticated** — `require_session()`: Requires a valid signed session cookie.
+- **Authenticated** — `require_session()`: Requires a valid signed session cookie. The response depends on the request path and `Accept` header:
+  - Paths under `/api/*` with `Accept: application/json` → `401 Unauthorized` with `{"detail": "Authentication required. Please sign in."}`.
+  - All other paths (HTML pages, `/auth/*` routes) → `307 Temporary Redirect` to `/login?next=<current path>`.
 - **Admin** — `require_admin()`: Requires a valid session with active administrative elevation. Alternatively, an un-elevated but authenticated caller may supply the password inline via the `X-Admin-Password` request header; on successful `sudo -v` validation the session is elevated for the remainder of its timeout window before the request proceeds.
