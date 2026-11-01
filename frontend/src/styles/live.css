@@ -1079,22 +1079,21 @@
    Thermal Card — Gauge UI
    ====================================================== */
 
-/* Card body: distribute zones neatly with top alignment */
+/* Card body: distribute zones evenly to fill card height without dead space */
 .thermal-card-body {
-    padding: 10px 14px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
-    gap: 0;
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 
 .thermal-zones {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     flex: 1;
-    justify-content: flex-start;
+    justify-content: space-evenly;
 }
 
 .thermal-loading {
