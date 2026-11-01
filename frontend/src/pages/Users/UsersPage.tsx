@@ -11,6 +11,7 @@ import {
 } from '../../api/types';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
+import { useClipboard } from '../../hooks/useClipboard';
 import { Modal } from '../../components/common/Modal';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import {
@@ -92,7 +93,7 @@ export const UsersPage: React.FC = () => {
   const [isSshModalOpen, setIsSshModalOpen] = useState(false);
   const [newSshKey, setNewSshKey] = useState('');
   const [addKeyLoading, setAddKeyLoading] = useState(false);
-  const [copiedKeyIndex, setCopiedKeyIndex] = useState<number | null>(null);
+  const { copiedKey: copiedKeyStr, copy: copyToClipboard } = useClipboard();
 
   // Edit Groups Modal state
   const [selectedEditUser, setSelectedEditUser] = useState<UserItem | null>(null);
@@ -324,12 +325,8 @@ export const UsersPage: React.FC = () => {
 
   // Copy public key to clipboard
   const handleCopyKey = (keyText: string, index: number) => {
-    navigator.clipboard.writeText(keyText);
-    setCopiedKeyIndex(index);
+    copyToClipboard(keyText, String(index));
     addToast('Public key copied to clipboard', 'info');
-    setTimeout(() => {
-      setCopiedKeyIndex(null);
-    }, 2000);
   };
 
   // Open Edit Groups Modal
@@ -1370,8 +1367,8 @@ export const UsersPage: React.FC = () => {
                             title="Copy public key to clipboard"
                             style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
-                            {copiedKeyIndex === idx ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
-                            <span>{copiedKeyIndex === idx ? 'Copied' : 'Copy'}</span>
+                            {copiedKeyStr === String(idx) ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                            <span>{copiedKeyStr === String(idx) ? 'Copied' : 'Copy'}</span>
                           </button>
 
                           <button

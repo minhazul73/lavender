@@ -9,6 +9,7 @@ import {
   DnsServerItem,
 } from '../../api/types';
 import { useToast } from '../../context/ToastContext';
+import { useClipboard } from '../../hooks/useClipboard';
 import {
   Globe,
   Wifi,
@@ -57,7 +58,7 @@ export const NetworkPage: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Copied indicator state for inline visual feedback
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const { copiedKey, copy: copyToClipboard } = useClipboard();
 
   // WiFi scanning state
   const [wifiScanning, setWifiScanning] = useState(false);
@@ -117,21 +118,8 @@ export const NetworkPage: React.FC = () => {
   // Copy helper
   const handleCopy = (text: string, key: string, label: string) => {
     if (!text) return;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-    } else {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-    }
-    setCopiedKey(key);
+    copyToClipboard(text, key);
     addToast(`Copied ${label} to clipboard`, 'info');
-    setTimeout(() => {
-      setCopiedKey((prev) => (prev === key ? null : prev));
-    }, 1800);
   };
 
   // WiFi Scan
