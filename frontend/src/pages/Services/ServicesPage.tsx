@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
 import { ServiceItem, ServicesListResponse } from '../../api/types';
 import { useToast } from '../../context/ToastContext';
+import { useAsyncData } from '../../hooks/useAsyncData';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import {
   Search,
@@ -39,9 +40,18 @@ interface ServiceDetailData {
 
 export const ServicesPage: React.FC = () => {
   const { addToast } = useToast();
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const fetchServices = useCallback(
+    () => api.get<ServicesListResponse>('/api/system/services').then((r) => r.services || []),
+    [],
+  );
+  const { data: rawServices, loading, refreshing, refresh, error } = useAsyncData(fetchServices);
+  const services = useMemo<ServiceItem[]>(() => rawServices || [], [rawServices]);
+
+  useEffect(() => {
+    if (error) {
+      addToast(error.message || 'Failed to load services', 'error');
+    }
+  }, [error, addToast]);
 
   // Filters & Pagination
   const [search, setSearch] = useState('');
@@ -70,26 +80,6 @@ export const ServicesPage: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [copiedLogs, setCopiedLogs] = useState(false);
-
-  const loadServices = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
-    try {
-      const res = await api.get<ServicesListResponse>('/api/system/services');
-      setServices(res.services || []);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load services';
-      addToast(msg, 'error');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [addToast]);
-
-  useEffect(() => {
-    loadServices();
-  }, [loadServices]);
 
   // Load detailed service info when viewingService changes
   const fetchServiceDetail = useCallback(async (name: string, isUser: boolean) => {
@@ -198,7 +188,7 @@ export const ServicesPage: React.FC = () => {
       if (res.success) {
         addToast(`Service ${pendingAction.unit} ${pendingAction.action}ed successfully`, 'success');
         setPendingAction(null);
-        await loadServices(true);
+        refresh();
         if (viewingService && viewingService.name === pendingAction.unit) {
           fetchServiceDetail(viewingService.name, viewingService.isUser);
         }
@@ -311,7 +301,7 @@ export const ServicesPage: React.FC = () => {
             <button
               type="button"
               className="btn btn-secondary services-refresh-btn"
-              onClick={() => loadServices(true)}
+              onClick={() => refresh()}
               disabled={loading || refreshing}
             >
               <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
