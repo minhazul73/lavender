@@ -5,3 +5,4 @@ Rules:
 - Each file groups related helpers (e.g., `formatters.ts`, `sparkline.ts`).
 - All exports are named exports; no default exports.
 - Keep under 200 lines per file.
+

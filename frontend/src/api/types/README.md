@@ -7,3 +7,4 @@ Rules:
 - No logic, no imports from other src/ directories.
 - Export all types as named exports.
 - The legacy `api/types.ts` will be removed after all pages are migrated.
+
