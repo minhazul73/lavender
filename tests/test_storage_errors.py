@@ -43,3 +43,4 @@ class TestViewFileErrors:
                    side_effect=PermissionError("no read")):
             r = await auth_client.get("/api/storage/file/view?path=/root/secret")
         assert r.status_code == 403
+
