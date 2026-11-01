@@ -1,8 +1,9 @@
-fastapi>=0.100.0
-uvicorn[standard]>=0.23.0
-httpx>=0.24.0
-itsdangerous>=2.1.0
+# Minimum runtime dependencies — keep in sync with pyproject.toml [project.dependencies]
+# For development, use: uv sync
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.0.0
+itsdangerous>=2.2.0
 slowapi>=0.1.9
 python-multipart>=0.0.9
 python-pam>=2.0.0
-six>=1.16.0
