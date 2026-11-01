@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from server.core.config import APP_VERSION, REQUIRE_AUTH_FOR_HOMEPAGE
+from server.core.config import APP_VERSION, REQUIRE_AUTH_FOR_HOMEPAGE, DEBUG
 from server.auth.session import UserSession, session_store
 from server.auth.deps import get_current_session
 
@@ -34,31 +34,32 @@ async def _periodic_session_cleanup():
 async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(_periodic_session_cleanup())
 
-    # Pre-seed active session for current local user for localhost development access
-    try:
-        import getpass, pwd
-        from server.auth.bridge import get_local_user_info
-        cur_user = getpass.getuser()
-        pw = pwd.getpwnam(cur_user)
+    # Pre-seed active session for current local user — DEVELOPMENT ONLY
+    if DEBUG:
         try:
-            user_info = get_local_user_info(cur_user)
-            groups = user_info.get("groups", [])
+            import getpass, pwd
+            from server.auth.bridge import get_local_user_info
+            cur_user = getpass.getuser()
+            pw = pwd.getpwnam(cur_user)
+            try:
+                user_info = get_local_user_info(cur_user)
+                groups = user_info.get("groups", [])
+            except Exception:
+                groups = [cur_user]
+            is_root = (pw.pw_uid == 0 or cur_user == "root")
+            dev_sid = "dev-session-active"
+            session_store._sessions[dev_sid] = UserSession(
+                session_id=dev_sid,
+                username=cur_user,
+                uid=pw.pw_uid,
+                gid=pw.pw_gid,
+                home=pw.pw_dir,
+                shell=pw.pw_shell,
+                groups=groups,
+                is_admin=is_root,
+            )
         except Exception:
-            groups = [cur_user]
-        is_root = (pw.pw_uid == 0 or cur_user == "root")
-        dev_sid = "dev-session-active"
-        session_store._sessions[dev_sid] = UserSession(
-            session_id=dev_sid,
-            username=cur_user,
-            uid=pw.pw_uid,
-            gid=pw.pw_gid,
-            home=pw.pw_dir,
-            shell=pw.pw_shell,
-            groups=groups,
-            is_admin=is_root,
-        )
-    except Exception:
-        pass
+            pass
 
     yield
     cleanup_task.cancel()

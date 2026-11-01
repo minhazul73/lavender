@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import Request, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 
-from server.core.config import SESSION_COOKIE_NAME
+from server.core.config import SESSION_COOKIE_NAME, DEBUG
 from server.auth.session import UserSession, session_store
 from server.auth.bridge import verify_sudo_password
 
@@ -26,8 +26,8 @@ async def get_current_session(request: Request) -> Optional[UserSession]:
         if not sid and token in session_store._sessions:
             sid = token
 
-    # Fallback for localhost if local session is seeded
-    if not sid:
+    # Fallback for localhost if local session is seeded (dev only)
+    if not sid and DEBUG:
         client_host = request.client.host if request.client else ""
         if client_host in ("127.0.0.1", "localhost", "::1"):
             if "dev-session-active" in session_store._sessions:
