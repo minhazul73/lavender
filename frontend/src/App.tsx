@@ -45,7 +45,7 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <LoadingSpinner size={36} label="Initializing Lavender..." />
         {tookTooLong && (
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            <p style={{ margin: '0 0 10px' }}>Waiting for response from FastAPI backend (port 8080)...</p>
+            <p style={{ margin: '0 0 10px' }}>Waiting for response from the FastAPI backend...</p>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
               <button
                 className="btn btn-xs btn-secondary"
