@@ -55,6 +55,32 @@ def is_session_admin(session: Optional[UserSession]) -> bool:
     return bool(session.is_elevated())
 
 
+def _handle_fs_error(
+    exc: Exception,
+    session: "Optional[UserSession]",
+    is_admin: bool,
+    elevation_msg: str,
+) -> None:
+    """
+    Translate filesystem exceptions to appropriate HTTPException responses.
+    Raises an HTTPException matching the exception type.
+    """
+    if isinstance(exc, FileNotFoundError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    if isinstance(exc, (IsADirectoryError, NotADirectoryError, ValueError)):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    if isinstance(exc, FileExistsError):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    if isinstance(exc, PermissionError):
+        detail_msg = str(exc)
+        if session and session.can_elevate() and not is_admin:
+            detail_msg = elevation_msg
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)
+    )
+
+
 @router.get("/files", summary="List files and directories in a path")
 async def api_list_files(
     path: Optional[str] = Query(None, description="Path to list (defaults to user home)"),
@@ -77,17 +103,11 @@ async def api_list_files(
             is_admin=is_admin,
         )
         return data
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except NotADirectoryError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        detail_msg = str(e)
-        if session and session.can_elevate() and not is_admin:
-            detail_msg = "Administrative elevation required to access this directory."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        _handle_fs_error(
+            e, session, is_admin,
+            "Administrative elevation required to access this directory.",
+        )
 
 
 @router.get("/bookmarks", summary="Get quick navigation bookmarks and drive shortcuts")
@@ -112,17 +132,11 @@ async def api_view_file(
     try:
         data = await asyncio.to_thread(files_service.read_file_preview, path=path, is_admin=is_admin)
         return data
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except (IsADirectoryError, ValueError) as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        detail_msg = str(e)
-        if session and session.can_elevate() and not is_admin:
-            detail_msg = "Administrative elevation required to read this file."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        _handle_fs_error(
+            e, session, is_admin,
+            "Administrative elevation required to read this file.",
+        )
 
 
 @router.get("/file/raw", summary="Stream raw file for download or media preview")
@@ -165,15 +179,11 @@ async def api_save_file(
             is_admin=is_admin,
         )
         return res
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except PermissionError as e:
-        detail_msg = str(e)
-        if session and session.can_elevate() and not is_admin:
-            detail_msg = "Administrative elevation required to save changes to this file."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        _handle_fs_error(
+            e, session, is_admin,
+            "Administrative elevation required to save changes to this file.",
+        )
 
 
 @router.post("/mkdir", summary="Create a new folder")
@@ -191,15 +201,11 @@ async def api_mkdir(
             is_admin=is_admin,
         )
         return res
-    except FileExistsError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except PermissionError as e:
-        detail_msg = str(e)
-        if session and session.can_elevate() and not is_admin:
-            detail_msg = "Administrative elevation required to create folder in this path."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        _handle_fs_error(
+            e, session, is_admin,
+            "Administrative elevation required to create folder in this path.",
+        )
 
 
 @router.post("/file/create", summary="Create a new file")
@@ -218,15 +224,11 @@ async def api_create_file(
             is_admin=is_admin,
         )
         return res
-    except FileExistsError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except PermissionError as e:
-        detail_msg = str(e)
-        if session and session.can_elevate() and not is_admin:
-            detail_msg = "Administrative elevation required to create file in this path."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        _handle_fs_error(
+            e, session, is_admin,
+            "Administrative elevation required to create file in this path.",
+        )
 
 
 @router.post("/rename", summary="Rename a file or folder")
@@ -244,17 +246,11 @@ async def api_rename(
             is_admin=is_admin,
         )
         return res
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except FileExistsError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except PermissionError as e:
-        detail_msg = str(e)
-        if session and session.can_elevate() and not is_admin:
-            detail_msg = "Administrative elevation required to rename in this path."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        _handle_fs_error(
+            e, session, is_admin,
+            "Administrative elevation required to rename in this path.",
+        )
 
 
 @router.post("/delete", summary="Delete files or folders")
@@ -267,15 +263,11 @@ async def api_delete(
     try:
         res = await asyncio.to_thread(files_service.delete_entries, paths=req.paths, is_admin=is_admin)
         return res
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except PermissionError as e:
-        detail_msg = str(e)
-        if session and session.can_elevate() and not is_admin:
-            detail_msg = "Administrative elevation required to delete in this path."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        _handle_fs_error(
+            e, session, is_admin,
+            "Administrative elevation required to delete in this path.",
+        )
 
 
 @router.post("/upload", summary="Upload one or more files to a directory")
