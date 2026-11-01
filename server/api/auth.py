@@ -53,9 +53,9 @@ class ElevateRequest(BaseModel):
 async def api_login(
     request: Request,
     response: Response,
-    username: Optional[str] = Form(None),
-    password: Optional[str] = Form(None),
-    next: Optional[str] = Form("/"),
+    username: Optional[str] = Form(None, max_length=64),
+    password: Optional[str] = Form(None, max_length=256),
+    next: Optional[str] = Form("/", max_length=512),
 ):
     """
     Authenticate Linux user credentials against localhost SSH bridge.
