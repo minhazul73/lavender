@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { User, Lock, Eye, EyeOff, Loader2, Cpu, AlertCircle } from 'lucide-react';
 import styles from './LoginPage.module.css';
 
 export const LoginPage: React.FC = () => {
-  const { login, session } = useAuth();
+  const { login, session, requireAuthForHomepage } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextPath = searchParams.get('next') || '/';
@@ -129,6 +129,27 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
+
+          {!requireAuthForHomepage && (
+            <div style={{ marginTop: '16px', textAlign: 'center' }}>
+              <Link
+                to="/"
+                style={{
+                  fontSize: '0.84rem',
+                  color: 'var(--text-muted)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'color 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                ← Back to public overview
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

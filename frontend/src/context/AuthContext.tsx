@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, LoginResponse, ElevationResponse } from '../api/types';
 import { api, registerElevationHandler, unregisterElevationHandler } from '../api/client';
+import { REQUIRE_AUTH_FOR_HOMEPAGE } from '../config';
 
 interface AuthContextValue {
   session: UserProfile | null;
   loading: boolean;
   isElevated: boolean;
+  requireAuthForHomepage: boolean;
   login: (username: string, password: string, next?: string) => Promise<LoginResponse>;
-  logout: () => Promise<void>;
+  logout: (redirectTo?: string) => Promise<void>;
   elevate: (password: string) => Promise<boolean>;
   dropElevation: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -21,6 +23,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [requireAuthForHomepage, setRequireAuthForHomepage] = useState<boolean>(REQUIRE_AUTH_FOR_HOMEPAGE);
   const [isElevationModalOpen, setIsElevationModalOpen] = useState(false);
   const elevationResolverRef = useRef<((value: boolean) => void) | null>(null);
 
@@ -38,6 +41,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     refreshProfile();
   }, [refreshProfile]);
+
+  useEffect(() => {
+    api.get<{ require_auth_for_homepage?: boolean }>('/auth/config')
+      .then((cfg) => {
+        if (cfg && typeof cfg.require_auth_for_homepage === 'boolean') {
+          setRequireAuthForHomepage(cfg.require_auth_for_homepage);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const openElevationModal = useCallback((): Promise<boolean> => {
     setIsElevationModalOpen(true);
@@ -69,12 +82,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return res;
   };
 
-  const logout = async (): Promise<void> => {
+  const logout = async (redirectTo?: string): Promise<void> => {
     try {
       await api.post('/auth/logout');
     } finally {
       setSession(null);
-      window.location.href = '/login';
+      if (redirectTo) {
+        window.location.href = redirectTo;
+        return;
+      }
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+      const isPublicHome = !requireAuthForHomepage && (currentPath === '/' || currentPath === '');
+      if (!isPublicHome) {
+        window.location.href = '/login';
+      }
     }
   };
 
@@ -109,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         session,
         loading,
         isElevated,
+        requireAuthForHomepage,
         login,
         logout,
         elevate,

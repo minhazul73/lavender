@@ -13,6 +13,7 @@ from server.core.config import (
     SESSION_COOKIE_NAME,
     SESSION_MAX_IDLE_MINUTES,
     LOGIN_RATE_LIMIT,
+    REQUIRE_AUTH_FOR_HOMEPAGE,
 )
 from server.auth.session import UserSession, session_store
 from server.auth.bridge import (
@@ -27,6 +28,14 @@ logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.get("/config", summary="Get public authentication and navigation configuration")
+async def api_auth_config():
+    """Return public authentication configuration (e.g. whether homepage requires auth)."""
+    return {
+        "require_auth_for_homepage": REQUIRE_AUTH_FOR_HOMEPAGE,
+    }
 
 
 class LoginRequest(BaseModel):
@@ -131,7 +140,10 @@ async def _do_logout(request: Request, session: Optional[UserSession]):
     if is_json and request.method == "POST":
         res = JSONResponse(content={"success": True})
     else:
-        res = RedirectResponse(url="/login?msg=Logged+out+successfully", status_code=status.HTTP_303_SEE_OTHER)
+        next_url = request.query_params.get("next")
+        if not next_url:
+            next_url = "/" if not REQUIRE_AUTH_FOR_HOMEPAGE else "/login?msg=Logged+out+successfully"
+        res = RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
 
     res.delete_cookie(key=SESSION_COOKIE_NAME, path="/")
     return res

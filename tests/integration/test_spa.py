@@ -1,6 +1,4 @@
-"""
-Integration tests for SPA serving, static assets, and fallback routing.
-"""
+from unittest.mock import patch
 import pytest
 
 
@@ -10,6 +8,22 @@ async def test_homepage_renders_html(client):
     assert res.status_code == 200
     assert "text/html" in res.headers.get("content-type", "")
     assert "Lavender" in res.text
+
+
+@pytest.mark.asyncio
+async def test_homepage_locked_toggle_redirects_unauthenticated(client):
+    with patch("server.main.REQUIRE_AUTH_FOR_HOMEPAGE", True):
+        res = await client.get("/", follow_redirects=False)
+        assert res.status_code == 307
+        assert res.headers.get("location") == "/login?next=/"
+
+
+@pytest.mark.asyncio
+async def test_homepage_locked_toggle_allows_authenticated(auth_client):
+    with patch("server.main.REQUIRE_AUTH_FOR_HOMEPAGE", True):
+        res = await auth_client.get("/")
+        assert res.status_code == 200
+        assert "text/html" in res.headers.get("content-type", "")
 
 
 @pytest.mark.asyncio

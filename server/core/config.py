@@ -59,5 +59,14 @@ SESSION_SECRET_KEY = os.environ.get(
 )
 PAM_SERVICE = os.environ.get("PAM_SERVICE", "login")
 
+# Auth requirement for homepage / overview stats
+# When False (default): homepage is public for viewing device telemetry stats without execution privileges.
+# When True: homepage is locked behind auth and requires login.
+REQUIRE_AUTH_FOR_HOMEPAGE = os.environ.get(
+    "LAVENDER_REQUIRE_AUTH_FOR_HOMEPAGE",
+    os.environ.get("REQUIRE_AUTH_FOR_HOMEPAGE", "false")
+).lower() in ("1", "true", "yes")
+
 # Rate Limiting
 LOGIN_RATE_LIMIT = "10/minute"
+

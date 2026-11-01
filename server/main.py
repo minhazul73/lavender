@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 
-from server.core.config import APP_VERSION
+from server.core.config import APP_VERSION, REQUIRE_AUTH_FOR_HOMEPAGE
 from server.auth.session import UserSession, session_store
 from server.auth.deps import get_current_session
 
@@ -156,7 +156,11 @@ def _serve_spa_index() -> Response:
 
 # Root dashboard view
 @app.get("/", response_class=FileResponse, summary="Root dashboard view")
-async def root_view() -> Response:
+async def root_view(request: Request) -> Response:
+    if REQUIRE_AUTH_FOR_HOMEPAGE:
+        session = getattr(request.state, "session", None)
+        if not session:
+            return RedirectResponse(url="/login?next=/")
     return _serve_spa_index()
 
 

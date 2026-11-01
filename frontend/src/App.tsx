@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { AppShell } from './components/layout/AppShell';
@@ -78,37 +78,61 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+const DashboardRoutes: React.FC = () => {
+  const { requireAuthForHomepage } = useAuth();
+
+  return (
+    <Routes>
+      {/* Standalone public login route */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Dashboard shell */}
+      <Route element={<AppShell />}>
+        {/* Homepage overview: public by default, locked if requireAuthForHomepage is true */}
+        <Route
+          path="/"
+          element={
+            requireAuthForHomepage ? (
+              <RequireAuth>
+                <OverviewPage />
+              </RequireAuth>
+            ) : (
+              <OverviewPage />
+            )
+          }
+        />
+
+        {/* Authenticated management pages requiring Linux user session */}
+        <Route
+          element={
+            <RequireAuth>
+              <Outlet />
+            </RequireAuth>
+          }
+        >
+          <Route path="/services" element={<ServicesPage />} />
+          <Route path="/processes" element={<ProcessesPage />} />
+          <Route path="/storage" element={<StoragePage />} />
+          <Route path="/network" element={<NetworkPage />} />
+          <Route path="/packages" element={<PackagesPage />} />
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/power" element={<PowerPage />} />
+        </Route>
+      </Route>
+
+      {/* Fallback */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
 export const App: React.FC = () => {
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <ToastProvider>
           <AuthProvider>
-            <Routes>
-              {/* Standalone public login route */}
-              <Route path="/login" element={<LoginPage />} />
-
-              {/* Authenticated dashboard shell */}
-              <Route
-                element={
-                  <RequireAuth>
-                    <AppShell />
-                  </RequireAuth>
-                }
-              >
-                <Route path="/" element={<OverviewPage />} />
-                <Route path="/services" element={<ServicesPage />} />
-                <Route path="/processes" element={<ProcessesPage />} />
-                <Route path="/storage" element={<StoragePage />} />
-                <Route path="/network" element={<NetworkPage />} />
-                <Route path="/packages" element={<PackagesPage />} />
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/power" element={<PowerPage />} />
-              </Route>
-
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <DashboardRoutes />
           </AuthProvider>
         </ToastProvider>
       </BrowserRouter>
