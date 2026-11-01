@@ -85,3 +85,4 @@ export function buildCoreSparkPath(buf: number[], w = 80, h = 24): string {
   });
   return points;
 }
+
