@@ -1,4 +1,9 @@
+import logging
 import os
+from pathlib import Path
+import secrets
+
+logger = logging.getLogger(__name__)
 
 PORT = int(os.environ.get("LAVENDER_PORT", os.environ.get("PORT", "8080")))
 HOST = os.environ.get("LAVENDER_HOST", os.environ.get("HOST", "0.0.0.0"))
@@ -53,10 +58,42 @@ SSE_NETWORK_BUFFER = 30
 SESSION_COOKIE_NAME = "lavender_session"
 SESSION_MAX_IDLE_MINUTES = 60
 ADMIN_ELEVATION_TIMEOUT_MINUTES = 15
-SESSION_SECRET_KEY = os.environ.get(
-    "LAVENDER_SECRET_KEY",
-    os.environ.get("DASHBOARD_SECRET_KEY", "lavender-secret-key-default-2026")
-)
+def _get_or_create_secret_key() -> str:
+    """Autonomously manage secret key lifecycle with zero user configuration.
+
+    1. Check optional env override (for clustered/container setups).
+    2. Read existing key from ~/.config/lavender/secret.key (or $XDG_CONFIG_HOME).
+    3. Autonomously generate a 256-bit secure key and persist with 0600 permissions.
+    4. Fall back to ephemeral in-memory key if filesystem is read-only.
+    """
+    env_key = os.environ.get("LAVENDER_SECRET_KEY") or os.environ.get("DASHBOARD_SECRET_KEY")
+    if env_key:
+        return env_key
+
+    xdg_config = os.environ.get("XDG_CONFIG_HOME")
+    key_dir = Path(xdg_config) / "lavender" if xdg_config else Path.home() / ".config" / "lavender"
+    key_file = key_dir / "secret.key"
+
+    try:
+        if key_file.is_file():
+            stored = key_file.read_text().strip()
+            if stored:
+                return stored
+
+        key_dir.mkdir(parents=True, exist_ok=True)
+        new_key = secrets.token_hex(32)
+        key_file.write_text(new_key)
+        try:
+            key_file.chmod(0o600)
+        except OSError:
+            pass
+        return new_key
+    except OSError as err:
+        logger.warning("Could not persist secret key to %s (%s). Falling back to ephemeral key.", key_file, err)
+        return secrets.token_hex(32)
+
+
+SESSION_SECRET_KEY = _get_or_create_secret_key()
 PAM_SERVICE = os.environ.get("PAM_SERVICE", "login")
 
 # Auth requirement for homepage / overview stats
