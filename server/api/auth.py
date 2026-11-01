@@ -120,6 +120,9 @@ async def api_login(
     else:
         res = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
 
+    client_host = request.client.host if request.client else ""
+    is_secure = client_host not in ("127.0.0.1", "localhost", "::1")
+
     res.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=signed_token,
@@ -127,6 +130,7 @@ async def api_login(
         samesite="lax",
         max_age=SESSION_MAX_IDLE_MINUTES * 60,
         path="/",
+        secure=is_secure,
     )
     return res
 
