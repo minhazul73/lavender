@@ -204,6 +204,7 @@ dependencies = [
     { name = "itsdangerous" },
     { name = "pydantic" },
     { name = "python-multipart" },
+    { name = "python-pam" },
     { name = "slowapi" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -224,6 +225,7 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
     { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "python-pam", specifier = ">=2.0.0" },
     { name = "slowapi", specifier = ">=0.1.9" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
 ]
@@ -432,6 +434,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5b/42/55c32bb9b12693c092ad250a0e82edb5b31ddeda6eb772de5f308b3804ad/python_multipart-0.0.32.tar.gz", hash = "sha256:be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e", size = 46881, upload-time = "2026-06-04T16:18:58.647Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e1/04/e8135ebd1ad02c56ec633277529b2602ff99ff634be76cdba5744cf554fd/python_multipart-0.0.32-py3-none-any.whl", hash = "sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23", size = 30042, upload-time = "2026-06-04T16:18:57.319Z" },
+]
+
+[[package]]
+name = "python-pam"
+version = "2.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/86/82/6ec9742f7e9f5f647721baa867f965c43cc40bd6ed83c17a1c4713967065/python_pam-2.1.1.tar.gz", hash = "sha256:d5bf50bd619a7d93514149a34aa4e4f9f174c90b38ec9657054f6a2017f65bb5", size = 13232, upload-time = "2026-10-28T01:40:59.357Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6f/82/9df925abb0b6c8d7853c480d302d05f6c0a5cb6adccb95067ecae1436bb6/python_pam-2.1.1-py3-none-any.whl", hash = "sha256:4f85666ebb69ecdf4c2cdcc648e781d3ee0ec60f7048483e160e585a66ab914e", size = 13121, upload-time = "2026-10-28T01:40:58.297Z" },
 ]
 
 [[package]]
