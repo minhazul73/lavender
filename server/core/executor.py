@@ -1,7 +1,6 @@
 import asyncio
 import os
 import re
-import subprocess
 from typing import NamedTuple, Optional, Protocol
 
 
@@ -197,28 +196,19 @@ class SystemCommandExecutor:
         validation_error = self._validate_command(list(cmd))
         if validation_error:
             return CommandResult(-1, "", validation_error)
-        env = self._build_env(overrides=env_overrides)
         try:
-            # codeql[py/command-line-injection]
-            result = subprocess.run(
-                cmd,  # lgtm[py/command-line-injection]
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                env=env,
-            )
-            return CommandResult(
-                returncode=result.returncode,
-                stdout=result.stdout.strip(),
-                stderr=result.stderr.strip(),
-                timed_out=False,
-            )
-        except subprocess.TimeoutExpired:
-            return CommandResult(-1, "", "Command timed out", timed_out=True)
-        except FileNotFoundError:
-            return CommandResult(127, "", f"Executable not found: {cmd[0] if cmd else ''}")
-        except Exception as e:
-            return CommandResult(-1, "", str(e))
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                return pool.submit(
+                    asyncio.run,
+                    self.run(cmd, timeout=timeout, env_overrides=env_overrides),
+                ).result()
+        return asyncio.run(self.run(cmd, timeout=timeout, env_overrides=env_overrides))
 
 
 # Dependency-injection point (swappable in tests)
