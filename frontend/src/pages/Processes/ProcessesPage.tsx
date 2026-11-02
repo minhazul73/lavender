@@ -4,49 +4,19 @@ import { ProcessItem, ProcessesOverviewResponse } from '../../api/types';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CustomSelect, SelectOption } from '../../components/common/CustomSelect';
-import { formatMemKb } from '../../utils/formatters';
-import {
-  Activity,
-  Search,
-  RefreshCw,
-  ArrowUpDown,
-  Layers,
-  Clock,
-  ChevronDown,
-  Copy,
-  Check,
-  Terminal,
-} from 'lucide-react';
-
-function parseCommand(cmd: string | undefined): { binName: string; binPath: string; args: string } {
-  if (!cmd) return { binName: '—', binPath: '', args: '' };
-  const trimmed = cmd.trim();
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    return { binName: trimmed, binPath: '', args: '' };
-  }
-  const firstSpace = trimmed.indexOf(' ');
-  let exe = trimmed;
-  let args = '';
-  if (firstSpace !== -1) {
-    exe = trimmed.substring(0, firstSpace);
-    args = trimmed.substring(firstSpace + 1);
-  }
-  const slashIdx = exe.lastIndexOf('/');
-  const binName = slashIdx !== -1 ? exe.substring(slashIdx + 1) : exe;
-  const binPath = slashIdx !== -1 ? exe.substring(0, slashIdx + 1) : '';
-  return { binName, binPath, args };
-}
+import { Activity, Search, RefreshCw, Layers, Clock } from 'lucide-react';
+import { ProcessTable } from './ProcessTable';
 
 export const ProcessesPage: React.FC = () => {
   const { addToast } = useToast();
   const [data, setData] = useState<ProcessesOverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
-  // Filters & sorting
+  // Filters & Controls
   const [search, setSearch] = useState('');
-  const [userFilter, setUserFilter] = useState('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'mem' | 'cpu' | 'pid' | 'name' | 'user'>('mem');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [pageSize, setPageSize] = useState<number | 'all'>(50);
@@ -60,11 +30,10 @@ export const ProcessesPage: React.FC = () => {
   const [pendingKill, setPendingKill] = useState<ProcessItem | null>(null);
   const [killLoading, setKillLoading] = useState(false);
 
-  const handleCopy = (text: string, label: string, key: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCopy = (text: string, key: string) => {
     navigator.clipboard?.writeText(text);
     setCopiedType(key);
-    addToast(`${label} copied to clipboard`, 'success');
+    addToast(key.startsWith('cmd') ? 'Command copied to clipboard' : 'PID copied to clipboard', 'success');
     setTimeout(() => setCopiedType(null), 1500);
   };
 
@@ -79,7 +48,7 @@ export const ProcessesPage: React.FC = () => {
       );
       setData(res);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to fetch processes';
+      const msg = err instanceof Error ? err.message : 'Failed to load processes';
       addToast(msg, 'error');
     } finally {
       setLoading(false);
@@ -91,11 +60,10 @@ export const ProcessesPage: React.FC = () => {
     loadProcesses();
   }, [loadProcesses]);
 
-  // Auto-refresh interval (5s)
   useEffect(() => {
     if (!autoRefresh) return;
     const timer = setInterval(() => {
-      if (!document.hidden) {
+      if (document.visibilityState === 'visible') {
         loadProcesses(true);
       }
     }, 5000);
@@ -113,43 +81,29 @@ export const ProcessesPage: React.FC = () => {
     return counts;
   }, [data?.processes]);
 
-  const uniqueUsers = useMemo(() => {
-    return Object.keys(userCounts).sort();
-  }, [userCounts]);
+  const uniqueUsers = useMemo(() => Object.keys(userCounts).sort(), [userCounts]);
 
   const userOptions = useMemo<SelectOption[]>(() => {
-    const list: SelectOption[] = [
-      { value: 'all', label: `All Users (${data?.processes?.length || 0})` },
-    ];
+    const list: SelectOption[] = [{ value: 'all', label: `All Users (${data?.processes?.length || 0})` }];
     for (const u of uniqueUsers) {
-      list.push({
-        value: u,
-        label: u,
-        count: userCounts[u],
-      });
+      list.push({ value: u, label: u, count: userCounts[u] });
     }
     return list;
   }, [uniqueUsers, userCounts, data?.processes?.length]);
 
-  const sortOptions = useMemo(
-    () => [
-      { value: 'mem', label: 'Memory (Highest)' },
-      { value: 'cpu', label: 'CPU (Highest)' },
-      { value: 'pid', label: 'PID (Ascending)' },
-      { value: 'name', label: 'Name (A–Z)' },
-    ],
-    []
-  );
+  const sortOptions = useMemo(() => [
+    { value: 'mem', label: 'Memory (Highest)' },
+    { value: 'cpu', label: 'CPU (Highest)' },
+    { value: 'pid', label: 'PID (Ascending)' },
+    { value: 'name', label: 'Name (A–Z)' },
+  ], []);
 
-  const showOptions = useMemo(
-    () => [
-      { value: 25, label: '25' },
-      { value: 50, label: '50' },
-      { value: 100, label: '100' },
-      { value: 'all', label: 'All' },
-    ],
-    []
-  );
+  const showOptions = useMemo(() => [
+    { value: 25, label: '25' },
+    { value: 50, label: '50' },
+    { value: 100, label: '100' },
+    { value: 'all', label: 'All' },
+  ], []);
 
   // Filter & sort processes
   const filteredProcesses = useMemo(() => {
@@ -169,22 +123,11 @@ export const ProcessesPage: React.FC = () => {
       })
       .sort((a, b) => {
         let cmp = 0;
-        if (sortBy === 'pid') {
-          cmp = (a.pid || 0) - (b.pid || 0);
-        } else if (sortBy === 'user') {
-          cmp = (a.user || '').localeCompare(b.user || '');
-        } else if (sortBy === 'cpu') {
-          const cpuA = a.cpu || a.cpu_time || 0;
-          const cpuB = b.cpu || b.cpu_time || 0;
-          cmp = cpuA - cpuB;
-        } else if (sortBy === 'name') {
-          const cmdA = (a.name || a.command || '').toLowerCase();
-          const cmdB = (b.name || b.command || '').toLowerCase();
-          cmp = cmdA.localeCompare(cmdB);
-        } else {
-          // 'mem'
-          cmp = (a.mem || 0) - (b.mem || 0);
-        }
+        if (sortBy === 'pid') cmp = (a.pid || 0) - (b.pid || 0);
+        else if (sortBy === 'user') cmp = (a.user || '').localeCompare(b.user || '');
+        else if (sortBy === 'cpu') cmp = (a.cpu || a.cpu_time || 0) - (b.cpu || b.cpu_time || 0);
+        else if (sortBy === 'name') cmp = (a.name || a.command || '').toLowerCase().localeCompare((b.name || b.command || '').toLowerCase());
+        else cmp = (a.mem || 0) - (b.mem || 0);
         return sortOrder === 'asc' ? cmp : -cmp;
       });
   }, [data?.processes, search, userFilter, sortBy, sortOrder]);
@@ -252,9 +195,7 @@ export const ProcessesPage: React.FC = () => {
         <div className="info-card">
           <div className="info-card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div className="info-card-icon load">
-                <Activity size={18} />
-              </div>
+              <div className="info-card-icon load"><Activity size={18} /></div>
               <div>
                 <div className="info-card-title">System Load</div>
                 <div className="info-card-subtitle">Load Average (1m, 5m, 15m)</div>
@@ -266,24 +207,21 @@ export const ProcessesPage: React.FC = () => {
               <div className="load-pill">
                 <span className="load-num">
                   {loadInfo?.['1min'] != null || loadInfo?.['1m'] != null || loadInfo?.load1 != null
-                    ? Number(loadInfo?.['1min'] ?? loadInfo?.['1m'] ?? loadInfo?.load1).toFixed(2)
-                    : '—'}
+                    ? Number(loadInfo?.['1min'] ?? loadInfo?.['1m'] ?? loadInfo?.load1).toFixed(2) : '—'}
                 </span>
                 <span className="load-tag">1 min</span>
               </div>
               <div className="load-pill">
                 <span className="load-num">
                   {loadInfo?.['5min'] != null || loadInfo?.['5m'] != null || loadInfo?.load5 != null
-                    ? Number(loadInfo?.['5min'] ?? loadInfo?.['5m'] ?? loadInfo?.load5).toFixed(2)
-                    : '—'}
+                    ? Number(loadInfo?.['5min'] ?? loadInfo?.['5m'] ?? loadInfo?.load5).toFixed(2) : '—'}
                 </span>
                 <span className="load-tag">5 min</span>
               </div>
               <div className="load-pill">
                 <span className="load-num">
                   {loadInfo?.['15min'] != null || loadInfo?.['15m'] != null || loadInfo?.load15 != null
-                    ? Number(loadInfo?.['15min'] ?? loadInfo?.['15m'] ?? loadInfo?.load15).toFixed(2)
-                    : '—'}
+                    ? Number(loadInfo?.['15min'] ?? loadInfo?.['15m'] ?? loadInfo?.load15).toFixed(2) : '—'}
                 </span>
                 <span className="load-tag">15 min</span>
               </div>
@@ -299,15 +237,11 @@ export const ProcessesPage: React.FC = () => {
         <div className="info-card">
           <div className="info-card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div className="info-card-icon memory">
-                <Layers size={18} />
-              </div>
+              <div className="info-card-icon memory"><Layers size={18} /></div>
               <div>
                 <div className="info-card-title">Memory Usage</div>
                 <div className="info-card-subtitle">
-                  {parsedMem?.used && parsedMem?.total
-                    ? `${parsedMem.used} of ${parsedMem.total} utilized`
-                    : 'RAM & Swap Status'}
+                  {parsedMem?.used && parsedMem?.total ? `${parsedMem.used} of ${parsedMem.total} utilized` : 'RAM & Swap Status'}
                 </div>
               </div>
             </div>
@@ -322,14 +256,7 @@ export const ProcessesPage: React.FC = () => {
                 style={{ width: `${Math.min(100, Math.max(0, memPercent || 0))}%` }}
               />
             </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: '12px',
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
               <span style={{ color: 'var(--text-secondary)' }}>
                 Used: <strong style={{ color: 'var(--text-primary)' }}>{parsedMem?.used || '—'}</strong>
               </span>
@@ -345,9 +272,7 @@ export const ProcessesPage: React.FC = () => {
         <div className="info-card">
           <div className="info-card-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div className="info-card-icon uptime">
-                <Clock size={18} />
-              </div>
+              <div className="info-card-icon uptime"><Clock size={18} /></div>
               <div>
                 <div className="info-card-title">System Uptime</div>
                 <div className="info-card-subtitle">Active running session</div>
@@ -355,15 +280,7 @@ export const ProcessesPage: React.FC = () => {
             </div>
           </div>
           <div>
-            <div
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '20px',
-                fontWeight: 700,
-                color: 'var(--text-primary)',
-                marginBottom: '6px',
-              }}
-            >
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
               {loadInfo?.uptime_formatted || '—'}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -379,36 +296,25 @@ export const ProcessesPage: React.FC = () => {
       {/* ── Toolbar ────────────────────────────────────────────── */}
       <div className="toolbar processes-toolbar">
         <div className="processes-search-wrap">
-          <Search
-            size={15}
-            className="processes-search-icon"
-          />
+          <Search size={15} className="processes-search-icon" />
           <input
             type="search"
             className="form-input processes-search-input"
             placeholder="Search by PID, name, user, or cmd (e.g. chrome, python)..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
           />
         </div>
 
         <div className="processes-filter-grid">
           {/* User filter */}
           <div className="processes-filter-item">
-            <label htmlFor="user-filter" className="form-label processes-filter-label">
-              User:
-            </label>
+            <label htmlFor="user-filter" className="form-label processes-filter-label">User:</label>
             <CustomSelect
               id="user-filter"
               options={userOptions}
               value={userFilter}
-              onChange={(val) => {
-                setUserFilter(val);
-                setCurrentPage(1);
-              }}
+              onChange={(val) => { setUserFilter(val); setCurrentPage(1); }}
               searchable={uniqueUsers.length > 5}
               className="processes-filter-select"
             />
@@ -416,9 +322,7 @@ export const ProcessesPage: React.FC = () => {
 
           {/* Sort filter */}
           <div className="processes-filter-item">
-            <label htmlFor="sort-filter" className="form-label processes-filter-label">
-              Sort:
-            </label>
+            <label htmlFor="sort-filter" className="form-label processes-filter-label">Sort:</label>
             <CustomSelect
               id="sort-filter"
               options={sortOptions}
@@ -430,18 +334,12 @@ export const ProcessesPage: React.FC = () => {
 
           {/* Show / limit filter */}
           <div className="processes-filter-item">
-            <label htmlFor="show-limit" className="form-label processes-filter-label">
-              Show:
-            </label>
+            <label htmlFor="show-limit" className="form-label processes-filter-label">Show:</label>
             <CustomSelect
               id="show-limit"
               options={showOptions}
               value={pageSize}
-              onChange={(val) => {
-                const parsed = val === 'all' ? 'all' : Number(val);
-                setPageSize(parsed);
-                setCurrentPage(1);
-              }}
+              onChange={(val) => { setPageSize(val === 'all' ? 'all' : Number(val)); setCurrentPage(1); }}
               className="processes-filter-select"
             />
           </div>
@@ -473,347 +371,44 @@ export const ProcessesPage: React.FC = () => {
       <div className="card processes-card">
         <div className="card-header processes-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>
-              Processes ({data?.processes?.length || 0})
-            </h3>
+            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Processes ({data?.processes?.length || 0})</h3>
             {filteredProcesses.length !== (data?.processes?.length || 0) && (
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                 ({filteredProcesses.length} matching filter)
               </span>
             )}
           </div>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Page {currentPage} of {totalPages}
-          </span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages}</span>
         </div>
 
         <div className="card-body" style={{ padding: 0 }}>
           <div className="table-scroll-wrap processes-table-wrap">
-            <table className="table processes-table">
-              <thead>
-                <tr>
-                  <th className="proc-col-pid" style={{ width: '80px', cursor: 'pointer' }} onClick={() => handleSort('pid')}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      PID {sortBy === 'pid' && <ArrowUpDown size={11} color="var(--accent)" />}
-                    </span>
-                  </th>
-                  <th className="proc-col-user" style={{ width: '110px', cursor: 'pointer' }} onClick={() => handleSort('user')}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      USER {sortBy === 'user' && <ArrowUpDown size={11} color="var(--accent)" />}
-                    </span>
-                  </th>
-                  <th className="proc-col-cpu" style={{ width: '90px', cursor: 'pointer' }} onClick={() => handleSort('cpu')}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      CPU {sortBy === 'cpu' && <ArrowUpDown size={11} color="var(--accent)" />}
-                    </span>
-                  </th>
-                  <th className="proc-col-mem" style={{ width: '155px', cursor: 'pointer' }} onClick={() => handleSort('mem')}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      MEMORY {sortBy === 'mem' && <ArrowUpDown size={11} color="var(--accent)" />}
-                    </span>
-                  </th>
-                  <th className="proc-col-state" style={{ width: '95px' }}>STATE</th>
-                  <th className="proc-col-time" style={{ width: '85px' }}>TIME</th>
-                  <th className="proc-col-cmd" style={{ cursor: 'pointer' }} onClick={() => handleSort('name')}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      COMMAND {sortBy === 'name' && <ArrowUpDown size={11} color="var(--accent)" />}
-                    </span>
-                  </th>
-                  <th className="proc-col-action" style={{ width: '95px', textAlign: 'right' }}>ACTION</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                      Loading process table…
-                    </td>
-                  </tr>
-                ) : paginatedProcesses.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
-                      No matching processes found.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedProcesses.map((p) => {
-                    // CPU display
-                    let cpuDisplay = '0.0%';
-                    if (p.cpu > 0) {
-                      cpuDisplay = `${p.cpu.toFixed(1)}%`;
-                    } else if (p.cpu_time) {
-                      cpuDisplay = `${p.cpu_time}s`;
-                    }
-                    const isHighCpu = p.cpu > 40;
-                    const isWarnCpu = p.cpu > 10;
-
-                    // Memory display
-                    const memFormatted = formatMemKb(p.mem);
-                    const memPct = p.mem_pct != null ? p.mem_pct : undefined;
-                    const isHighMem = (memPct && memPct > 15) || p.mem > 500000;
-                    const isWarnMem = (memPct && memPct > 7) || p.mem > 150000;
-
-                    // State display
-                    let stateIndicator = 'status-inactive';
-                    let stateText = p.stat || '—';
-                    if (p.stat) {
-                      if (p.stat.startsWith('R')) {
-                        stateIndicator = 'status-active';
-                        stateText = 'Running';
-                      } else if (p.stat.startsWith('S') || p.stat.startsWith('I')) {
-                        stateIndicator = 'status-sleeping';
-                        stateText = 'Sleep';
-                      } else if (p.stat.startsWith('D')) {
-                        stateIndicator = 'status-disk';
-                        stateText = 'Disk wait';
-                      } else if (p.stat.startsWith('Z')) {
-                        stateIndicator = 'status-failed';
-                        stateText = 'Zombie';
-                      }
-                    }
-
-                    // Command display
-                    const { binName, binPath, args } = parseCommand(p.command);
-                    const isExpanded = expandedPid === p.pid;
-
-                    return (
-                      <React.Fragment key={p.pid}>
-                        <tr
-                          className={`proc-row ${isExpanded ? 'is-expanded' : ''}`}
-                          onClick={() => setExpandedPid(isExpanded ? null : p.pid)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              setExpandedPid(isExpanded ? null : p.pid);
-                            }
-                          }}
-                          tabIndex={0}
-                          title={`Click to view details for ${p.name || binName} (PID: ${p.pid})`}
-                        >
-                          <td className="proc-col-pid font-mono">
-                            <span className="proc-pid-pill">
-                              <span className="proc-pid-hash">#</span>{p.pid}
-                            </span>
-                          </td>
-                          <td className="proc-col-user">
-                            <span className={`badge ${p.user.toLowerCase() === 'root' ? 'system' : 'user'}`} title={p.user}>
-                              {p.user.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="proc-col-cpu">
-                            <span
-                              className={`font-mono proc-metric-val ${isHighCpu ? 'crit' : isWarnCpu ? 'warn' : ''}`}
-                            >
-                              <span className="proc-metric-label">CPU: </span>
-                              {cpuDisplay}
-                            </span>
-                          </td>
-                          <td className="proc-col-mem">
-                            <div className="proc-mem-group">
-                              <span
-                                className={`font-mono proc-metric-val ${isHighMem ? 'crit' : isWarnMem ? 'warn' : ''}`}
-                              >
-                                <span className="proc-metric-label">MEM: </span>
-                                {memFormatted}
-                              </span>
-                              {memPct != null && memPct > 0 && (
-                                <span className="proc-mem-pct">
-                                  ({memPct.toFixed(1)}%)
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="proc-col-state">
-                            <div className="proc-state-pill">
-                              <span className={`status-indicator ${stateIndicator}`} />
-                              <span className="font-mono proc-state-text">
-                                {stateText}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="proc-col-time">
-                            <span className="font-mono proc-time-text">
-                              <span className="proc-metric-label">Time: </span>
-                              {p.time || '0:00'}
-                            </span>
-                          </td>
-                          <td className="proc-col-cmd" title={p.command}>
-                            <div className="proc-cmd-cell">
-                              <div className="proc-cmd-primary">
-                                <strong className="proc-bin-name font-mono">
-                                  {p.name || binName}
-                                </strong>
-                                {binPath && (
-                                  <span className="proc-bin-path font-mono">
-                                    ({binPath})
-                                  </span>
-                                )}
-                              </div>
-                              {args && (
-                                <span className="proc-cmd-args font-mono" title={args}>
-                                  {args}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="proc-col-action">
-                            <div className="proc-action-group">
-                              <button
-                                className="btn btn-xs btn-danger proc-kill-btn"
-                                title="Kill Process"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPendingKill(p);
-                                }}
-                              >
-                                Kill
-                              </button>
-                              <span className={`proc-chevron ${isExpanded ? 'is-open' : ''}`} aria-hidden="true">
-                                <ChevronDown size={14} />
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Expandable Process Detail Drawer */}
-                        {isExpanded && (
-                          <tr className="proc-drawer-row">
-                            <td colSpan={8} className="proc-drawer-cell">
-                              <div className="proc-drawer-content">
-                                <div className="proc-drawer-header">
-                                  <div className="proc-drawer-title">
-                                    <Terminal size={14} />
-                                    <span>Command Details</span>
-                                  </div>
-                                  <div className="proc-drawer-actions">
-                                    <button
-                                      type="button"
-                                      className="btn btn-xs btn-secondary"
-                                      onClick={(e) => handleCopy(p.command, 'Command', `cmd-${p.pid}`, e)}
-                                    >
-                                      {copiedType === `cmd-${p.pid}` ? <Check size={12} color="var(--green)" /> : <Copy size={12} />}
-                                      <span>{copiedType === `cmd-${p.pid}` ? 'Copied' : 'Copy Command'}</span>
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn btn-xs btn-secondary"
-                                      onClick={(e) => handleCopy(String(p.pid), 'PID', `pid-${p.pid}`, e)}
-                                    >
-                                      {copiedType === `pid-${p.pid}` ? <Check size={12} color="var(--green)" /> : <Copy size={12} />}
-                                      <span>{copiedType === `pid-${p.pid}` ? 'Copied' : 'Copy PID'}</span>
-                                    </button>
-                                  </div>
-                                </div>
-
-                                {/* Full Command Box */}
-                                <div className="proc-command-box font-mono">
-                                  {p.command}
-                                </div>
-
-                                {/* Detailed Context Specs */}
-                                <div className="proc-drawer-specs">
-                                  <div className="proc-spec-item">
-                                    <span className="proc-spec-label">PID</span>
-                                    <span className="proc-spec-val font-mono">{p.pid}</span>
-                                  </div>
-                                  <div className="proc-spec-item">
-                                    <span className="proc-spec-label">USER</span>
-                                    <span className="proc-spec-val">{p.user}</span>
-                                  </div>
-                                  <div className="proc-spec-item">
-                                    <span className="proc-spec-label">STATUS</span>
-                                    <span className="proc-spec-val" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                      <span className={`status-indicator ${stateIndicator}`} />
-                                      {stateText} {p.stat ? `(${p.stat})` : ''}
-                                    </span>
-                                  </div>
-                                  <div className="proc-spec-item">
-                                    <span className="proc-spec-label">CPU TIME</span>
-                                    <span className="proc-spec-val font-mono">{p.time || '0:00'}</span>
-                                  </div>
-                                  <div className="proc-spec-item">
-                                    <span className="proc-spec-label">CPU USAGE</span>
-                                    <span className="proc-spec-val font-mono" style={{ color: isHighCpu ? 'var(--red)' : isWarnCpu ? 'var(--yellow)' : 'inherit' }}>
-                                      {cpuDisplay}
-                                    </span>
-                                  </div>
-                                  <div className="proc-spec-item">
-                                    <span className="proc-spec-label">MEMORY</span>
-                                    <span className="proc-spec-val font-mono">
-                                      {memFormatted} {memPct != null && memPct > 0 ? `(${memPct.toFixed(1)}%)` : ''}
-                                    </span>
-                                  </div>
-                                  {binPath && (
-                                    <div className="proc-spec-item proc-spec-full">
-                                      <span className="proc-spec-label">EXECUTABLE PATH</span>
-                                      <span className="proc-spec-val font-mono" style={{ wordBreak: 'break-all' }}>{binPath}{binName}</span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Drawer Footer Action */}
-                                <div className="proc-drawer-footer">
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm btn-danger proc-drawer-kill-btn"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setPendingKill(p);
-                                    }}
-                                  >
-                                    Terminate Process (SIGKILL)
-                                  </button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+            <ProcessTable
+              processes={paginatedProcesses}
+              loading={loading}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+              expandedPid={expandedPid}
+              onToggleExpand={(pid) => setExpandedPid(expandedPid === pid ? null : pid)}
+              onKill={(p) => setPendingKill(p)}
+              onCopy={handleCopy}
+              copiedKey={copiedType}
+            />
           </div>
 
           {/* Pagination Footer */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '12px 16px',
-              borderTop: '1px solid var(--border)',
-              flexWrap: 'wrap',
-              gap: '8px',
-            }}
-          >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid var(--border)', flexWrap: 'wrap', gap: '8px' }}>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              {filteredProcesses.length === 0
-                ? 'No processes found'
-                : `Showing ${effectivePageSize === Infinity ? 1 : (currentPage - 1) * effectivePageSize + 1} to ${
-                    effectivePageSize === Infinity
-                      ? filteredProcesses.length
-                      : Math.min(currentPage * effectivePageSize, filteredProcesses.length)
-                  } of ${filteredProcesses.length} processes`}
+              {filteredProcesses.length === 0 ? 'No processes found' : `Showing ${effectivePageSize === Infinity ? 1 : (currentPage - 1) * effectivePageSize + 1} to ${effectivePageSize === Infinity ? filteredProcesses.length : Math.min(currentPage * effectivePageSize, filteredProcesses.length)} of ${filteredProcesses.length} processes`}
             </span>
             {totalPages > 1 && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  className="btn btn-xs btn-secondary"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage <= 1}
-                >
+                <button className="btn btn-xs btn-secondary" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1}>
                   ← Previous
                 </button>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '0 4px' }}>
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  className="btn btn-xs btn-secondary"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage >= totalPages}
-                >
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', padding: '0 4px' }}>Page {currentPage} of {totalPages}</span>
+                <button className="btn btn-xs btn-secondary" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
                   Next →
                 </button>
               </div>
