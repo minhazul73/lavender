@@ -106,3 +106,4 @@ export const ServiceLogsModal: React.FC<ServiceLogsModalProps> = ({
     </div>
   );
 };
+

@@ -100,3 +100,4 @@ export const StorageCard: React.FC<StorageCardProps> = ({ disks }) => {
     </section>
   );
 };
+

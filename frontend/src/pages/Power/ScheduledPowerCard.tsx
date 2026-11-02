@@ -235,3 +235,4 @@ export const ScheduledPowerCard: React.FC<ScheduledPowerCardProps> = ({
     </div>
   );
 };
+

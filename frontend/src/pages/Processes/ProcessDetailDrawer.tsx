@@ -166,3 +166,4 @@ export const ProcessDetailDrawer: React.FC<ProcessDetailDrawerProps> = ({
     </tr>
   );
 };
+

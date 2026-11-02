@@ -21,3 +21,4 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 [Unreleased]: https://github.com/minhazul73/rn7-linux-dashboard/compare/v0.4.0...HEAD
 [0.4.0]: https://github.com/minhazul73/rn7-linux-dashboard/releases/tag/v0.4.0
+

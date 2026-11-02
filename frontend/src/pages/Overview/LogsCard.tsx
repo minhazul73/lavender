@@ -54,3 +54,4 @@ export const LogsCard: React.FC<LogsCardProps> = ({ recentLogs }) => {
     </section>
   );
 };
+
