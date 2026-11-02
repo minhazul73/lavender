@@ -19,6 +19,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - systemd service control with journal log viewer
 - Network dashboard with WiFi scanner, DNS query, ping tool
 
-[Unreleased]: https://github.com/minhazul73/rn7-linux-dashboard/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/minhazul73/rn7-linux-dashboard/releases/tag/v0.4.0
+[Unreleased]: https://github.com/minhazul73/lavender/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/minhazul73/lavender/releases/tag/v0.4.0
 
