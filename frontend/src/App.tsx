@@ -4,16 +4,17 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/Login/LoginPage';
-import { OverviewPage } from './pages/Overview/OverviewPage';
-import { ServicesPage } from './pages/Services/ServicesPage';
-import { ProcessesPage } from './pages/Processes/ProcessesPage';
-import { StoragePage } from './pages/Storage/StoragePage';
-import { NetworkPage } from './pages/Network/NetworkPage';
-import { PackagesPage } from './pages/Packages/PackagesPage';
-import { UsersPage } from './pages/Users/UsersPage';
-import { PowerPage } from './pages/Power/PowerPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+
+const OverviewPage = React.lazy(() => import('./pages/Overview/OverviewPage').then(m => ({ default: m.OverviewPage })));
+const ServicesPage = React.lazy(() => import('./pages/Services/ServicesPage').then(m => ({ default: m.ServicesPage })));
+const ProcessesPage = React.lazy(() => import('./pages/Processes/ProcessesPage').then(m => ({ default: m.ProcessesPage })));
+const StoragePage = React.lazy(() => import('./pages/Storage/StoragePage').then(m => ({ default: m.StoragePage })));
+const NetworkPage = React.lazy(() => import('./pages/Network/NetworkPage').then(m => ({ default: m.NetworkPage })));
+const PackagesPage = React.lazy(() => import('./pages/Packages/PackagesPage').then(m => ({ default: m.PackagesPage })));
+const UsersPage = React.lazy(() => import('./pages/Users/UsersPage').then(m => ({ default: m.UsersPage })));
+const PowerPage = React.lazy(() => import('./pages/Power/PowerPage').then(m => ({ default: m.PowerPage })));
 
 const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { session, loading, refreshProfile } = useAuth();
@@ -106,7 +107,9 @@ const DashboardRoutes: React.FC = () => {
         <Route
           element={
             <RequireAuth>
-              <Outlet />
+              <React.Suspense fallback={<LoadingSpinner size={36} label="Loading..." />}>
+                <Outlet />
+              </React.Suspense>
             </RequireAuth>
           }
         >
