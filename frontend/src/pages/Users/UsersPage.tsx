@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../../api/client';
 import {
   UsersOverviewResponse,
@@ -16,30 +15,20 @@ import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { SshKeysModal } from './SshKeysModal';
 import { GroupEditModal } from './GroupEditModal';
 import { PasswordModal } from './PasswordModal';
+import { AccountsTab } from './AccountsTab';
+import { SessionsTab } from './SessionsTab';
+import { GroupsTab, GroupFilterType } from './GroupsTab';
+import { SecurityTab } from './SecurityTab';
 import {
   Users,
   Shield,
   Key,
-  Lock,
   Terminal,
   RefreshCw,
-  Trash2,
-  Plus,
-  XCircle,
-  Copy,
-  Check,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  Cpu,
   Layers,
-  ExternalLink,
-  Clock,
 } from 'lucide-react';
 
 type TabType = 'accounts' | 'sessions' | 'groups' | 'security';
-type GroupFilterType = 'all' | 'Privileged' | 'Hardware' | 'Services' | 'System';
-
 
 function getUsername(u: UserItem): string {
   return u.name || u.username || '';
@@ -48,7 +37,6 @@ function getUsername(u: UserItem): string {
 export const UsersPage: React.FC = () => {
   const { addToast } = useToast();
   const { session, isElevated, openElevationModal, dropElevation } = useAuth();
-  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<TabType>('accounts');
   const [data, setData] = useState<UsersOverviewResponse | null>(null);
@@ -552,824 +540,70 @@ export const UsersPage: React.FC = () => {
           TAB 1: ACCOUNTS & USERS
          ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'accounts' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Interactive Human Users Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Interactive Human Users</span>
-              <span className="badge badge-lavender" style={{ fontSize: '11px', padding: '2px 8px' }}>
-                {humanUsers.length}
-              </span>
-            </h3>
-          </div>
-
-          {/* User Cards Grid */}
-          {loading ? (
-            <div className="card" style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              Loading user accounts…
-            </div>
-          ) : humanUsers.length === 0 ? (
-            <div className="card" style={{ padding: '36px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              No interactive human users detected in /etc/passwd.
-            </div>
-          ) : (
-            <div className="user-cards-grid">
-              {humanUsers.map((u) => {
-                const uname = getUsername(u);
-                const initial = (uname[0] || 'U').toUpperCase();
-                const isCurrent = u.is_current || session?.username === uname;
-                const isAdmin = u.is_admin || u.groups?.includes('wheel') || u.groups?.includes('sudo');
-                const isOnline = u.is_active || activeUserSet.has(uname);
-                const storage = u.home_storage;
-
-                return (
-                  <div key={uname} className={`user-card ${isCurrent ? 'is-current-user' : ''}`}>
-                    {/* Card Header */}
-                    <div className="user-card-header">
-                      <div className={`user-avatar-lg ${isOnline ? 'user-online' : ''}`}>
-                        {initial}
-                      </div>
-
-                      <div className="user-title-wrap">
-                        <div className="user-name-title">
-                          <span>{uname}</span>
-                          {isCurrent && (
-                            <span className="badge badge-success" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                              YOU
-                            </span>
-                          )}
-                          {isAdmin && (
-                            <span className="badge badge-lavender" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                              ADMIN / WHEEL
-                            </span>
-                          )}
-                        </div>
-                        <div className="user-subtitle">
-                          UID: {u.uid} | GID: {u.gid}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card Body Details */}
-                    <div className="user-card-body">
-                      <div className="user-info-row">
-                        <span className="user-info-label">Home:</span>
-                        <span className="user-info-val" title={u.home}>
-                          {u.home}
-                        </span>
-                      </div>
-
-                      <div className="user-info-row">
-                        <span className="user-info-label">Shell:</span>
-                        <span className="user-info-val">{u.shell}</span>
-                      </div>
-
-                      <div className="user-info-row">
-                        <span className="user-info-label">SSH Keys:</span>
-                        <span className="user-info-val" style={{ color: 'var(--accent)' }}>
-                          {u.ssh_keys_count ?? 0} key installed
-                        </span>
-                      </div>
-
-                      {/* Home Disk Usage Progress */}
-                      {storage && (
-                        <div className="user-storage-container">
-                          <div className="user-storage-header">
-                            <span className="user-storage-title">Disk Usage ({u.home})</span>
-                            <span className="user-storage-stats">
-                              <strong>{storage.used_gb} GB</strong> / {storage.total_gb} GB ({storage.percent_used}%)
-                            </span>
-                          </div>
-                          <div className="user-storage-track">
-                            <div
-                              className={`user-storage-fill ${
-                                storage.percent_used > 90
-                                  ? 'danger'
-                                  : storage.percent_used > 75
-                                  ? 'warn'
-                                  : ''
-                              }`}
-                              style={{ width: `${Math.min(storage.percent_used, 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Group Memberships */}
-                      <div>
-                        <div className="user-info-label" style={{ marginBottom: '6px' }}>
-                          Group Memberships:
-                        </div>
-                        <div className="user-groups-tag-container">
-                          {u.groups && u.groups.length > 0 ? (
-                            u.groups.map((g) => {
-                              let tagClass = '';
-                              if (g === 'wheel' || g === 'sudo') tagClass = 'tag-wheel';
-                              else if (g === 'docker') tagClass = 'tag-docker';
-                              else if (['audio', 'video', 'netdev', 'plugdev', 'dialout', 'input', 'camera', 'disk', 'kvm'].includes(g)) {
-                                tagClass = 'tag-hardware';
-                              } else {
-                                tagClass = 'tag-services';
-                              }
-                              return (
-                                <span key={g} className={`group-tag ${tagClass}`}>
-                                  {g}
-                                </span>
-                              );
-                            })
-                          ) : (
-                            <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>Primary group only</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Card Actions */}
-                    <div className="user-card-actions">
-                      <button
-                        className="btn btn-xs btn-secondary"
-                        onClick={() => handleOpenSshModal(uname)}
-                        title="Manage authorized SSH keys"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                      >
-                        <Key size={12} />
-                        <span>SSH Keys ({u.ssh_keys_count ?? 0})</span>
-                      </button>
-
-                      <button
-                        className="btn btn-xs btn-secondary"
-                        onClick={() => handleOpenEditGroups(u)}
-                        title="Edit secondary group memberships"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                      >
-                        <Layers size={12} />
-                        <span>Edit Groups</span>
-                      </button>
-
-                      <button
-                        className="btn btn-xs btn-secondary"
-                        onClick={() => setSelectedPassUser(uname)}
-                        title="Change login password"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                      >
-                        <Lock size={12} />
-                        <span>Password</span>
-                      </button>
-
-                      <button
-                        className="btn btn-xs btn-ghost user-action-btn-processes"
-                        onClick={() => navigate(`/processes?user=${encodeURIComponent(uname)}`)}
-                        title="View user running processes"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <span>Processes</span>
-                        <ExternalLink size={12} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Collapsible System & Service Accounts Drawer */}
-          <div className="card system-accounts-card" style={{ marginTop: '10px' }}>
-            <div
-              className="card-header system-accounts-toggle"
-              onClick={() => setIsSystemUsersOpen(!isSystemUsersOpen)}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                <Cpu size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                <h3 style={{ margin: 0, fontSize: '0.92rem', whiteSpace: 'nowrap' }}>
-                  <span className="system-accounts-title-desktop">System & Service Accounts</span>
-                  <span className="system-accounts-title-mobile">System Accounts</span>
-                </h3>
-                <span className="badge badge-neutral" style={{ fontSize: '11px', flexShrink: 0 }}>
-                  {systemUsers.length}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', flexShrink: 0 }}>
-                <span style={{ fontSize: '12px' }}>{isSystemUsersOpen ? 'Collapse' : 'Expand'}</span>
-                {isSystemUsersOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </div>
-            </div>
-
-            {isSystemUsersOpen && (
-              <div className="card-body" style={{ paddingTop: '8px' }}>
-                <div className="system-accounts-filter-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
-                  <div className="system-accounts-search-wrap" style={{ position: 'relative', width: '100%', maxWidth: '340px' }}>
-                    <Search
-                      size={15}
-                      style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
-                    />
-                    <input
-                      type="search"
-                      className="input"
-                      placeholder="Search system accounts (e.g. root, daemon, caddy)..."
-                      value={systemSearch}
-                      onChange={(e) => setSystemSearch(e.target.value)}
-                      style={{ width: '100%', paddingLeft: '32px' }}
-                    />
-                  </div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Showing {filteredSystemUsers.length} of {systemUsers.length} accounts
-                  </span>
-                </div>
-
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>UID</th>
-                        <th>GID</th>
-                        <th>Home</th>
-                        <th>Shell</th>
-                        <th>Groups</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredSystemUsers.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                            No system accounts match filter
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredSystemUsers.map((u) => {
-                          const uname = getUsername(u);
-                          return (
-                            <tr key={uname}>
-                              <td className="font-mono" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {uname}
-                              </td>
-                              <td className="font-mono" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                {u.uid}
-                              </td>
-                              <td className="font-mono" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                {u.gid}
-                              </td>
-                              <td className="font-mono" style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                                {u.home}
-                              </td>
-                              <td className="font-mono" style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                {u.shell}
-                              </td>
-                              <td>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '240px' }}>
-                                  {(u.groups || []).slice(0, 3).map((g) => (
-                                    <span key={g} className="group-tag" style={{ fontSize: '10px' }}>
-                                      {g}
-                                    </span>
-                                  ))}
-                                  {(u.groups || []).length > 3 && (
-                                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                                      +{u.groups.length - 3}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <AccountsTab
+          humanUsers={humanUsers}
+          systemUsers={systemUsers}
+          filteredSystemUsers={filteredSystemUsers}
+          loading={loading}
+          activeUserSet={activeUserSet}
+          currentUsername={session?.username}
+          isSystemUsersOpen={isSystemUsersOpen}
+          setIsSystemUsersOpen={setIsSystemUsersOpen}
+          systemSearch={systemSearch}
+          setSystemSearch={setSystemSearch}
+          handleOpenSshModal={handleOpenSshModal}
+          handleOpenEditGroups={handleOpenEditGroups}
+          setSelectedPassUser={setSelectedPassUser}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════════════
           TAB 2: ACTIVE SESSIONS & RECENT LOGINS
          ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'sessions' && (
-        <div className="users-sessions-container">
-          {/* Active Terminal & Remote Logins */}
-          <div className="card users-sessions-card">
-            <div className="card-header sessions-card-header">
-              <div className="sessions-header-titles">
-                <h3 className="sessions-card-title">Active Terminal & Remote Logins</h3>
-                <span className="sessions-card-subtitle">
-                  Real-time logged-in TTYs & SSH sessions
-                </span>
-              </div>
-              <span className="badge badge-lavender sessions-online-badge">{activeSessions.length} Online</span>
-            </div>
-
-            <div className="card-body sessions-card-body" style={{ padding: 0 }}>
-              <div className="sessions-table-wrap">
-                <table className="table sessions-table active-sessions-table">
-                  <thead>
-                    <tr>
-                      <th className="col-status" style={{ width: '40px' }}>Status</th>
-                      <th className="col-user">User</th>
-                      <th className="col-tty">Terminal (TTY)</th>
-                      <th className="col-host">Remote Host / IP</th>
-                      <th className="col-login">Login Time</th>
-                      <th className="col-idle">Idle Duration</th>
-                      <th className="col-actions" style={{ textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeSessions.length === 0 ? (
-                      <tr className="sessions-empty-row">
-                        <td colSpan={7} className="sessions-empty-cell">
-                          <div className="sessions-empty-content">
-                            <Terminal size={22} className="sessions-empty-icon" />
-                            <span>No active terminal or SSH sessions connected</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      activeSessions.map((s) => (
-                        <tr key={s.tty} className="session-item-row">
-                          <td className="session-cell-status">
-                            <span className="session-beacon" title="Session Active" />
-                          </td>
-                          <td className="session-cell-user">
-                            <div className="session-user-wrap">
-                              <strong className="session-username">{s.user}</strong>
-                            </div>
-                          </td>
-                          <td className="session-cell-tty font-mono">
-                            <span className="session-tty-badge">{s.tty}</span>
-                          </td>
-                          <td className="session-cell-host font-mono">
-                            <span className="sessions-meta-label">Host: </span>
-                            <span className="sessions-meta-val">{s.from || s.host || 'local'}</span>
-                          </td>
-                          <td className="session-cell-login">
-                            <span className="sessions-meta-label">Login: </span>
-                            <span className="sessions-meta-val">{s.login_time || '—'}</span>
-                          </td>
-                          <td className="session-cell-idle font-mono">
-                            <span className="sessions-meta-label">Idle: </span>
-                            <span className="sessions-meta-val">{s.idle || '0s'}</span>
-                          </td>
-                          <td className="session-cell-actions">
-                            <button
-                              className="btn btn-xs btn-danger session-disconnect-btn"
-                              onClick={() => setPendingTerminate(s)}
-                              title={`Terminate session on ${s.tty}`}
-                            >
-                              <XCircle size={13} />
-                              <span>Disconnect</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Login History (lastlog/wtmp) */}
-          <div className="card users-sessions-card">
-            <div className="card-header sessions-card-header">
-              <div className="sessions-header-titles">
-                <h3 className="sessions-card-title">Recent Login History</h3>
-                <span className="sessions-card-subtitle">
-                  Last 10 system authentication sessions (from lastlog/wtmp)
-                </span>
-              </div>
-            </div>
-
-            <div className="card-body sessions-card-body" style={{ padding: 0 }}>
-              <div className="sessions-table-wrap">
-                <table className="table sessions-table history-sessions-table">
-                  <thead>
-                    <tr>
-                      <th className="hist-col-user">User</th>
-                      <th className="hist-col-tty">Terminal</th>
-                      <th className="hist-col-host">Host</th>
-                      <th className="hist-col-time">Time / Session Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loginHistory.length === 0 ? (
-                      <tr className="sessions-empty-row">
-                        <td colSpan={4} className="sessions-empty-cell">
-                          <div className="sessions-empty-content">
-                            <Clock size={20} className="sessions-empty-icon" />
-                            <span>No recent logins recorded</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      loginHistory.map((h, idx) => (
-                        <tr key={idx} className="history-item-row">
-                          <td className="hist-cell-user font-mono">
-                            <span className="hist-username">{h.user}</span>
-                          </td>
-                          <td className="hist-cell-tty font-mono">
-                            <span className="hist-tty-badge">{h.tty}</span>
-                          </td>
-                          <td className="hist-cell-host font-mono">
-                            <span className="hist-host-badge">{h.host || 'local'}</span>
-                          </td>
-                          <td className="hist-cell-time">
-                            <span className="hist-time-val">{h.time}</span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
+        <SessionsTab
+          activeSessions={activeSessions}
+          loginHistory={loginHistory}
+          onTerminateSession={(s) => setPendingTerminate(s)}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════════════
           TAB 3: GROUPS & HARDWARE
          ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'groups' && (
-        <div className="groups-tab-container">
-          {/* Filter Pills Bar & Search Toolbar */}
-          <div className="groups-toolbar">
-            <div className="filter-pills-bar">
-              <button
-                className={`filter-pill ${groupFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setGroupFilter('all')}
-              >
-                All Groups ({groupCounts.all})
-              </button>
-              <button
-                className={`filter-pill ${groupFilter === 'Privileged' ? 'active' : ''}`}
-                onClick={() => setGroupFilter('Privileged')}
-              >
-                Privileged ({groupCounts.priv})
-              </button>
-              <button
-                className={`filter-pill ${groupFilter === 'Hardware' ? 'active' : ''}`}
-                onClick={() => setGroupFilter('Hardware')}
-              >
-                Phone & Hardware ({groupCounts.hw})
-              </button>
-              <button
-                className={`filter-pill ${groupFilter === 'Services' ? 'active' : ''}`}
-                onClick={() => setGroupFilter('Services')}
-              >
-                Services ({groupCounts.serv})
-              </button>
-              <button
-                className={`filter-pill ${groupFilter === 'System' ? 'active' : ''}`}
-                onClick={() => setGroupFilter('System')}
-              >
-                System ({groupCounts.sys})
-              </button>
-            </div>
-
-            <div className="groups-search-wrap">
-              <Search
-                size={14}
-                className="groups-search-icon"
-              />
-              <input
-                type="search"
-                className="input groups-search-input"
-                placeholder="Search groups (e.g. wheel, audio, docker)..."
-                value={groupSearch}
-                onChange={(e) => setGroupSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Groups Table Card */}
-          <div className="card groups-card">
-            <div className="card-body groups-card-body">
-              <div className="groups-table-wrap">
-                <table className="table groups-table">
-                  <thead>
-                    <tr>
-                      <th className="col-group-name">Group Name</th>
-                      <th className="col-group-gid">GID</th>
-                      <th className="col-group-cat">Category</th>
-                      <th className="col-group-desc">Subsystem / Permission</th>
-                      <th className="col-group-members">Members</th>
-                      <th className="col-group-actions">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredGroups.length === 0 ? (
-                      <tr className="groups-empty-row">
-                        <td colSpan={6} className="groups-empty-cell">
-                          <div className="groups-empty-content">
-                            <Layers size={18} className="groups-empty-icon" />
-                            <span>No groups match current filter</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredGroups.map((g) => {
-                        let catBadge = <span className="badge badge-neutral">System</span>;
-                        if (g.category === 'Privileged') {
-                          catBadge = <span className="badge badge-lavender">Privileged</span>;
-                        } else if (g.category === 'Hardware') {
-                          catBadge = <span className="badge badge-success">Hardware</span>;
-                        } else if (g.category === 'Services') {
-                          catBadge = <span className="badge badge-services">Services</span>;
-                        }
-
-                        return (
-                          <tr key={g.name} className="group-item-row">
-                            <td className="group-cell-name font-mono">
-                              <span className="group-name-text">{g.name}</span>
-                            </td>
-                            <td className="group-cell-gid font-mono">
-                              <span className="group-gid-badge">
-                                <span className="group-gid-prefix">GID </span>
-                                {g.gid}
-                              </span>
-                            </td>
-                            <td className="group-cell-cat">{catBadge}</td>
-                            <td className="group-cell-desc">
-                              <span className="group-meta-label">Subsystem / Permission</span>
-                              <span className="group-desc-text">{g.description}</span>
-                            </td>
-                            <td className="group-cell-members">
-                              <span className="group-meta-label">Members</span>
-                              <div className="group-members-wrap">
-                                {g.members && g.members.length > 0 ? (
-                                  g.members.map((m) => {
-                                    const isHuman = humanUsers.some((u) => getUsername(u) === m);
-                                    return (
-                                      <span
-                                        key={m}
-                                        className={`group-tag ${isHuman ? 'tag-wheel' : ''}`}
-                                      >
-                                        {m}
-                                      </span>
-                                    );
-                                  })
-                                ) : (
-                                  <span className="group-no-members">—</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="group-cell-actions">
-                              {primaryHumanUser && (
-                                <button
-                                  className="btn btn-xs btn-ghost group-action-btn"
-                                  onClick={() => handleOpenEditGroups(primaryHumanUser)}
-                                  title={`Edit group assignments for ${getUsername(primaryHumanUser)}`}
-                                >
-                                  <span>Edit</span>
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
+        <GroupsTab
+          groupFilter={groupFilter}
+          setGroupFilter={setGroupFilter}
+          groupCounts={groupCounts}
+          groupSearch={groupSearch}
+          setGroupSearch={setGroupSearch}
+          filteredGroups={filteredGroups}
+          humanUsers={humanUsers}
+          primaryHumanUser={primaryHumanUser}
+          handleOpenEditGroups={handleOpenEditGroups}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════════════
           TAB 4: SECURITY & SSH KEYS
          ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'security' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Posture Summary Grid */}
-          <div className="security-posture-grid">
-            {/* Card 1: Privilege Elevation Engine */}
-            <div
-              className="security-posture-card"
-              style={{ '--card-accent-color': 'var(--purple)' } as React.CSSProperties}
-            >
-              <div className="security-posture-title">
-                <Shield size={18} color="var(--purple)" />
-                <span>Privilege Elevation Engine</span>
-              </div>
-
-              <div className="security-row">
-                <span className="security-row-label">Active Engine:</span>
-                <span className="security-row-value" style={{ color: 'var(--accent)' }}>
-                  {data?.security?.elevation_engine?.toUpperCase() || 'SUDO'}
-                </span>
-              </div>
-
-              <div className="security-row">
-                <span className="security-row-label">Sudoers Syntax (visudo):</span>
-                <span className="security-row-value">
-                  {data?.security?.visudo_ok ? (
-                    <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Syntax OK</span>
-                  ) : (
-                    <span style={{ color: '#f59e0b', fontSize: '11px' }}>
-                      {data?.security?.visudo_msg || 'Diagnostic restricted'}
-                    </span>
-                  )}
-                </span>
-              </div>
-
-              <div className="security-row">
-                <span className="security-row-label">Current Session Elevation:</span>
-                <span className="security-row-value">
-                  {isElevated ? (
-                    <span style={{ color: '#10b981', fontWeight: 600 }}>Active (Root Ticket)</span>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>Not elevated</span>
-                  )}
-                </span>
-              </div>
-
-              <div style={{ marginTop: 'auto', paddingTop: '6px' }}>
-                {isElevated ? (
-                  <button
-                    className="btn btn-xs btn-secondary"
-                    onClick={dropElevation}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <Lock size={12} />
-                    <span>Drop Admin Elevation</span>
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-xs btn-primary"
-                    onClick={() => openElevationModal()}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                  >
-                    <Shield size={12} />
-                    <span>Elevate Session Now</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Card 2: SSH Daemon Posture */}
-            <div
-              className="security-posture-card"
-              style={{ '--card-accent-color': '#3b82f6' } as React.CSSProperties}
-            >
-              <div className="security-posture-title">
-                <Lock size={18} color="#3b82f6" />
-                <span>SSH Daemon Posture</span>
-              </div>
-
-              <div className="security-row">
-                <span className="security-row-label">SSH Service (sshd):</span>
-                <span className="security-row-value">
-                  {data?.security?.sshd_active ? (
-                    <span style={{ color: '#10b981', fontWeight: 600 }}>● Active (Listening)</span>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>Inactive / Idle</span>
-                  )}
-                </span>
-              </div>
-
-              <div className="security-row">
-                <span className="security-row-label">Root Login via SSH:</span>
-                <span className="security-row-value" style={{ color: 'var(--text-secondary)' }}>
-                  {data?.security?.root_ssh_login || 'prohibit-password'}
-                </span>
-              </div>
-
-              <div className="security-row">
-                <span className="security-row-label">Password Authentication:</span>
-                <span className="security-row-value" style={{ color: 'var(--text-secondary)' }}>
-                  {data?.security?.password_auth || 'yes'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* SSH Authorized Keys Hub */}
-          <div className="card">
-            <div
-              className="card-header"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}
-            >
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Key size={16} color="var(--purple)" />
-                  <span>SSH Authorized Keys Hub</span>
-                </h3>
-                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                  Manage public keys in ~/.ssh/authorized_keys for remote terminal access
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label htmlFor="ssh-user-select" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Manage Keys for:
-                  </label>
-                  <select
-                    id="ssh-user-select"
-                    className="input"
-                    value={selectedSshUser}
-                    onChange={(e) => setSelectedSshUser(e.target.value)}
-                    style={{ fontSize: '12px', padding: '4px 10px', height: '32px' }}
-                  >
-                    {humanUsers.map((u) => {
-                      const uname = getUsername(u);
-                      return (
-                        <option key={uname} value={uname}>
-                          {uname} ({u.ssh_keys_count ?? 0} keys)
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setIsSshModalOpen(true)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <Plus size={14} />
-                  <span>Add SSH Key</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="card-body">
-              {sshLoading ? (
-                <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  Loading authorized keys…
-                </div>
-              ) : sshKeys.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '36px 20px', color: 'var(--text-muted)' }}>
-                  <p style={{ marginBottom: '14px', fontSize: '13.5px' }}>
-                    No authorized SSH keys installed for <strong>{selectedSshUser}</strong>.
-                  </p>
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => setIsSshModalOpen(true)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Plus size={14} />
-                    <span>Add First Public Key</span>
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  {sshKeys.map((item, idx) => {
-                    const isObj = typeof item === 'object' && item !== null;
-                    const keyType = isObj ? (item as SshKeyItem).type : 'SSH Key';
-                    const keyComment = isObj
-                      ? (item as SshKeyItem).comment || 'Public Key'
-                      : typeof item === 'string'
-                      ? item.split(' ').slice(2).join(' ') || item.slice(0, 32)
-                      : 'Key';
-                    const keyPreview = isObj
-                      ? (item as SshKeyItem).preview
-                      : typeof item === 'string'
-                      ? item.slice(0, 48) + '…'
-                      : '';
-                    const rawKey = isObj ? (item as SshKeyItem).raw || (item as SshKeyItem).preview : String(item);
-                    const keyIndex = isObj ? (item as SshKeyItem).index ?? idx : idx;
-
-                    return (
-                      <div key={idx} className="ssh-key-row">
-                        <div className="ssh-key-info">
-                          <div className="ssh-key-header-line">
-                            <span className="ssh-key-type">{keyType}</span>
-                            <span className="ssh-key-comment">{keyComment}</span>
-                          </div>
-                          <div className="ssh-key-fingerprint">{keyPreview || rawKey}</div>
-                        </div>
-
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            className="btn btn-xs btn-ghost"
-                            onClick={() => handleCopyKey(rawKey, idx)}
-                            title="Copy public key to clipboard"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            {copiedKeyStr === String(idx) ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
-                            <span>{copiedKeyStr === String(idx) ? 'Copied' : 'Copy'}</span>
-                          </button>
-
-                          <button
-                            className="btn btn-xs btn-danger"
-                            onClick={() => handleDeleteSshKey(keyIndex)}
-                            title="Remove this public key"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            <Trash2 size={13} />
-                            <span>Remove</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <SecurityTab
+          data={data}
+          isElevated={isElevated}
+          dropElevation={dropElevation}
+          openElevationModal={openElevationModal}
+          selectedSshUser={selectedSshUser}
+          setSelectedSshUser={setSelectedSshUser}
+          humanUsers={humanUsers}
+          setIsSshModalOpen={setIsSshModalOpen}
+          sshLoading={sshLoading}
+          sshKeys={sshKeys}
+          handleCopyKey={handleCopyKey}
+          copiedKeyStr={copiedKeyStr}
+          handleDeleteSshKey={handleDeleteSshKey}
+        />
       )}
 
       {/* ══════════════════════════════════════════════════════════════
