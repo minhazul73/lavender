@@ -27,5 +27,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --extra dev --python ${{ matrix.python-version }}
 
+      - name: Lint backend (Ruff)
+        run: uv run ruff check server/ tests/ || true
+        # || true: non-blocking during initial adoption. Remove in a future task.
+
       - name: Run pytest
         run: uv run --python ${{ matrix.python-version }} pytest -v
