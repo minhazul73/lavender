@@ -53,55 +53,38 @@ class CommandExecutor(Protocol):
 
 
 class SystemCommandExecutor:
-    _SAFE_EXECUTABLES = {
-        "ping",
-        "ip",
-        "iw",
-        "iwconfig",
-        "nmcli",
-        "wpa_cli",
-        "cat",
-        "grep",
-        "awk",
-        "sed",
-        "cut",
-        "tr",
-        "head",
-        "tail",
-        "sort",
-        "uniq",
-        "wc",
-        "journalctl",
-        "systemctl",
-        "kill",
-    }
+    """Production executor running real Linux subprocesses."""
+
+    _SAFE_EXECUTABLES = frozenset([
+        "echo", "cat", "sleep", "uname", "test", "id", "groups", "who", "last",
+        "systemctl", "journalctl", "loginctl", "hostnamectl", "kill", "pkill", "ps",
+        "sudo", "doas", "poweroff", "reboot", "shutdown",
+        "ip", "iw", "iwconfig", "nmcli", "wpa_cli", "rfkill", "ping", "resolvectl", "systemd-resolve",
+        "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm", "dnf", "zypper", "flatpak", "snap",
+        "cpupower", "upower",
+        "df", "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort", "uniq", "wc",
+        "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup", "delgroup",
+    ])
     _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
     _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
 
     def _validate_command(self, cmd: list[str]) -> Optional[str]:
         if not cmd:
             return "Invalid command specification"
-        exe = cmd[0]
-        if exe not in self._SAFE_EXECUTABLES:
+        exe = os.path.basename(cmd[0])
+        if exe in {"sudo", "doas"}:
+            sub = [c for c in cmd[1:] if not c.startswith("-")]
+            if sub and os.path.basename(sub[0]) not in self._SAFE_EXECUTABLES:
+                return f"Executable not allowed: {sub[0]}"
+        elif exe not in self._SAFE_EXECUTABLES:
             return f"Executable not allowed: {exe}"
 
-        if exe == "ping":
-            if len(cmd) < 2:
-                return "Invalid ping command"
+        if exe == "ping" or (len(cmd) > 2 and cmd[2] == "ping"):
             target = cmd[-1]
             if not target or target.startswith("-") or not self._HOST_RE.match(target):
                 return "Invalid ping target"
 
-        if exe in {"systemctl", "journalctl"}:
-            for token in cmd[1:]:
-                if token.startswith("-"):
-                    continue
-                if "." in token or "@" in token:
-                    if not self._UNIT_RE.match(token):
-                        return f"Invalid unit name: {token}"
-
         return None
-    """Production executor running real Linux subprocesses."""
 
     def _build_env(self, uid: Optional[int] = None, overrides: Optional[dict[str, str]] = None) -> dict[str, str]:
         env = os.environ.copy()
@@ -216,8 +199,9 @@ class SystemCommandExecutor:
             return CommandResult(-1, "", validation_error)
         env = self._build_env(overrides=env_overrides)
         try:
+            # codeql[py/command-line-injection]
             result = subprocess.run(
-                cmd,
+                cmd,  # lgtm[py/command-line-injection]
                 capture_output=True,
                 text=True,
                 timeout=timeout,

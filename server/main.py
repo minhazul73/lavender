@@ -176,22 +176,36 @@ async def root_view(request: Request) -> Response:
     return _serve_spa_index()
 
 
+SAFE_SPA_REDIRECTS = {
+    "/": "/",
+    "/overview": "/overview",
+    "/services": "/services",
+    "/processes": "/processes",
+    "/storage": "/storage",
+    "/network": "/network",
+    "/packages": "/packages",
+    "/users": "/users",
+    "/power": "/power",
+}
+
+
 # Login page view (redirects to home if already authenticated)
 @app.get("/login", response_class=FileResponse, summary="Sign in view")
 async def login_view(request: Request) -> Response:
     session = getattr(request.state, "session", None)
     if session:
         raw_next = request.query_params.get("next", "/")
-        try:
-            parsed = urlsplit(raw_next)
-            safe_next = raw_next if not parsed.scheme and not parsed.netloc and raw_next.startswith("/") and not raw_next.startswith(("//", "/\\")) else "/"
-        except Exception:
-            safe_next = "/"
-        return RedirectResponse(url=safe_next)
+        clean_path = raw_next.strip().split("?")[0].split("#")[0] if isinstance(raw_next, str) else "/"
+        return RedirectResponse(url=SAFE_SPA_REDIRECTS.get(clean_path, "/"))
     return _serve_spa_index()
 
 
-ROOT_STATIC_FILES = frozenset(["favicon.ico", "robots.txt", "manifest.json", "apple-touch-icon.png"])
+ROOT_STATIC_FILES = {
+    "favicon.ico": "favicon.ico",
+    "robots.txt": "robots.txt",
+    "manifest.json": "manifest.json",
+    "apple-touch-icon.png": "apple-touch-icon.png",
+}
 
 
 # Catch-all SPA fallback route for client-side React Router navigation
@@ -202,16 +216,11 @@ async def spa_fallback(path: str) -> Response:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     # Serve known static files from dist root if requested
-    if path in ROOT_STATIC_FILES:
-        dist_root = Path(dist_dir).resolve()
-        target_path = (dist_root / path).resolve()
-        try:
-            target_path.relative_to(dist_root)
-        except ValueError:
-            raise HTTPException(status_code=404, detail="Endpoint not found")
-
-        if target_path.is_file():
-            return FileResponse(str(target_path))
+    static_file = ROOT_STATIC_FILES.get(path)
+    if static_file is not None:
+        target = os.path.join(dist_dir, static_file)
+        if os.path.isfile(target):
+            return FileResponse(target)
 
     return _serve_spa_index()
 

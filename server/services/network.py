@@ -819,7 +819,7 @@ def ping_test(target: str = "8.8.8.8", count: int = 3) -> dict:
         }
 
     count = max(1, min(count, 10))
-    code, out, err = run_command(["ping", "-c", str(count), "-W", "2", target], timeout=12 + count * 2)
+    code, out, err = run_command(["ping", "-c", str(count), "-W", "2", "--", target], timeout=12 + count * 2)
 
     result = {
         "target": target,

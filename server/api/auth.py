@@ -3,7 +3,7 @@ Authentication API endpoints: Login, Logout, Elevation, and User Profile.
 """
 import logging
 from typing import Optional
-from urllib.parse import quote_plus, urlsplit, urlparse
+from urllib.parse import quote_plus
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, Form, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
@@ -49,16 +49,17 @@ class ElevateRequest(BaseModel):
     password: str
 
 
-SAFE_REDIRECT_ROUTES = frozenset([
-    "/",
-    "/services",
-    "/processes",
-    "/storage",
-    "/network",
-    "/packages",
-    "/users",
-    "/power",
-])
+SAFE_REDIRECT_ROUTES = {
+    "/": "/",
+    "/overview": "/overview",
+    "/services": "/services",
+    "/processes": "/processes",
+    "/storage": "/storage",
+    "/network": "/network",
+    "/packages": "/packages",
+    "/users": "/users",
+    "/power": "/power",
+}
 
 
 def _sanitize_next_url(target: Optional[str]) -> str:
@@ -66,20 +67,7 @@ def _sanitize_next_url(target: Optional[str]) -> str:
     if not target or not isinstance(target, str):
         return "/"
     target_clean = target.strip().split("?")[0].split("#")[0]
-    if target_clean in SAFE_REDIRECT_ROUTES:
-        return target_clean
-    return "/"
-
-
-def _is_safe_local_redirect_path(target: Optional[str]) -> bool:
-    """Allow only local, absolute-path redirects without scheme/host/backslash tricks."""
-    if not target or not isinstance(target, str):
-        return False
-    candidate = target.replace("\\", "/").strip()
-    parsed = urlparse(candidate)
-    if parsed.scheme or parsed.netloc:
-        return False
-    return candidate.startswith("/") and candidate in SAFE_REDIRECT_ROUTES
+    return SAFE_REDIRECT_ROUTES.get(target_clean, "/")
 
 
 @router.post("/login")
@@ -149,7 +137,7 @@ async def api_login(
     session = await session_store.create(username, user_info)
     signed_token = session_store.sign_session_id(session.session_id)
 
-    redirect_dest = safe_next if safe_next in SAFE_REDIRECT_ROUTES else "/"
+    redirect_dest = _sanitize_next_url(safe_next)
 
     if is_json:
         res = JSONResponse(content={
@@ -160,8 +148,7 @@ async def api_login(
             "can_elevate": session.can_elevate(),
         })
     else:
-        final_redirect_dest = redirect_dest if _is_safe_local_redirect_path(redirect_dest) else "/"
-        res = RedirectResponse(url=final_redirect_dest, status_code=status.HTTP_303_SEE_OTHER)
+        res = RedirectResponse(url=redirect_dest, status_code=status.HTTP_303_SEE_OTHER)
 
     client_host = request.client.host if request.client else ""
     is_secure = client_host not in ("127.0.0.1", "localhost", "::1")
