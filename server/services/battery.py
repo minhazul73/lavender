@@ -348,6 +348,9 @@ def set_cpu_governor(governor: str) -> dict:
     Set CPU frequency scaling governor across all CPU cores (requires sudo).
     """
     clean_gov = governor.strip().lower()
+    if not re.match(r"^[a-zA-Z0-9_-]+$", clean_gov) or clean_gov.startswith("-"):
+        return {"success": False, "error": "Invalid governor format"}
+
     avail = get_cpu_scaling_available().get("governors", [])
     if avail and clean_gov not in avail:
         return {
@@ -369,9 +372,17 @@ def set_cpu_governor(governor: str) -> dict:
             if entry.startswith("cpu") and entry[3:].isdigit():
                 gov_file = os.path.join(cpu_dir, entry, "cpufreq", "scaling_governor")
                 if os.path.isfile(gov_file):
-                    c, o, e = run_sudo_command(
-                        ["sh", "-c", f"echo {clean_gov} > {gov_file}"], timeout=5
-                    )
+                    try:
+                        res = subprocess.run(
+                            ["sudo", "-n", "tee", gov_file],
+                            input=f"{clean_gov}\n",
+                            text=True,
+                            capture_output=True,
+                            timeout=5,
+                        )
+                        c, o, e = res.returncode, res.stdout, res.stderr
+                    except Exception as exc:
+                        c, o, e = -1, "", str(exc)
                     if c == 0:
                         success_count += 1
                     else:

@@ -1,6 +1,7 @@
 """
 Power control operations.
 """
+import re
 import subprocess
 
 from server.core.executor import get_executor
@@ -60,9 +61,11 @@ def get_scheduled_shutdown() -> dict:
 def schedule_power_action(action: str, minutes: int, message: str = "") -> dict:
     """Schedule a reboot or poweroff in N minutes (requires sudo)."""
     flag = "-r" if action == "reboot" else "-h"
-    cmd = ["shutdown", flag, f"+{minutes}"]
+    cmd = ["shutdown", flag, f"+{int(minutes)}"]
     if message:
-        cmd.append(message)
+        clean_msg = re.sub(r"[^\w\s.,!?-]", "", str(message)).strip()[:128]
+        if clean_msg and not clean_msg.startswith("-"):
+            cmd.extend(["--", clean_msg])
     code, out, err = run_sudo_command(cmd, timeout=10)
     return {
         "success": code == 0,

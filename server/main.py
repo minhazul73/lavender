@@ -191,6 +191,9 @@ async def login_view(request: Request) -> Response:
     return _serve_spa_index()
 
 
+ROOT_STATIC_FILES = frozenset(["favicon.ico", "robots.txt", "manifest.json", "apple-touch-icon.png"])
+
+
 # Catch-all SPA fallback route for client-side React Router navigation
 @app.get("/{path:path}", response_class=FileResponse, include_in_schema=False)
 async def spa_fallback(path: str) -> Response:
@@ -198,14 +201,11 @@ async def spa_fallback(path: str) -> Response:
     if path.startswith("api/") or path.startswith("auth/") or path.startswith("assets/"):
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
-    # Serve raw static files from dist root if they exist (e.g. favicon, robots.txt)
-    try:
-        dist_path = Path(dist_dir).resolve()
-        target_path = (dist_path / path).resolve()
-        if target_path.is_relative_to(dist_path) and target_path.is_file():
-            return FileResponse(str(target_path))
-    except (ValueError, RuntimeError):
-        pass
+    # Serve known static files from dist root if requested
+    if path in ROOT_STATIC_FILES:
+        target = os.path.join(dist_dir, path)
+        if os.path.isfile(target):
+            return FileResponse(target)
 
     return _serve_spa_index()
 

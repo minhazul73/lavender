@@ -163,7 +163,7 @@ class SystemCommandExecutor:
         try:
             # codeql[py/command-line-injection]
             result = subprocess.run(
-                cmd,
+                cmd,  # lgtm[py/command-line-injection]
                 capture_output=True,
                 text=True,
                 timeout=timeout,

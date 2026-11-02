@@ -5,13 +5,9 @@ and a convenient file explorer with preview, editing, file creation, rename, del
 and file upload capabilities.
 """
 import asyncio
-import os
-import shutil
-import mimetypes
-from pathlib import Path
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 
 from server.auth.deps import get_current_session, require_admin, require_session
 from server.auth.session import UserSession
@@ -147,27 +143,17 @@ async def api_raw_file(
     session: Optional[UserSession] = Depends(get_current_session),
 ):
     """Stream raw file content (for inline image/video display or download)."""
-    if not path or "\0" in path:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
-    canonical_path = files_service.sanitize_path(path)
-    # codeql[py/path-injection]
-    if not os.path.isfile(canonical_path):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-    # codeql[py/path-injection]
-    if not os.access(canonical_path, os.R_OK) and not is_session_admin(session):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Read permission denied")
-
-    filename = os.path.basename(canonical_path)
-    mime_type, _ = mimetypes.guess_type(canonical_path)
-    media_type = mime_type or "application/octet-stream"
-
-    # codeql[py/path-injection]
-    return FileResponse(
-        path=canonical_path,
-        media_type=media_type,
-        filename=filename,
-        content_disposition_type="attachment" if download else "inline",
-    )
+    is_admin = is_session_admin(session)
+    try:
+        info = await asyncio.to_thread(files_service.get_raw_file_stream, path=path, is_admin=is_admin)
+        disposition = "attachment" if download else "inline"
+        return StreamingResponse(
+            info["stream"](),
+            media_type=info["media_type"],
+            headers={"Content-Disposition": f'{disposition}; filename="{info["filename"]}"'},
+        )
+    except Exception as e:
+        _handle_fs_error(e, session, is_admin, "Read permission denied.")
 
 
 @router.post("/file/save", summary="Save edited file content")
@@ -283,61 +269,23 @@ async def api_upload_files(
     session: Optional[UserSession] = Depends(get_current_session),
 ):
     """Upload files directly into the specified directory."""
-    if not path or "\0" in path:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
-    canonical_dir = files_service.sanitize_path(path)
-    # codeql[py/path-injection]
-    if not os.path.isdir(canonical_dir):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Destination is not a directory")
-
     is_admin = is_session_admin(session)
-    # codeql[py/path-injection]
-    is_writable = os.access(canonical_dir, os.W_OK)
-    if not is_writable and not is_admin:
-        detail_msg = "Permission denied to write to destination directory"
-        if session and session.can_elevate():
-            detail_msg = "Administrative elevation required to upload files to this directory."
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
-
-    from server.core.executor import get_executor
-    import tempfile
-
-    def _run_sudo(cmd: list[str]) -> tuple[int, str, str]:
-        res = get_executor().run_sync(["sudo", "-n"] + cmd)
-        return res.returncode, res.stdout, res.stderr
-
-    resolved_dir = Path(canonical_dir).resolve()
-    uploaded = []
-    for file in files:
-        safe_filename = Path(file.filename or "uploaded_file").name
-        if not safe_filename or safe_filename in (".", ".."):
-            continue
-
-        dest_path_obj = (resolved_dir / safe_filename).resolve()
-        if not dest_path_obj.is_relative_to(resolved_dir):
-            continue
-        dest_file_path = str(dest_path_obj)
-        try:
-            if is_writable:
-                # codeql[py/path-injection]
-                with open(dest_file_path, "wb") as f_out:
-                    shutil.copyfileobj(file.file, f_out)
-            else:
-                with tempfile.NamedTemporaryFile("wb", delete=False) as tf:
-                    shutil.copyfileobj(file.file, tf)
-                    tmp_name = tf.name
-                code, out, err = _run_sudo(["cp", "-f", tmp_name, dest_file_path])
-                if code == 0:
-                    _run_sudo(["chmod", "644", dest_file_path])
-                if os.path.exists(tmp_name):
-                    try:
-                        os.remove(tmp_name)
-                    except Exception:
-                        pass
-                if code != 0:
-                    raise RuntimeError(f"Privileged upload failed: {err or out}")
-            uploaded.append(safe_filename)
-        finally:
+    files_data = [(f.filename or "uploaded_file", f.file) for f in files]
+    try:
+        uploaded = await asyncio.to_thread(
+            files_service.save_uploaded_files,
+            dest_dir=path,
+            files_data=files_data,
+            is_admin=is_admin,
+        )
+        return {"success": True, "uploaded": uploaded, "count": len(uploaded)}
+    except Exception as e:
+        _handle_fs_error(
+            e,
+            session,
+            is_admin,
+            "Administrative elevation required to upload files to this directory.",
+        )
+    finally:
+        for file in files:
             await file.close()
-
-    return {"success": True, "uploaded": uploaded, "count": len(uploaded)}

@@ -49,17 +49,25 @@ class ElevateRequest(BaseModel):
     password: str
 
 
+SAFE_REDIRECT_ROUTES = frozenset([
+    "/",
+    "/services",
+    "/processes",
+    "/storage",
+    "/network",
+    "/packages",
+    "/users",
+    "/power",
+])
+
+
 def _sanitize_next_url(target: Optional[str]) -> str:
-    """Ensure redirect URL is strictly an internal relative path without scheme or netloc."""
+    """Ensure redirect URL strictly matches a known internal application route."""
     if not target or not isinstance(target, str):
         return "/"
-    target = target.strip()
-    try:
-        parsed = urlsplit(target)
-        if not parsed.scheme and not parsed.netloc and target.startswith("/") and not target.startswith(("//", "/\\")):
-            return target
-    except Exception:
-        pass
+    target_clean = target.strip().split("?")[0].split("#")[0]
+    if target_clean in SAFE_REDIRECT_ROUTES:
+        return target_clean
     return "/"
 
 
@@ -94,8 +102,11 @@ async def api_login(
         err_msg = "Username and password are required"
         if is_json:
             raise HTTPException(status_code=400, detail=err_msg)
+        login_err_url = f"/login?error={quote_plus(err_msg)}"
+        if safe_next in SAFE_REDIRECT_ROUTES and safe_next != "/":
+            login_err_url += f"&next={safe_next}"
         return RedirectResponse(
-            url=f"/login?error={quote_plus(err_msg)}&next={quote_plus(safe_next)}",
+            url=login_err_url,
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -104,16 +115,22 @@ async def api_login(
     except AuthError as exc:
         if is_json:
             raise HTTPException(status_code=401, detail=str(exc))
+        login_err_url = "/login?error=Invalid+username+or+password"
+        if safe_next in SAFE_REDIRECT_ROUTES and safe_next != "/":
+            login_err_url += f"&next={safe_next}"
         return RedirectResponse(
-            url=f"/login?error=Invalid+username+or+password&next={quote_plus(safe_next)}",
+            url=login_err_url,
             status_code=status.HTTP_303_SEE_OTHER,
         )
     except Exception:
         logger.exception("Unexpected login error for %s", username)
         if is_json:
             raise HTTPException(status_code=500, detail="Login system error")
+        login_err_url = "/login?error=System+error"
+        if safe_next in SAFE_REDIRECT_ROUTES and safe_next != "/":
+            login_err_url += f"&next={safe_next}"
         return RedirectResponse(
-            url=f"/login?error=System+error&next={quote_plus(safe_next)}",
+            url=login_err_url,
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -121,16 +138,18 @@ async def api_login(
     session = await session_store.create(username, user_info)
     signed_token = session_store.sign_session_id(session.session_id)
 
+    redirect_dest = safe_next if safe_next in SAFE_REDIRECT_ROUTES else "/"
+
     if is_json:
         res = JSONResponse(content={
             "success": True,
             "username": username,
-            "redirect": safe_next,
+            "redirect": redirect_dest,
             "is_admin": session.is_elevated(),
             "can_elevate": session.can_elevate(),
         })
     else:
-        res = RedirectResponse(url=safe_next, status_code=status.HTTP_303_SEE_OTHER)
+        res = RedirectResponse(url=redirect_dest, status_code=status.HTTP_303_SEE_OTHER)
 
     client_host = request.client.host if request.client else ""
     is_secure = client_host not in ("127.0.0.1", "localhost", "::1")

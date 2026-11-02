@@ -602,3 +602,70 @@ def get_quick_bookmarks(user_home: Optional[str] = None) -> List[Dict[str, Any]]
             valid_bookmarks.append(b)
 
     return valid_bookmarks
+
+
+def get_raw_file_stream(path: str, is_admin: bool = False) -> Dict[str, Any]:
+    """Validate and prepare a file for streaming raw bytes."""
+    canonical_path = sanitize_path(path)
+    if not os.path.isfile(canonical_path):
+        raise FileNotFoundError(f"File not found: {canonical_path}")
+    if not os.access(canonical_path, os.R_OK) and not is_admin:
+        raise PermissionError(f"Read permission denied: {canonical_path}")
+
+    filename = os.path.basename(canonical_path)
+    mime_type, _ = mimetypes.guess_type(canonical_path)
+
+    def file_iterator(chunk_size: int = 64 * 1024):
+        with open(canonical_path, "rb") as f:
+            while chunk := f.read(chunk_size):
+                yield chunk
+
+    return {
+        "path": canonical_path,
+        "filename": filename,
+        "media_type": mime_type or "application/octet-stream",
+        "stream": file_iterator,
+    }
+
+
+def save_uploaded_files(
+    dest_dir: str,
+    files_data: List[tuple[str, Any]],
+    is_admin: bool = False,
+) -> List[str]:
+    """Save uploaded files into target directory with permission checks."""
+    canonical_dir = sanitize_path(dest_dir)
+    if not os.path.isdir(canonical_dir):
+        raise NotADirectoryError("Destination is not a directory")
+
+    is_writable = os.access(canonical_dir, os.W_OK)
+    if not is_writable and not is_admin:
+        raise PermissionError("Permission denied to write to destination directory")
+
+    uploaded = []
+    for raw_filename, file_obj in files_data:
+        safe_filename = os.path.basename(raw_filename or "uploaded_file")
+        if not safe_filename or safe_filename in (".", ".."):
+            continue
+
+        dest_file_path = os.path.join(canonical_dir, safe_filename)
+        if is_writable:
+            with open(dest_file_path, "wb") as f_out:
+                shutil.copyfileobj(file_obj, f_out)
+        else:
+            with tempfile.NamedTemporaryFile("wb", delete=False) as tf:
+                shutil.copyfileobj(file_obj, tf)
+                tmp_name = tf.name
+            code, out, err = run_sudo_command(["cp", "-f", tmp_name, dest_file_path])
+            if code == 0:
+                run_sudo_command(["chmod", "644", dest_file_path])
+            if os.path.exists(tmp_name):
+                try:
+                    os.remove(tmp_name)
+                except Exception:
+                    pass
+            if code != 0:
+                raise RuntimeError(f"Privileged upload failed: {err or out}")
+        uploaded.append(safe_filename)
+
+    return uploaded
