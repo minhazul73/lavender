@@ -1,11 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { api } from '../../api/client';
+import React, { useState, useMemo } from 'react';
 import {
-  NetworkSummaryResponse,
   NetworkInterfaceItem,
-  WifiNetworkItem,
-  PingResponse,
-  DnsQueryResponse,
   DnsServerItem,
 } from '../../api/types';
 import { useToast } from '../../context/ToastContext';
@@ -25,7 +20,8 @@ import {
 import { InterfacesTab } from './InterfacesTab';
 import { WifiTab } from './WifiTab';
 import { DnsTab } from './DnsTab';
-import { ConnectivityTab, HealthCheckState } from './ConnectivityTab';
+import { ConnectivityTab } from './ConnectivityTab';
+import { useNetworkData } from './useNetworkData';
 
 type TabType = 'interfaces' | 'wifi' | 'dns' | 'connectivity';
 type InterfaceFilterType = 'all' | 'active' | 'physical' | 'bridge' | 'loopback';
@@ -38,69 +34,10 @@ export const NetworkPage: React.FC = () => {
   const [ifaceFilter, setIfaceFilter] = useState<InterfaceFilterType>('all');
   const [ifaceSearch, setIfaceSearch] = useState('');
   const [ifaceViewMode, setIfaceViewMode] = useState<'grid' | 'table'>('grid');
-
-  // Main data state
-  const [data, setData] = useState<NetworkSummaryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [wifiSearch, setWifiSearch] = useState('');
 
   // Copied indicator state for inline visual feedback
   const { copiedKey, copy: copyToClipboard } = useClipboard();
-
-  // WiFi scanning state
-  const [wifiScanning, setWifiScanning] = useState(false);
-  const [scannedNetworks, setScannedNetworks] = useState<WifiNetworkItem[]>([]);
-  const [wifiSearch, setWifiSearch] = useState('');
-
-  // Ping tool state
-  const [pingTarget, setPingTarget] = useState('8.8.8.8');
-  const [pingCount, setPingCount] = useState<number>(3);
-  const [pingLoading, setPingLoading] = useState(false);
-  const [pingResult, setPingResult] = useState<PingResponse | null>(null);
-
-  // DNS query tool state
-  const [dnsDomain, setDnsDomain] = useState('google.com');
-  const [dnsLoading, setDnsLoading] = useState(false);
-  const [dnsResult, setDnsResult] = useState<DnsQueryResponse | null>(null);
-
-  // Connectivity Health Checks state
-  const [healthChecks, setHealthChecks] = useState<{
-    gateway: HealthCheckState;
-    dns: HealthCheckState;
-    internet: HealthCheckState;
-  }>({
-    gateway: { status: 'untested', badge: 'UNTESTED', message: 'Click Test to check latency' },
-    dns: { status: 'untested', badge: 'UNTESTED', message: 'Click Test to check resolution' },
-    internet: { status: 'untested', badge: 'UNTESTED', message: 'Click Test to ping public server' },
-  });
-  const [healthTestingAll, setHealthTestingAll] = useState(false);
-
-  // Load all network data
-  const loadNetwork = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
-
-    try {
-      const res = await api.get<NetworkSummaryResponse>('/api/network');
-      setData(res);
-
-      // Pre-populate scanned networks if wifi info has nearby or networks
-      const nearbyNets = res.wifi?.nearby || res.wifi?.networks || [];
-      if (nearbyNets.length > 0) {
-        setScannedNetworks(nearbyNets);
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to load network info';
-      addToast(msg, 'error');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [addToast]);
-
-  useEffect(() => {
-    loadNetwork();
-  }, [loadNetwork]);
 
   // Copy helper
   const handleCopy = (text: string, key: string, label: string) => {
@@ -109,194 +46,36 @@ export const NetworkPage: React.FC = () => {
     addToast(`Copied ${label} to clipboard`, 'info');
   };
 
-  // WiFi Scan
-  const handleScanWifi = async () => {
-    setWifiScanning(true);
-    try {
-      const res = await api.post<{ networks: WifiNetworkItem[] }>('/api/network/wifi-scan');
-      const list = res.networks || [];
-      setScannedNetworks(list);
-      addToast(`Found ${list.length} wireless networks`, 'info');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'WiFi scan failed';
-      addToast(msg, 'error');
-    } finally {
-      setWifiScanning(false);
-    }
-  };
-
-  // Ping execution
-  const executePing = async (targetToPing: string, countToUse: number) => {
-    const cleanTarget = targetToPing.trim();
-    if (!cleanTarget) return;
-
-    setPingLoading(true);
-    setPingResult(null);
-
-    try {
-      const res = await api.get<PingResponse>(
-        `/api/network/ping?target=${encodeURIComponent(cleanTarget)}&count=${countToUse}`
-      );
-      setPingResult(res);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Ping execution failed';
-      addToast(msg, 'error');
-    } finally {
-      setPingLoading(false);
-    }
-  };
-
-  const handleRunPing = (e: React.FormEvent) => {
-    e.preventDefault();
-    executePing(pingTarget, pingCount);
-  };
-
-  const handleSetPingPreset = (preset: string) => {
-    let resolvedTarget = preset;
-    if (preset === 'gateway') {
-      resolvedTarget = data?.summary?.default_gateway || '192.168.1.1';
-    }
-    setPingTarget(resolvedTarget);
-    executePing(resolvedTarget, pingCount);
-  };
-
-  // DNS Query execution
-  const executeDns = async (domainToQuery: string) => {
-    const cleanDomain = domainToQuery.trim().toLowerCase();
-    if (!cleanDomain) return;
-
-    setDnsLoading(true);
-    setDnsResult(null);
-
-    try {
-      const res = await api.get<DnsQueryResponse>(
-        `/api/network/dns-query?domain=${encodeURIComponent(cleanDomain)}`
-      );
-      setDnsResult(res);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'DNS lookup failed';
-      addToast(msg, 'error');
-    } finally {
-      setDnsLoading(false);
-    }
-  };
-
-  const handleRunDns = (e: React.FormEvent) => {
-    e.preventDefault();
-    executeDns(dnsDomain);
-  };
-
-  const handleQuickDns = (domain: string) => {
-    setDnsDomain(domain);
-    executeDns(domain);
-  };
-
-  // Connectivity Health Check Probes
-  const runGatewayProbe = async (): Promise<void> => {
-    const gw = data?.summary?.default_gateway || '192.168.1.1';
-    setHealthChecks((prev) => ({
-      ...prev,
-      gateway: { status: 'testing', badge: 'TESTING...', message: 'Pinging gateway…' },
-    }));
-
-    try {
-      const res = await api.get<PingResponse>(
-        `/api/network/ping?target=${encodeURIComponent(gw)}&count=2`
-      );
-      if (res.success) {
-        const avg = res.avg_latency ?? res.avg_latency_ms;
-        setHealthChecks((prev) => ({
-          ...prev,
-          gateway: {
-            status: 'success',
-            badge: 'REACHABLE',
-            message: `Avg Latency: ${avg !== undefined && avg !== null ? avg.toFixed(1) + ' ms' : 'OK'}`,
-          },
-        }));
-      } else {
-        setHealthChecks((prev) => ({
-          ...prev,
-          gateway: { status: 'error', badge: 'FAILED', message: 'No reply from gateway' },
-        }));
-      }
-    } catch {
-      setHealthChecks((prev) => ({
-        ...prev,
-        gateway: { status: 'error', badge: 'FAILED', message: 'Gateway ping request error' },
-      }));
-    }
-  };
-
-  const runDnsProbe = async (): Promise<void> => {
-    setHealthChecks((prev) => ({
-      ...prev,
-      dns: { status: 'testing', badge: 'TESTING...', message: 'Resolving google.com…' },
-    }));
-
-    try {
-      const res = await api.get<DnsQueryResponse>('/api/network/dns-query?domain=google.com');
-      if (res.success) {
-        const timeMs = res.time_ms ?? res.latency_ms ?? 0;
-        const count = res.count ?? (res.ipv4?.length || 0) + (res.ipv6?.length || 0);
-        setHealthChecks((prev) => ({
-          ...prev,
-          dns: {
-            status: 'success',
-            badge: 'WORKING',
-            message: `Resolved in ${timeMs} ms (${count} answers)`,
-          },
-        }));
-      } else {
-        setHealthChecks((prev) => ({
-          ...prev,
-          dns: { status: 'error', badge: 'FAILED', message: res.error || 'DNS query failed' },
-        }));
-      }
-    } catch {
-      setHealthChecks((prev) => ({
-        ...prev,
-        dns: { status: 'error', badge: 'FAILED', message: 'DNS resolution request error' },
-      }));
-    }
-  };
-
-  const runInternetProbe = async (): Promise<void> => {
-    setHealthChecks((prev) => ({
-      ...prev,
-      internet: { status: 'testing', badge: 'TESTING...', message: 'Pinging 1.1.1.1…' },
-    }));
-
-    try {
-      const res = await api.get<PingResponse>('/api/network/ping?target=1.1.1.1&count=2');
-      if (res.success) {
-        const avg = res.avg_latency ?? res.avg_latency_ms;
-        setHealthChecks((prev) => ({
-          ...prev,
-          internet: {
-            status: 'success',
-            badge: 'ONLINE',
-            message: `Latency: ${avg !== undefined && avg !== null ? avg.toFixed(1) + ' ms' : 'OK'}`,
-          },
-        }));
-      } else {
-        setHealthChecks((prev) => ({
-          ...prev,
-          internet: { status: 'error', badge: 'OFFLINE', message: 'Could not reach internet' },
-        }));
-      }
-    } catch {
-      setHealthChecks((prev) => ({
-        ...prev,
-        internet: { status: 'error', badge: 'OFFLINE', message: 'Internet ping request error' },
-      }));
-    }
-  };
-
-  const runAllHealthChecks = async () => {
-    setHealthTestingAll(true);
-    await Promise.allSettled([runGatewayProbe(), runDnsProbe(), runInternetProbe()]);
-    setHealthTestingAll(false);
-  };
+  // Data & action hook
+  const {
+    data,
+    loading,
+    refreshing,
+    loadNetwork,
+    scannedNetworks,
+    wifiScanning,
+    handleScanWifi,
+    pingTarget,
+    setPingTarget,
+    pingCount,
+    setPingCount,
+    pingLoading,
+    pingResult,
+    handleRunPing,
+    handleSetPingPreset,
+    dnsDomain,
+    setDnsDomain,
+    dnsLoading,
+    dnsResult,
+    handleRunDns,
+    handleQuickDns,
+    healthChecks,
+    healthTestingAll,
+    runGatewayProbe,
+    runDnsProbe,
+    runInternetProbe,
+    runAllHealthChecks,
+  } = useNetworkData();
 
   // Raw data mapping
   const rawInterfaces: NetworkInterfaceItem[] = data?.interfaces || [];
