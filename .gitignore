@@ -3,10 +3,12 @@ __pycache__/
 .env
 .env.local
 .venv/
+.tracks/
 venv/
-*.egg-info/
 dist/
 build/
-.coverage
-affected_endpoints.md
-failing_tests.txt
+node_modules/
+frontend/node_modules/
+.pytest_cache/
+coverage/
+*.egg-info/

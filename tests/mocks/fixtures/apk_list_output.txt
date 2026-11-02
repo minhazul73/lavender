@@ -1,0 +1,6 @@
+alpine-base-3.20.0-r0 x86_64 {alpine-base} (GPL-2.0-only) [installed]
+busybox-1.36.1-r29 x86_64 {busybox} (GPL-2.0-only) [installed]
+curl-8.8.0-r0 x86_64 {curl} (curl) [installed]
+fastapi-0.111.0-r0 x86_64 {fastapi} (MIT) [installed]
+python3-3.12.3-r1 x86_64 {python3} (PSF-2.0) [installed]
+sudo-1.9.15_p5-r0 x86_64 {sudo} (ISC) [installed]
