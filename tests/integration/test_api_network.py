@@ -66,3 +66,12 @@ async def test_wifi_scan_and_legacy_alias(auth_client):
         res2 = await auth_client.post("/api/device/network/wifi-scan")
         assert res2.status_code == 200
         assert len(res2.json()["networks"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_network_input_validation(auth_client):
+    res_ping = await auth_client.get("/api/network/ping?target=--flag")
+    assert res_ping.status_code == 400
+
+    res_dns = await auth_client.get("/api/network/dns-query?domain=--flag")
+    assert res_dns.status_code == 400

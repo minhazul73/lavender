@@ -776,13 +776,24 @@ def dns_lookup(domain: str = "google.com") -> dict:
             "ipv6": ipv6_records,
             "count": len(ipv4_records) + len(ipv6_records),
         }
-    except Exception as e:
+    except socket.gaierror:
         elapsed_ms = (time.perf_counter() - start_time) * 1000.0
         return {
             "domain": domain,
             "success": False,
             "time_ms": round(elapsed_ms, 1),
-            "error": str(e),
+            "error": "Domain resolution failed",
+            "ipv4": [],
+            "ipv6": [],
+            "count": 0,
+        }
+    except Exception:
+        elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+        return {
+            "domain": domain,
+            "success": False,
+            "time_ms": round(elapsed_ms, 1),
+            "error": "DNS lookup failed",
             "ipv4": [],
             "ipv6": [],
             "count": 0,

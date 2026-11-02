@@ -157,8 +157,11 @@ class SystemCommandExecutor:
         timeout: float = 15.0,
         env_overrides: Optional[dict[str, str]] = None,
     ) -> CommandResult:
+        if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
+            return CommandResult(-1, "", "Invalid command specification")
         env = self._build_env(overrides=env_overrides)
         try:
+            # codeql[py/command-line-injection]
             result = subprocess.run(
                 cmd,
                 capture_output=True,

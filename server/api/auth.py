@@ -3,6 +3,7 @@ Authentication API endpoints: Login, Logout, Elevation, and User Profile.
 """
 import logging
 from typing import Optional
+from urllib.parse import quote_plus, urlsplit
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, Form, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
@@ -48,6 +49,20 @@ class ElevateRequest(BaseModel):
     password: str
 
 
+def _sanitize_next_url(target: Optional[str]) -> str:
+    """Ensure redirect URL is strictly an internal relative path without scheme or netloc."""
+    if not target or not isinstance(target, str):
+        return "/"
+    target = target.strip()
+    try:
+        parsed = urlsplit(target)
+        if not parsed.scheme and not parsed.netloc and target.startswith("/") and not target.startswith(("//", "/\\")):
+            return target
+    except Exception:
+        pass
+    return "/"
+
+
 @router.post("/login")
 @limiter.limit(LOGIN_RATE_LIMIT)
 async def api_login(
@@ -65,22 +80,22 @@ async def api_login(
     if is_json:
         try:
             body = await request.json()
-            username = body.get("username", "").strip()
-            password = body.get("password", "")
-            next = body.get("next", "/")
+            username = str(body.get("username", "")).strip()
+            password = str(body.get("password", ""))
+            safe_next = _sanitize_next_url(body.get("next"))
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid JSON payload")
     else:
         username = (username or "").strip()
         password = password or ""
-        next = next or "/"
+        safe_next = _sanitize_next_url(next)
 
     if not username or not password:
         err_msg = "Username and password are required"
         if is_json:
             raise HTTPException(status_code=400, detail=err_msg)
         return RedirectResponse(
-            url=f"/login?error={err_msg}&next={next}",
+            url=f"/login?error={quote_plus(err_msg)}&next={quote_plus(safe_next)}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
@@ -90,24 +105,21 @@ async def api_login(
         if is_json:
             raise HTTPException(status_code=401, detail=str(exc))
         return RedirectResponse(
-            url=f"/login?error=Invalid+username+or+password&next={next}",
+            url=f"/login?error=Invalid+username+or+password&next={quote_plus(safe_next)}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
-    except Exception as exc:
+    except Exception:
         logger.exception("Unexpected login error for %s", username)
         if is_json:
             raise HTTPException(status_code=500, detail="Login system error")
         return RedirectResponse(
-            url=f"/login?error=System+error&next={next}",
+            url=f"/login?error=System+error&next={quote_plus(safe_next)}",
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
     # Authentication succeeded: create session and set signed cookie
     session = await session_store.create(username, user_info)
     signed_token = session_store.sign_session_id(session.session_id)
-
-    # Sanitize next parameter to prevent open redirects
-    safe_next = next if next and next.startswith("/") and not next.startswith("//") else "/"
 
     if is_json:
         res = JSONResponse(content={
@@ -144,8 +156,10 @@ async def _do_logout(request: Request, session: Optional[UserSession]):
     if is_json and request.method == "POST":
         res = JSONResponse(content={"success": True})
     else:
-        next_url = request.query_params.get("next")
-        if not next_url:
+        raw_next = request.query_params.get("next")
+        if raw_next:
+            next_url = _sanitize_next_url(raw_next)
+        else:
             next_url = "/" if not REQUIRE_AUTH_FOR_HOMEPAGE else "/login?msg=Logged+out+successfully"
         res = RedirectResponse(url=next_url, status_code=status.HTTP_303_SEE_OTHER)
 
@@ -190,7 +204,7 @@ async def api_elevate(
 
     valid, err = await verify_sudo_password(password)
     if not valid:
-        logger.warning("Administrative elevation failed for user %s: %s", session.username, err)
+        logger.warning("Administrative elevation failed for user %s", session.username)
         raise HTTPException(
             status_code=400,
             detail=f"Incorrect password for '{session.username}'. Please enter the password for user '{session.username}' (user must have wheel/sudo group permissions).",

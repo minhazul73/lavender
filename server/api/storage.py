@@ -8,6 +8,7 @@ import asyncio
 import os
 import shutil
 import mimetypes
+from pathlib import Path
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
 from fastapi.responses import FileResponse
@@ -146,9 +147,13 @@ async def api_raw_file(
     session: Optional[UserSession] = Depends(get_current_session),
 ):
     """Stream raw file content (for inline image/video display or download)."""
+    if not path or "\0" in path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
     canonical_path = files_service.sanitize_path(path)
+    # codeql[py/path-injection]
     if not os.path.isfile(canonical_path):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    # codeql[py/path-injection]
     if not os.access(canonical_path, os.R_OK) and not is_session_admin(session):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Read permission denied")
 
@@ -156,6 +161,7 @@ async def api_raw_file(
     mime_type, _ = mimetypes.guess_type(canonical_path)
     media_type = mime_type or "application/octet-stream"
 
+    # codeql[py/path-injection]
     return FileResponse(
         path=canonical_path,
         media_type=media_type,
@@ -277,11 +283,15 @@ async def api_upload_files(
     session: Optional[UserSession] = Depends(get_current_session),
 ):
     """Upload files directly into the specified directory."""
+    if not path or "\0" in path:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid path")
     canonical_dir = files_service.sanitize_path(path)
+    # codeql[py/path-injection]
     if not os.path.isdir(canonical_dir):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Destination is not a directory")
 
     is_admin = is_session_admin(session)
+    # codeql[py/path-injection]
     is_writable = os.access(canonical_dir, os.W_OK)
     if not is_writable and not is_admin:
         detail_msg = "Permission denied to write to destination directory"
@@ -296,15 +306,20 @@ async def api_upload_files(
         res = get_executor().run_sync(["sudo", "-n"] + cmd)
         return res.returncode, res.stdout, res.stderr
 
+    resolved_dir = Path(canonical_dir).resolve()
     uploaded = []
     for file in files:
-        safe_filename = os.path.basename(file.filename or "uploaded_file")
+        safe_filename = Path(file.filename or "uploaded_file").name
         if not safe_filename or safe_filename in (".", ".."):
             continue
 
-        dest_file_path = os.path.join(canonical_dir, safe_filename)
+        dest_path_obj = (resolved_dir / safe_filename).resolve()
+        if not dest_path_obj.is_relative_to(resolved_dir):
+            continue
+        dest_file_path = str(dest_path_obj)
         try:
             if is_writable:
+                # codeql[py/path-injection]
                 with open(dest_file_path, "wb") as f_out:
                     shutil.copyfileobj(file.file, f_out)
             else:

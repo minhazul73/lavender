@@ -81,3 +81,15 @@ async def test_auth_config_locked_toggle(client):
         assert res.status_code == 200
         data = res.json()
         assert data["require_auth_for_homepage"] is True
+
+
+@pytest.mark.asyncio
+async def test_open_redirect_protection_on_logout(auth_client):
+    """Ensure malicious redirect targets are sanitized to internal paths."""
+    res = await auth_client.get("/auth/logout?next=https://evil.com", follow_redirects=False)
+    assert res.status_code == 303
+    assert res.headers.get("location") == "/"
+
+    res2 = await auth_client.get("/auth/logout?next=//evil.com/path", follow_redirects=False)
+    assert res2.status_code == 303
+    assert res2.headers.get("location") == "/"

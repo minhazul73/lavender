@@ -36,3 +36,14 @@ async def test_packages_upgrade_admin_gate(auth_client, admin_client):
         res_ok = await admin_client.post("/api/packages/upgrade")
         assert res_ok.status_code == 200
         assert res_ok.json()["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_packages_invalid_input_validation(auth_client, admin_client):
+    # Malicious package names starting with flags
+    res = await admin_client.post("/api/packages/install?package=--malicious")
+    assert res.status_code == 400
+
+    # Malicious query string
+    res_q = await auth_client.get("/api/packages/search?query=--flag")
+    assert res_q.status_code == 400

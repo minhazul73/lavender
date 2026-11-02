@@ -2,8 +2,9 @@
 Network API routes for Lavender.
 Provides network overview, interface inspection, WiFi scanning, ping, and DNS resolution.
 """
+import re
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from server.auth.deps import require_session
 from server.auth.session import UserSession
@@ -45,7 +46,10 @@ async def api_ping(
     session: UserSession = Depends(require_session),
 ):
     """Ping a remote address and return round-trip latency and loss statistics."""
-    return ping_test(target, count=count)
+    target_clean = target.strip()
+    if not re.match(r"^[a-zA-Z0-9.:_-]+$", target_clean) or target_clean.startswith("-"):
+        raise HTTPException(status_code=400, detail="Invalid target format")
+    return ping_test(target_clean, count=count)
 
 
 @router.get("/dns-query", summary="DNS resolution test")
@@ -55,7 +59,10 @@ async def api_dns_query(
     session: UserSession = Depends(require_session),
 ):
     """Test resolving a domain and measure lookup latency."""
-    return dns_lookup(domain)
+    domain_clean = domain.strip().lower()
+    if not re.match(r"^[a-zA-Z0-9.:_-]+$", domain_clean) or domain_clean.startswith("-"):
+        raise HTTPException(status_code=400, detail="Invalid domain format")
+    return dns_lookup(domain_clean)
 
 
 @router.post("/wifi-scan", summary="Scan nearby WiFi SSIDs")

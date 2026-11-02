@@ -4,6 +4,8 @@ Provides REST APIs, SSE telemetry, and serves the production React SPA bundle.
 """
 import os
 import asyncio
+from pathlib import Path
+from urllib.parse import urlsplit
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response, HTTPException
@@ -179,8 +181,13 @@ async def root_view(request: Request) -> Response:
 async def login_view(request: Request) -> Response:
     session = getattr(request.state, "session", None)
     if session:
-        next_url = request.query_params.get("next", "/")
-        return RedirectResponse(url=next_url if next_url.startswith("/") else "/")
+        raw_next = request.query_params.get("next", "/")
+        try:
+            parsed = urlsplit(raw_next)
+            safe_next = raw_next if not parsed.scheme and not parsed.netloc and raw_next.startswith("/") and not raw_next.startswith(("//", "/\\")) else "/"
+        except Exception:
+            safe_next = "/"
+        return RedirectResponse(url=safe_next)
     return _serve_spa_index()
 
 
@@ -192,9 +199,13 @@ async def spa_fallback(path: str) -> Response:
         raise HTTPException(status_code=404, detail="Endpoint not found")
 
     # Serve raw static files from dist root if they exist (e.g. favicon, robots.txt)
-    file_path = os.path.join(dist_dir, path)
-    if os.path.isfile(file_path):
-        return FileResponse(file_path)
+    try:
+        dist_path = Path(dist_dir).resolve()
+        target_path = (dist_path / path).resolve()
+        if target_path.is_relative_to(dist_path) and target_path.is_file():
+            return FileResponse(str(target_path))
+    except (ValueError, RuntimeError):
+        pass
 
     return _serve_spa_index()
 
