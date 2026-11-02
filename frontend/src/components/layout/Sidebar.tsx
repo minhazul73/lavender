@@ -228,7 +228,7 @@ export const Sidebar: React.FC = () => {
             whiteSpace: 'nowrap',
           }}
         >
-          v0.4.0
+          v{systemInfo?.app_version || __APP_VERSION__}
         </span>
         {!collapsed && systemInfo?.os_name && (
           <span

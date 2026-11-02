@@ -11,6 +11,7 @@ export interface SystemInfo {
   cpu_model?: string;
   cpu_cores?: number;
   total_memory?: string;
+  app_version?: string;
 }
 
 export interface CpuCoreUsage {

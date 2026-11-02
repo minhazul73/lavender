@@ -13,7 +13,7 @@ All Lavender configuration constants are defined in [`server/core/config.py`](fi
 | `LAVENDER_PORT` / `PORT` | `8080` | Port for the FastAPI web server |
 | `LAVENDER_HOST` / `HOST` | `"0.0.0.0"` | Bind network interface (`0.0.0.0` binds all interfaces) |
 | `LAVENDER_DEBUG` | `False` | Enable debug mode (`true`/`false` or `1`/`0`) |
-| `APP_VERSION` | `"0.4.0"` | Current application version |
+| `APP_VERSION` | `"0.5.0"` | Current application version |
 
 ### Authentication & Sessions
 

@@ -14,7 +14,7 @@ CORS_ORIGINS_RAW = os.environ.get("LAVENDER_CORS_ORIGINS", "")
 CORS_ORIGINS: list[str] = [o.strip() for o in CORS_ORIGINS_RAW.split(",") if o.strip()]
 
 # Application Version (SemVer: < 1.0 indicates development / pre-release status)
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.5.0"
 
 # Sudo commands that need elevation (documented limitation)
 SUDO_COMMANDS = {

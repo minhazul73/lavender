@@ -5,10 +5,12 @@ Avoids hardcoding any specific phone or board model.
 """
 import os
 import platform
-import subprocess
 import socket
+import subprocess
 from functools import lru_cache
-from typing import Dict, Any
+from typing import Any, Dict
+
+from server.core.config import APP_VERSION
 
 
 def get_device_model() -> str:
@@ -166,4 +168,5 @@ def get_system_info() -> Dict[str, Any]:
         "kernel": platform.release(),
         "arch": platform.machine(),
         "hostname": socket.gethostname(),
+        "app_version": APP_VERSION,
     }

@@ -10,6 +10,7 @@ async def test_get_device_info(client):
     assert "kernel" in data
     assert "model" in data
     assert "arch" in data
+    assert data.get("app_version") == "0.5.0"
 
 
 @pytest.mark.asyncio
