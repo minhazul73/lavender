@@ -93,13 +93,17 @@ const DashboardRoutes: React.FC = () => {
         <Route
           path="/"
           element={
-            requireAuthForHomepage ? (
-              <RequireAuth>
-                <OverviewPage />
-              </RequireAuth>
-            ) : (
-              <OverviewPage />
-            )
+            <React.Suspense fallback={<LoadingSpinner size={36} label="Loading..." />}>
+              <ErrorBoundary>
+                {requireAuthForHomepage ? (
+                  <RequireAuth>
+                    <OverviewPage />
+                  </RequireAuth>
+                ) : (
+                  <OverviewPage />
+                )}
+              </ErrorBoundary>
+            </React.Suspense>
           }
         />
 
@@ -113,13 +117,13 @@ const DashboardRoutes: React.FC = () => {
             </RequireAuth>
           }
         >
-          <Route path="/services" element={<ServicesPage />} />
-          <Route path="/processes" element={<ProcessesPage />} />
-          <Route path="/storage" element={<StoragePage />} />
-          <Route path="/network" element={<NetworkPage />} />
-          <Route path="/packages" element={<PackagesPage />} />
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/power" element={<PowerPage />} />
+          <Route path="/services" element={<ErrorBoundary><ServicesPage /></ErrorBoundary>} />
+          <Route path="/processes" element={<ErrorBoundary><ProcessesPage /></ErrorBoundary>} />
+          <Route path="/storage" element={<ErrorBoundary><StoragePage /></ErrorBoundary>} />
+          <Route path="/network" element={<ErrorBoundary><NetworkPage /></ErrorBoundary>} />
+          <Route path="/packages" element={<ErrorBoundary><PackagesPage /></ErrorBoundary>} />
+          <Route path="/users" element={<ErrorBoundary><UsersPage /></ErrorBoundary>} />
+          <Route path="/power" element={<ErrorBoundary><PowerPage /></ErrorBoundary>} />
         </Route>
       </Route>
 
