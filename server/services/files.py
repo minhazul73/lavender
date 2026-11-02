@@ -12,7 +12,13 @@ import tempfile
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 
-from server.dependencies import run_sudo_command
+from server.core.executor import get_executor
+
+
+def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    full_cmd = ["sudo"] + cmd if cmd and cmd[0] == "-n" else ["sudo", "-n"] + cmd
+    res = get_executor().run_sync(full_cmd, timeout=float(timeout))
+    return res.returncode, res.stdout, res.stderr
 
 PROTECTED_PATHS = frozenset([
     "/", "/bin", "/boot", "/dev", "/etc", "/lib", "/lib32", "/lib64",

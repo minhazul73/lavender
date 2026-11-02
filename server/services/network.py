@@ -10,7 +10,13 @@ import subprocess
 import time
 from typing import Optional
 
-from server.dependencies import run_command, which
+from server.core.executor import get_executor
+from server.utils.cmd import which
+
+
+def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    res = get_executor().run_sync(cmd, timeout=float(timeout))
+    return res.returncode, res.stdout, res.stderr
 
 
 def format_bytes(bytes_count: int) -> str:

@@ -9,11 +9,6 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 
 from server.auth.session import UserSession
 from server.auth.deps import require_session, require_admin, get_current_session
-from server.dependencies import (
-    run_command,
-    parse_passwd_users,
-    parse_groups,
-)
 from server.auth.bridge import (
     run_user_service_async,
     run_sudo_async,

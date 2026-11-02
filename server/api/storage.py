@@ -289,8 +289,12 @@ async def api_upload_files(
             detail_msg = "Administrative elevation required to upload files to this directory."
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail_msg)
 
-    from server.dependencies import run_sudo_command
+    from server.core.executor import get_executor
     import tempfile
+
+    def _run_sudo(cmd: list[str]) -> tuple[int, str, str]:
+        res = get_executor().run_sync(["sudo", "-n"] + cmd)
+        return res.returncode, res.stdout, res.stderr
 
     uploaded = []
     for file in files:
@@ -307,9 +311,9 @@ async def api_upload_files(
                 with tempfile.NamedTemporaryFile("wb", delete=False) as tf:
                     shutil.copyfileobj(file.file, tf)
                     tmp_name = tf.name
-                code, out, err = run_sudo_command(["cp", "-f", tmp_name, dest_file_path])
+                code, out, err = _run_sudo(["cp", "-f", tmp_name, dest_file_path])
                 if code == 0:
-                    run_sudo_command(["chmod", "644", dest_file_path])
+                    _run_sudo(["chmod", "644", dest_file_path])
                 if os.path.exists(tmp_name):
                     try:
                         os.remove(tmp_name)

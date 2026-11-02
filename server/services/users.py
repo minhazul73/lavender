@@ -6,18 +6,27 @@ import shutil
 import subprocess
 from typing import Optional
 
-from server.dependencies import (
+from server.core.executor import get_executor
+from server.utils.cmd import which
+from server.utils.passwd import (
     parse_passwd_users,
     parse_all_passwd_users,
     parse_groups,
+)
+from server.utils.sessions import (
     parse_active_sessions,
     parse_login_history,
+)
+from server.utils.system import (
     get_current_user_info,
     read_sudoers,
     visudo_check,
-    run_command,
-    which,
 )
+
+
+def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    res = get_executor().run_sync(cmd, timeout=float(timeout))
+    return res.returncode, res.stdout, res.stderr
 
 # Known Linux groups and human-intelligible categorization
 GROUP_METADATA = {
