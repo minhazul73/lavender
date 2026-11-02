@@ -1,17 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useSSE } from '../../hooks/useSSE';
-import { api } from '../../api/client';
-import {
-  StorageOverviewResponse,
-  ServicesListResponse,
-  ProcessesOverviewResponse,
-  ThermalZone,
-  SystemLogItem,
-  BatteryTelemetry,
-} from '../../api/types';
+import { ThermalZone } from '../../api/types';
 import { formatRate, formatMemKb, formatBatteryTime, formatLogTime } from '../../utils/formatters';
 import { useSmoothSparkline, useSmoothCoreSparkline } from '../../hooks/useSmoothSparkline';
+import { useOverviewData } from './useOverviewData';
 import {
   Cpu,
   Server,
@@ -93,7 +85,16 @@ export const OverviewPage: React.FC = () => {
     }
   }, []);
 
-  const { data: liveData } = useSSE({ onMetric: handleMetricUpdate });
+  const {
+    services,
+    disks,
+    processes,
+    sseData,
+    recentLogs,
+    restBattery,
+    restThermal,
+  } = useOverviewData({ onMetric: handleMetricUpdate });
+  const liveData = sseData;
 
   // Seed buffers once from initial telemetry data (e.g. test mocks or first frame)
   const seededRef = useRef(false);
@@ -120,52 +121,6 @@ export const OverviewPage: React.FC = () => {
       seededRef.current = true;
     }
   }, [liveData, ramHistory.length, netUpHistory.length, netDownHistory.length, coreBuffers]);
-
-  // REST data state
-  const [storageData, setStorageData] = useState<StorageOverviewResponse | null>(null);
-  const [servicesData, setServicesData] = useState<ServicesListResponse | null>(null);
-  const [topProcesses, setTopProcesses] = useState<ProcessesOverviewResponse | null>(null);
-  const [recentLogs, setRecentLogs] = useState<SystemLogItem[]>([]);
-  const [restBattery, setRestBattery] = useState<BatteryTelemetry | null>(null);
-  const [restThermal, setRestThermal] = useState<ThermalZone[] | null>(null);
-
-  // Initial load for overview cards (storage, services, logs, initial battery/thermal fallback)
-  useEffect(() => {
-    let isMounted = true;
-    Promise.allSettled([
-      api.get<StorageOverviewResponse>('/api/system/storage'),
-      api.get<ServicesListResponse>('/api/system/services'),
-      api.get<{ logs: SystemLogItem[] }>('/api/system/logs?limit=30'),
-      api.get<ProcessesOverviewResponse>('/api/system/processes?sort_by=mem&limit=10'),
-      api.get<{ battery?: BatteryTelemetry; thermal?: ThermalZone[] }>('/api/device/battery'),
-    ]).then(([storage, services, logs, procs, batt]) => {
-      if (!isMounted) return;
-      if (storage.status === 'fulfilled' && storage.value) setStorageData(storage.value);
-      if (services.status === 'fulfilled' && services.value) setServicesData(services.value);
-      if (logs.status === 'fulfilled' && logs.value?.logs) setRecentLogs(logs.value.logs);
-      if (procs.status === 'fulfilled' && procs.value) setTopProcesses(procs.value);
-      if (batt.status === 'fulfilled' && batt.value) {
-        if (batt.value.battery) setRestBattery(batt.value.battery);
-        if (batt.value.thermal) setRestThermal(batt.value.thermal);
-      }
-    });
-
-    // Top processes refreshes periodically (every 5s, matching main branch)
-    const procInterval = setInterval(() => {
-      if (!document.hidden && isMounted) {
-        api.get<ProcessesOverviewResponse>('/api/system/processes?sort_by=mem&limit=10')
-          .then((res) => {
-            if (isMounted && res) setTopProcesses(res);
-          })
-          .catch(() => {});
-      }
-    }, 5000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(procInterval);
-    };
-  }, []);
 
   // Thermal zones resolution (live SSE takes precedence, fallback to REST)
   const thermalZones: ThermalZone[] = useMemo(() => {
@@ -195,7 +150,7 @@ export const OverviewPage: React.FC = () => {
 
   // Services count breakdown
   const svcCounts = useMemo(() => {
-    const list = servicesData?.services;
+    const list = services;
     if (!list || !Array.isArray(list) || list.length === 0) {
       return { active: 98, inactive: 129, failed: 1, total: 228 };
     }
@@ -207,7 +162,7 @@ export const OverviewPage: React.FC = () => {
       else inactive++;
     });
     return { active, inactive, failed, total: list.length };
-  }, [servicesData]);
+  }, [services]);
 
   // Battery metrics (live SSE takes precedence, fallback to REST)
   const batt = liveData?.battery || restBattery;
@@ -589,8 +544,8 @@ export const OverviewPage: React.FC = () => {
           </div>
           <div className="card-body store-card-body">
             <div id="store-mounts" className="store-mounts-container">
-              {storageData?.disks && storageData.disks.length > 0 ? (
-                storageData.disks
+              {disks && disks.length > 0 ? (
+                disks
                   .filter((d) => {
                     const m = (d.mount || d.mount_point || '').toLowerCase();
                     return !m.includes('efivars') && !m.includes('credentials');
@@ -750,8 +705,8 @@ export const OverviewPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody id="top-processes">
-                    {topProcesses?.processes && topProcesses.processes.length > 0 ? (
-                      topProcesses.processes.map((p) => {
+                    {processes && processes.length > 0 ? (
+                      processes.map((p) => {
                         const cpuVal = typeof p.cpu === 'number' ? `${p.cpu.toFixed(1)}s` : (p.cpu || '0.0s');
                         const memKb = p.mem || 0;
                         const memVal = memKb >= 1024 ? `${(memKb / 1024).toFixed(0)} MB` : `${memKb} kB`;
