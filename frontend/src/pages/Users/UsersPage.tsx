@@ -12,8 +12,10 @@ import {
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useClipboard } from '../../hooks/useClipboard';
-import { Modal } from '../../components/common/Modal';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
+import { SshKeysModal } from './SshKeysModal';
+import { GroupEditModal } from './GroupEditModal';
+import { PasswordModal } from './PasswordModal';
 import {
   Users,
   Shield,
@@ -38,27 +40,6 @@ import {
 type TabType = 'accounts' | 'sessions' | 'groups' | 'security';
 type GroupFilterType = 'all' | 'Privileged' | 'Hardware' | 'Services' | 'System';
 
-interface EditableGroup {
-  name: string;
-  label: string;
-  desc: string;
-  cat: 'priv' | 'hw';
-}
-
-const COMMON_GROUPS: EditableGroup[] = [
-  { name: 'wheel', label: 'Admin / Wheel', desc: 'Administrative & sudo elevation privileges', cat: 'priv' },
-  { name: 'sudo', label: 'Admin / Sudo', desc: 'Administrative execution privileges', cat: 'priv' },
-  { name: 'docker', label: 'Docker Containers', desc: 'Control Docker containers and daemon without root', cat: 'priv' },
-  { name: 'audio', label: 'Audio & Sound Card', desc: 'Audio playback, microphone, and sound card access', cat: 'hw' },
-  { name: 'video', label: 'GPU & Display', desc: 'GPU acceleration, display server, and framebuffer', cat: 'hw' },
-  { name: 'netdev', label: 'Network & Cellular', desc: 'Network configuration, Wi-Fi, and cellular modem', cat: 'hw' },
-  { name: 'plugdev', label: 'USB OTG & Storage', desc: 'USB OTG, portable drives, and plug-and-play devices', cat: 'hw' },
-  { name: 'dialout', label: 'Serial & GPS Modem', desc: 'Serial communication, modem, and GPS devices', cat: 'hw' },
-  { name: 'input', label: 'Hardware Input', desc: 'Touch screen, buttons, keyboard, and pointer devices', cat: 'hw' },
-  { name: 'camera', label: 'Camera Hardware', desc: 'Camera sensors and video capture (V4L2)', cat: 'hw' },
-  { name: 'disk', label: 'Raw Storage Disks', desc: 'Raw disk and block storage devices', cat: 'hw' },
-  { name: 'kvm', label: 'Virtualization', desc: 'Kernel-based virtual machine acceleration', cat: 'hw' },
-];
 
 function getUsername(u: UserItem): string {
   return u.name || u.username || '';
@@ -1410,294 +1391,46 @@ export const UsersPage: React.FC = () => {
       )}
 
       {/* ── Add / Manage SSH Keys Modal ──────────────────────────── */}
-      {isSshModalOpen && (
-        <Modal
-          isOpen={isSshModalOpen}
-          onClose={() => setIsSshModalOpen(false)}
-          maxWidth="640px"
-          title={
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Key size={18} color="var(--purple)" /> Authorized SSH Keys: {selectedSshUser}
-            </span>
-          }
-        >
-          <div>
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ fontSize: '0.9rem', marginBottom: '8px', color: 'var(--text-secondary)' }}>
-                Installed Public Keys ({sshKeys.length})
-              </h4>
-              {sshLoading ? (
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Loading keys…</div>
-              ) : sshKeys.length === 0 ? (
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '12px 0' }}>
-                  No SSH keys configured for this user.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                  {sshKeys.map((item, idx) => {
-                    const rawKey = typeof item === 'object' && item !== null ? item.raw || item.preview : String(item);
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          background: 'rgba(0,0,0,0.3)',
-                          padding: '8px 12px',
-                          borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border)',
-                        }}
-                      >
-                        <span
-                          className="font-mono ssh-modal-key-preview"
-                          style={{
-                            fontSize: '0.75rem',
-                            color: 'var(--text-secondary)',
-                          }}
-                          title={rawKey}
-                        >
-                          {rawKey}
-                        </span>
-                        <button
-                          className="btn btn-xs btn-ghost"
-                          style={{ color: '#f87171' }}
-                          title="Delete Key"
-                          onClick={() => handleDeleteSshKey(idx)}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <form onSubmit={handleAddSshKey} style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-              <label className="form-label" htmlFor="new-ssh-key-input">
-                Add Public Key
-              </label>
-              <textarea
-                id="new-ssh-key-input"
-                className="form-input"
-                rows={3}
-                placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5... user@laptop"
-                value={newSshKey}
-                onChange={(e) => setNewSshKey(e.target.value)}
-                style={{ fontFamily: varFontMono, fontSize: '0.8rem', resize: 'vertical' }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={addKeyLoading || !newSshKey.trim()}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <Plus size={14} />
-                  <span>{addKeyLoading ? 'Adding…' : 'Add Public Key'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </Modal>
-      )}
+      <SshKeysModal
+        isOpen={isSshModalOpen}
+        onClose={() => setIsSshModalOpen(false)}
+        selectedSshUser={selectedSshUser}
+        sshKeys={sshKeys}
+        sshLoading={sshLoading}
+        handleDeleteSshKey={handleDeleteSshKey}
+        handleAddSshKey={handleAddSshKey}
+        newSshKey={newSshKey}
+        setNewSshKey={setNewSshKey}
+        addKeyLoading={addKeyLoading}
+      />
 
       {/* ── Edit Groups Modal ────────────────────────────────────── */}
-      {selectedEditUser && (
-        <Modal
-          isOpen={Boolean(selectedEditUser)}
-          onClose={() => setSelectedEditUser(null)}
-          maxWidth="640px"
-          title={
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Layers size={18} color="var(--purple)" /> Edit Groups: {getUsername(selectedEditUser)}
-            </span>
-          }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-              Select secondary groups to grant administrative or hardware subsystem privileges.
-            </p>
-
-            {/* Privileged Groups Section */}
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#c084fc', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Administrative Privileges
-              </div>
-              <div className="edit-groups-grid">
-                {COMMON_GROUPS.filter((g) => g.cat === 'priv').map((g) => {
-                  const isChecked = selectedGroupNames.includes(g.name);
-                  return (
-                    <label
-                      key={g.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '10px',
-                        background: isChecked ? 'rgba(168, 85, 247, 0.12)' : 'rgba(0,0,0,0.25)',
-                        border: `1px solid ${isChecked ? 'rgba(168, 85, 247, 0.4)' : 'var(--border)'}`,
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '10px',
-                        cursor: 'pointer',
-                        transition: 'var(--transition-fast)',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleGroup(g.name)}
-                        style={{ marginTop: '2px' }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {g.label}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{g.desc}</div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Hardware Groups Section */}
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#34d399', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Hardware & Subsystems
-              </div>
-              <div className="edit-groups-grid">
-                {COMMON_GROUPS.filter((g) => g.cat === 'hw').map((g) => {
-                  const isChecked = selectedGroupNames.includes(g.name);
-                  return (
-                    <label
-                      key={g.name}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '10px',
-                        background: isChecked ? 'rgba(16, 185, 129, 0.12)' : 'rgba(0,0,0,0.25)',
-                        border: `1px solid ${isChecked ? 'rgba(16, 185, 129, 0.4)' : 'var(--border)'}`,
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '10px',
-                        cursor: 'pointer',
-                        transition: 'var(--transition-fast)',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => handleToggleGroup(g.name)}
-                        style={{ marginTop: '2px' }}
-                      />
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {g.label}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{g.desc}</div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '4px' }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setSelectedEditUser(null)}
-                disabled={groupsSaving}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSaveGroups}
-                disabled={groupsSaving}
-              >
-                {groupsSaving ? 'Saving Groups…' : 'Save Groups'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <GroupEditModal
+        user={selectedEditUser}
+        selectedGroupNames={selectedGroupNames}
+        isOpen={Boolean(selectedEditUser)}
+        onClose={() => setSelectedEditUser(null)}
+        onToggleGroup={handleToggleGroup}
+        onSaveGroups={handleSaveGroups}
+        groupsSaving={groupsSaving}
+      />
 
       {/* ── Change Password Modal ────────────────────────────────── */}
-      {selectedPassUser && (
-        <Modal
-          isOpen={Boolean(selectedPassUser)}
-          onClose={() => {
-            setSelectedPassUser(null);
-            setNewPassword('');
-            setConfirmPassword('');
-          }}
-          title={
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Lock size={18} color="var(--purple)" /> Change Password: {selectedPassUser}
-            </span>
-          }
-        >
-          <form onSubmit={handleChangePassword}>
-            <div className="form-group" style={{ marginBottom: '14px' }}>
-              <label className="form-label" htmlFor="new-pwd-input">
-                New System Password
-              </label>
-              <input
-                id="new-pwd-input"
-                type="password"
-                className="form-input"
-                placeholder="Enter new password (min 4 chars)"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                autoFocus
-                disabled={passLoading}
-                required
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '14px' }}>
-              <label className="form-label" htmlFor="confirm-pwd-input">
-                Confirm Password
-              </label>
-              <input
-                id="confirm-pwd-input"
-                type="password"
-                className="form-input"
-                placeholder="Repeat new password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={passLoading}
-              />
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setSelectedPassUser(null);
-                  setNewPassword('');
-                  setConfirmPassword('');
-                }}
-                disabled={passLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={passLoading || newPassword.length < 4}
-              >
-                {passLoading ? 'Updating…' : 'Update Password'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <PasswordModal
+        selectedPassUser={selectedPassUser}
+        isOpen={Boolean(selectedPassUser)}
+        onClose={() => {
+          setSelectedPassUser(null);
+          setNewPassword('');
+          setConfirmPassword('');
+        }}
+        onSubmit={handleChangePassword}
+        newPassword={newPassword}
+        setNewPassword={setNewPassword}
+        confirmPassword={confirmPassword}
+        setConfirmPassword={setConfirmPassword}
+        passLoading={passLoading}
+      />
     </div>
   );
 };
-
-const varFontMono = "'JetBrains Mono', monospace";
