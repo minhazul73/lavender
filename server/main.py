@@ -203,9 +203,15 @@ async def spa_fallback(path: str) -> Response:
 
     # Serve known static files from dist root if requested
     if path in ROOT_STATIC_FILES:
-        target = os.path.join(dist_dir, path)
-        if os.path.isfile(target):
-            return FileResponse(target)
+        dist_root = Path(dist_dir).resolve()
+        target_path = (dist_root / path).resolve()
+        try:
+            target_path.relative_to(dist_root)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Endpoint not found")
+
+        if target_path.is_file():
+            return FileResponse(str(target_path))
 
     return _serve_spa_index()
 
