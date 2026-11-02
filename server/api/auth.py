@@ -3,7 +3,7 @@ Authentication API endpoints: Login, Logout, Elevation, and User Profile.
 """
 import logging
 from typing import Optional
-from urllib.parse import quote_plus, urlsplit
+from urllib.parse import quote_plus, urlsplit, urlparse
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, Form, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
@@ -69,6 +69,17 @@ def _sanitize_next_url(target: Optional[str]) -> str:
     if target_clean in SAFE_REDIRECT_ROUTES:
         return target_clean
     return "/"
+
+
+def _is_safe_local_redirect_path(target: Optional[str]) -> bool:
+    """Allow only local, absolute-path redirects without scheme/host/backslash tricks."""
+    if not target or not isinstance(target, str):
+        return False
+    candidate = target.replace("\\", "/").strip()
+    parsed = urlparse(candidate)
+    if parsed.scheme or parsed.netloc:
+        return False
+    return candidate.startswith("/") and candidate in SAFE_REDIRECT_ROUTES
 
 
 @router.post("/login")
@@ -149,7 +160,8 @@ async def api_login(
             "can_elevate": session.can_elevate(),
         })
     else:
-        res = RedirectResponse(url=redirect_dest, status_code=status.HTTP_303_SEE_OTHER)
+        final_redirect_dest = redirect_dest if _is_safe_local_redirect_path(redirect_dest) else "/"
+        res = RedirectResponse(url=final_redirect_dest, status_code=status.HTTP_303_SEE_OTHER)
 
     client_host = request.client.host if request.client else ""
     is_secure = client_host not in ("127.0.0.1", "localhost", "::1")
