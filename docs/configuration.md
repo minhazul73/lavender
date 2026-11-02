@@ -70,3 +70,18 @@ Environment="LAVENDER_PORT=8080"
 Environment="LAVENDER_SECRET_KEY=your-production-secret-here"
 Environment="PAM_SERVICE=system-auth"
 ```
+
+---
+
+## Air-Gapped and Offline Deployments
+
+Lavender is completely functional without internet access:
+- **System Font Fallbacks**: If the Google Fonts CDN (`fonts.googleapis.com`) is unreachable, the UI immediately falls back to native system fonts (`system-ui` for sans-serif, `ui-monospace` for code/data metrics) with zero layout distortion.
+- **Offline Static SPA Build**: Before deploying to an air-gapped environment, build the static frontend assets on a machine with internet access or cached dependencies:
+  ```bash
+  cd frontend
+  bun install
+  bun run build
+  ```
+  The built assets are output directly to `server/dist/` and served locally by FastAPI without external runtime dependencies.
+
