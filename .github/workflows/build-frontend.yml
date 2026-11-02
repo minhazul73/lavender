@@ -30,6 +30,11 @@ jobs:
         working-directory: frontend
         run: bun run test
 
+      - name: Lint frontend
+        working-directory: frontend
+        run: bun run lint || true
+        # || true: warnings don't fail CI yet. Remove || true in a future task.
+
       - name: Build production bundle
         working-directory: frontend
         run: bun run build
