@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import subprocess
 from typing import NamedTuple, Optional, Protocol
 
@@ -52,6 +53,54 @@ class CommandExecutor(Protocol):
 
 
 class SystemCommandExecutor:
+    _SAFE_EXECUTABLES = {
+        "ping",
+        "ip",
+        "iw",
+        "iwconfig",
+        "nmcli",
+        "wpa_cli",
+        "cat",
+        "grep",
+        "awk",
+        "sed",
+        "cut",
+        "tr",
+        "head",
+        "tail",
+        "sort",
+        "uniq",
+        "wc",
+        "journalctl",
+        "systemctl",
+        "kill",
+    }
+    _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
+    _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
+
+    def _validate_command(self, cmd: list[str]) -> Optional[str]:
+        if not cmd:
+            return "Invalid command specification"
+        exe = cmd[0]
+        if exe not in self._SAFE_EXECUTABLES:
+            return f"Executable not allowed: {exe}"
+
+        if exe == "ping":
+            if len(cmd) < 2:
+                return "Invalid ping command"
+            target = cmd[-1]
+            if not target or target.startswith("-") or not self._HOST_RE.match(target):
+                return "Invalid ping target"
+
+        if exe in {"systemctl", "journalctl"}:
+            for token in cmd[1:]:
+                if token.startswith("-"):
+                    continue
+                if "." in token or "@" in token:
+                    if not self._UNIT_RE.match(token):
+                        return f"Invalid unit name: {token}"
+
+        return None
     """Production executor running real Linux subprocesses."""
 
     def _build_env(self, uid: Optional[int] = None, overrides: Optional[dict[str, str]] = None) -> dict[str, str]:
@@ -107,6 +156,9 @@ class SystemCommandExecutor:
         stdin_data: str,
         timeout: float = 15.0,
     ) -> CommandResult:
+        validation_error = self._validate_command(cmd)
+        if validation_error:
+            return CommandResult(-1, "", validation_error)
         env = self._build_env()
         proc = None
         try:
@@ -159,11 +211,13 @@ class SystemCommandExecutor:
     ) -> CommandResult:
         if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
             return CommandResult(-1, "", "Invalid command specification")
+        validation_error = self._validate_command(list(cmd))
+        if validation_error:
+            return CommandResult(-1, "", validation_error)
         env = self._build_env(overrides=env_overrides)
         try:
-            # codeql[py/command-line-injection]
             result = subprocess.run(
-                cmd,  # lgtm[py/command-line-injection]
+                cmd,
                 capture_output=True,
                 text=True,
                 timeout=timeout,
