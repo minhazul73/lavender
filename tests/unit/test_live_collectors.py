@@ -3,7 +3,8 @@ Characterization tests for server/services/live.py.
 These tests lock in the existing behaviour before the file is split (T-035).
 """
 import pytest
-from server.services.live import RingBuffer, RAMCollector
+from server.services.live_buffer import RingBuffer
+from server.services.collectors.ram import RAMCollector
 
 
 class TestRingBuffer:

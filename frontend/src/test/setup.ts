@@ -18,4 +18,7 @@ globalThis.localStorage = {
   key(index) {
     return Array.from(storage.keys())[index] ?? null;
   },
-};
+  get length() {
+    return storage.size;
+  },
+} as Storage;
