@@ -4,14 +4,13 @@ Provides user inspection, active sessions, SSH key management, groups editing, a
 """
 import asyncio
 import os
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from server.auth.bridge import run_sudo_async
 from server.auth.deps import require_admin, require_session
 from server.auth.session import UserSession
 from server.core.executor import get_executor
-from server.utils.passwd import parse_all_passwd_users, parse_groups
 from server.services.users import (
     add_user_ssh_key,
     delete_user_ssh_key,
@@ -26,6 +25,7 @@ from server.services.users import (
     get_user_groups,
     get_user_ssh_keys,
 )
+from server.utils.passwd import parse_all_passwd_users, parse_groups
 
 router = APIRouter()
 

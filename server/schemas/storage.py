@@ -1,25 +1,26 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class StorageDiskItem(BaseModel):
-    filesystem: Optional[str] = None
-    size: Optional[str] = None
-    used: Optional[str] = None
-    available: Optional[str] = None
-    use_percent: Optional[str] = None
-    mount_point: Optional[str] = None
+    filesystem: str | None = None
+    size: str | None = None
+    used: str | None = None
+    available: str | None = None
+    use_percent: str | None = None
+    mount_point: str | None = None
 
 
 class StorageOverviewResponse(BaseModel):
-    disks: List[Dict[str, Any]]
+    disks: list[dict[str, Any]]
 
 
 class UnmountResponse(BaseModel):
     success: bool
-    mount_point: Optional[str] = None
-    message: Optional[str] = None
-    error: Optional[str] = None
+    mount_point: str | None = None
+    message: str | None = None
+    error: str | None = None
 
 
 class SaveFileRequest(BaseModel):
@@ -35,7 +36,7 @@ class CreateDirRequest(BaseModel):
 class CreateFileRequest(BaseModel):
     path: str
     name: str
-    content: Optional[str] = ""
+    content: str | None = ""
 
 
 class RenameRequest(BaseModel):
@@ -44,5 +45,5 @@ class RenameRequest(BaseModel):
 
 
 class DeleteFilesRequest(BaseModel):
-    paths: List[str]
+    paths: list[str]
 

@@ -3,11 +3,10 @@ Distro-Agnostic Package Management Service.
 Supports Alpine/postmarketOS (apk), Debian/Ubuntu/Linux Mint (apt/dpkg),
 Arch Linux/Manjaro (pacman), and Fedora/RHEL (dnf/rpm).
 """
-import os
 import re
-import time
 import shutil
-from typing import Optional, List, Dict, Any
+import time
+from typing import Any
 
 from server.core.executor import get_executor
 
@@ -44,28 +43,28 @@ class BasePackageManager:
     def is_available(self) -> bool:
         return False
 
-    def get_installed_packages(self) -> List[Dict[str, Any]]:
+    def get_installed_packages(self) -> list[dict[str, Any]]:
         return []
 
     def get_installed_count(self) -> int:
         return len(self.get_installed_packages())
 
-    def get_upgradable_packages(self) -> List[Dict[str, Any]]:
+    def get_upgradable_packages(self) -> list[dict[str, Any]]:
         return []
 
-    def search_packages(self, query: str) -> List[Dict[str, Any]]:
+    def search_packages(self, query: str) -> list[dict[str, Any]]:
         return []
 
-    def get_package_info(self, package_name: str) -> Dict[str, Any]:
+    def get_package_info(self, package_name: str) -> dict[str, Any]:
         return {"package": package_name, "info": "Information not available"}
 
-    def get_upgrade_command(self, package: Optional[str] = None) -> List[str]:
+    def get_upgrade_command(self, package: str | None = None) -> list[str]:
         return []
 
-    def get_install_command(self, package: str) -> List[str]:
+    def get_install_command(self, package: str) -> list[str]:
         return []
 
-    def get_remove_command(self, package: str) -> List[str]:
+    def get_remove_command(self, package: str) -> list[str]:
         return []
 
 
@@ -78,7 +77,7 @@ class ApkManager(BasePackageManager):
     def is_available(self) -> bool:
         return bool(shutil.which("apk"))
 
-    def get_installed_packages(self) -> List[Dict[str, Any]]:
+    def get_installed_packages(self) -> list[dict[str, Any]]:
         code, out, err = run_command(["apk", "info", "-v"], timeout=20)
         if code != 0:
             code, out, err = run_command(["apk", "info"], timeout=15)
@@ -121,7 +120,7 @@ class ApkManager(BasePackageManager):
             return len(lines)
         return 0
 
-    def get_upgradable_packages(self) -> List[Dict[str, Any]]:
+    def get_upgradable_packages(self) -> list[dict[str, Any]]:
         code, out, err = run_command(["apk", "list", "--upgradable"], timeout=20)
         if code != 0:
             return [{"error": err or "Failed to check upgradable packages"}]
@@ -156,7 +155,7 @@ class ApkManager(BasePackageManager):
                 packages.append(pkg_info)
         return packages
 
-    def search_packages(self, query: str) -> List[Dict[str, Any]]:
+    def search_packages(self, query: str) -> list[dict[str, Any]]:
         code, out, err = run_command(["apk", "search", query], timeout=15)
         if code != 0:
             return [{"error": err or "Package search failed"}]
@@ -176,7 +175,7 @@ class ApkManager(BasePackageManager):
             results.append({"name": name, "version": version, "full": line})
         return results
 
-    def get_package_info(self, package_name: str) -> Dict[str, Any]:
+    def get_package_info(self, package_name: str) -> dict[str, Any]:
         code, out, err = run_command(["apk", "info", package_name], timeout=10)
         return {
             "package": package_name,
@@ -184,13 +183,13 @@ class ApkManager(BasePackageManager):
             "error": err if code != 0 else None,
         }
 
-    def get_upgrade_command(self, package: Optional[str] = None) -> List[str]:
+    def get_upgrade_command(self, package: str | None = None) -> list[str]:
         return ["apk", "add", "-u", package] if package else ["apk", "upgrade"]
 
-    def get_install_command(self, package: str) -> List[str]:
+    def get_install_command(self, package: str) -> list[str]:
         return ["apk", "add", package]
 
-    def get_remove_command(self, package: str) -> List[str]:
+    def get_remove_command(self, package: str) -> list[str]:
         return ["apk", "del", package]
 
 
@@ -203,7 +202,7 @@ class AptManager(BasePackageManager):
     def is_available(self) -> bool:
         return bool(shutil.which("dpkg-query") or shutil.which("apt"))
 
-    def get_installed_packages(self) -> List[Dict[str, Any]]:
+    def get_installed_packages(self) -> list[dict[str, Any]]:
         # dpkg-query is extraordinarily fast (~15ms)
         code, out, err = run_command(
             ["dpkg-query", "-W", "-f=${Package}\t${Version}\t${Architecture}\n"],
@@ -238,7 +237,7 @@ class AptManager(BasePackageManager):
             return len(lines)
         return 0
 
-    def get_upgradable_packages(self) -> List[Dict[str, Any]]:
+    def get_upgradable_packages(self) -> list[dict[str, Any]]:
         code, out, err = run_command(["apt", "list", "--upgradable"], timeout=25)
         if code != 0:
             return [{"error": err or "Failed to check upgradable packages"}]
@@ -270,7 +269,7 @@ class AptManager(BasePackageManager):
                 })
         return packages
 
-    def search_packages(self, query: str) -> List[Dict[str, Any]]:
+    def search_packages(self, query: str) -> list[dict[str, Any]]:
         # First try searching names only
         code, out, err = run_command(
             ["apt-cache", "search", "--names-only", query], timeout=15
@@ -298,7 +297,7 @@ class AptManager(BasePackageManager):
             })
         return results
 
-    def get_package_info(self, package_name: str) -> Dict[str, Any]:
+    def get_package_info(self, package_name: str) -> dict[str, Any]:
         # Try installed package query first
         code, out, err = run_command(["dpkg-query", "-s", package_name], timeout=10)
         if code != 0:
@@ -311,7 +310,7 @@ class AptManager(BasePackageManager):
             "error": err if code != 0 else None,
         }
 
-    def get_upgrade_command(self, package: Optional[str] = None) -> List[str]:
+    def get_upgrade_command(self, package: str | None = None) -> list[str]:
         base = [
             "env",
             "DEBIAN_FRONTEND=noninteractive",
@@ -327,7 +326,7 @@ class AptManager(BasePackageManager):
             return base + ["install", "--only-upgrade", package]
         return base + ["upgrade", "--with-new-pkgs"]
 
-    def get_install_command(self, package: str) -> List[str]:
+    def get_install_command(self, package: str) -> list[str]:
         return [
             "env",
             "DEBIAN_FRONTEND=noninteractive",
@@ -342,7 +341,7 @@ class AptManager(BasePackageManager):
             package,
         ]
 
-    def get_remove_command(self, package: str) -> List[str]:
+    def get_remove_command(self, package: str) -> list[str]:
         return [
             "env",
             "DEBIAN_FRONTEND=noninteractive",
@@ -367,7 +366,7 @@ class PacmanManager(BasePackageManager):
     def is_available(self) -> bool:
         return bool(shutil.which("pacman"))
 
-    def get_installed_packages(self) -> List[Dict[str, Any]]:
+    def get_installed_packages(self) -> list[dict[str, Any]]:
         code, out, err = run_command(["pacman", "-Q"], timeout=20)
         if code != 0:
             return []
@@ -389,7 +388,7 @@ class PacmanManager(BasePackageManager):
             return len([l for l in out.splitlines() if l.strip()])
         return 0
 
-    def get_upgradable_packages(self) -> List[Dict[str, Any]]:
+    def get_upgradable_packages(self) -> list[dict[str, Any]]:
         # Use checkupdates if installed (safer than pacman -Sy)
         chk = shutil.which("checkupdates")
         cmd = [chk] if chk else ["pacman", "-Qu"]
@@ -414,7 +413,7 @@ class PacmanManager(BasePackageManager):
                 })
         return packages
 
-    def search_packages(self, query: str) -> List[Dict[str, Any]]:
+    def search_packages(self, query: str) -> list[dict[str, Any]]:
         code, out, err = run_command(["pacman", "-Ss", query], timeout=15)
         if code != 0:
             return [{"error": err or "Package search failed"}]
@@ -439,7 +438,7 @@ class PacmanManager(BasePackageManager):
                 })
         return results
 
-    def get_package_info(self, package_name: str) -> Dict[str, Any]:
+    def get_package_info(self, package_name: str) -> dict[str, Any]:
         code, out, err = run_command(["pacman", "-Qi", package_name], timeout=10)
         if code != 0:
             code, out, err = run_command(["pacman", "-Si", package_name], timeout=10)
@@ -449,15 +448,15 @@ class PacmanManager(BasePackageManager):
             "error": err if code != 0 else None,
         }
 
-    def get_upgrade_command(self, package: Optional[str] = None) -> List[str]:
+    def get_upgrade_command(self, package: str | None = None) -> list[str]:
         if package:
             return ["pacman", "-S", "--noconfirm", package]
         return ["pacman", "-Syu", "--noconfirm"]
 
-    def get_install_command(self, package: str) -> List[str]:
+    def get_install_command(self, package: str) -> list[str]:
         return ["pacman", "-S", "--noconfirm", package]
 
-    def get_remove_command(self, package: str) -> List[str]:
+    def get_remove_command(self, package: str) -> list[str]:
         return ["pacman", "-R", "--noconfirm", package]
 
 
@@ -470,7 +469,7 @@ class DnfManager(BasePackageManager):
     def is_available(self) -> bool:
         return bool(shutil.which("dnf") or shutil.which("rpm"))
 
-    def get_installed_packages(self) -> List[Dict[str, Any]]:
+    def get_installed_packages(self) -> list[dict[str, Any]]:
         code, out, err = run_command(
             ["rpm", "-qa", "--qf", "%{NAME}\t%{VERSION}-%{RELEASE}\t%{ARCH}\n"],
             timeout=20,
@@ -498,7 +497,7 @@ class DnfManager(BasePackageManager):
             return len([l for l in out.splitlines() if l.strip()])
         return 0
 
-    def get_upgradable_packages(self) -> List[Dict[str, Any]]:
+    def get_upgradable_packages(self) -> list[dict[str, Any]]:
         code, out, err = run_command(["dnf", "check-update", "-q"], timeout=25)
         # dnf check-update returns 100 if updates are available, 0 if none
         if code not in (0, 100):
@@ -521,7 +520,7 @@ class DnfManager(BasePackageManager):
                 })
         return packages
 
-    def search_packages(self, query: str) -> List[Dict[str, Any]]:
+    def search_packages(self, query: str) -> list[dict[str, Any]]:
         code, out, err = run_command(["dnf", "search", "-q", query], timeout=20)
         if code != 0:
             return [{"error": err or "Package search failed"}]
@@ -537,7 +536,7 @@ class DnfManager(BasePackageManager):
             results.append({"name": name, "version": desc, "description": desc, "full": line})
         return results
 
-    def get_package_info(self, package_name: str) -> Dict[str, Any]:
+    def get_package_info(self, package_name: str) -> dict[str, Any]:
         code, out, err = run_command(["rpm", "-qi", package_name], timeout=10)
         return {
             "package": package_name,
@@ -545,15 +544,15 @@ class DnfManager(BasePackageManager):
             "error": err if code != 0 else None,
         }
 
-    def get_upgrade_command(self, package: Optional[str] = None) -> List[str]:
+    def get_upgrade_command(self, package: str | None = None) -> list[str]:
         if package:
             return ["dnf", "upgrade", "-y", package]
         return ["dnf", "upgrade", "-y"]
 
-    def get_install_command(self, package: str) -> List[str]:
+    def get_install_command(self, package: str) -> list[str]:
         return ["dnf", "install", "-y", package]
 
-    def get_remove_command(self, package: str) -> List[str]:
+    def get_remove_command(self, package: str) -> list[str]:
         return ["dnf", "remove", "-y", package]
 
 
@@ -565,7 +564,7 @@ class NullPackageManager(BasePackageManager):
 
 
 # Cache active manager instance
-_CURRENT_MANAGER: Optional[BasePackageManager] = None
+_CURRENT_MANAGER: BasePackageManager | None = None
 
 
 def get_package_manager() -> BasePackageManager:
@@ -604,7 +603,7 @@ def get_package_manager() -> BasePackageManager:
 
 # Convenience wrapper functions for API and templates
 
-def get_installed_packages(force_refresh: bool = False) -> List[Dict[str, Any]]:
+def get_installed_packages(force_refresh: bool = False) -> list[dict[str, Any]]:
     """Get full list of installed packages (cached for 60s)."""
     now = time.time()
     if not force_refresh and _PACKAGES_CACHE["installed"] is not None:
@@ -625,12 +624,12 @@ def get_installed_count() -> int:
     return get_package_manager().get_installed_count()
 
 
-def get_upgradable_packages() -> List[Dict[str, Any]]:
+def get_upgradable_packages() -> list[dict[str, Any]]:
     """Get list of packages that can be upgraded."""
     return get_package_manager().get_upgradable_packages()
 
 
-def search_packages(query: str) -> List[Dict[str, Any]]:
+def search_packages(query: str) -> list[dict[str, Any]]:
     """Search for packages in distribution repositories."""
     query = query.strip()
     if not query:
@@ -638,12 +637,12 @@ def search_packages(query: str) -> List[Dict[str, Any]]:
     return get_package_manager().search_packages(query)
 
 
-def get_package_info(package_name: str) -> Dict[str, Any]:
+def get_package_info(package_name: str) -> dict[str, Any]:
     """Get detailed info about a package."""
     return get_package_manager().get_package_info(package_name)
 
 
-def upgrade_packages(package: Optional[str] = None) -> Dict[str, Any]:
+def upgrade_packages(package: str | None = None) -> dict[str, Any]:
     """Run package upgrade command."""
     invalidate_packages_cache()
     cmd = get_package_manager().get_upgrade_command(package)
@@ -653,7 +652,7 @@ def upgrade_packages(package: Optional[str] = None) -> Dict[str, Any]:
     return {"success": code == 0, "output": out, "error": err}
 
 
-def install_package(package_name: str) -> Dict[str, Any]:
+def install_package(package_name: str) -> dict[str, Any]:
     """Run package install command."""
     invalidate_packages_cache()
     cmd = get_package_manager().get_install_command(package_name)
@@ -663,7 +662,7 @@ def install_package(package_name: str) -> Dict[str, Any]:
     return {"success": code == 0, "output": out, "error": err}
 
 
-def remove_package(package_name: str) -> Dict[str, Any]:
+def remove_package(package_name: str) -> dict[str, Any]:
     """Run package remove command."""
     invalidate_packages_cache()
     cmd = get_package_manager().get_remove_command(package_name)

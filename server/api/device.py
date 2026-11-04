@@ -2,7 +2,7 @@
 Device and Hardware API routes for Lavender.
 Provides system model metadata, kernel version, battery, thermal sensors, and uptime stats.
 """
-from typing import Optional
+
 from fastapi import APIRouter, Depends
 
 from server.auth.deps import get_current_session
@@ -21,14 +21,14 @@ router = APIRouter()
 
 @router.get("/info", summary="Get system hardware, OS, and kernel info")
 @router.get("/device/info", include_in_schema=False)
-async def api_device_info(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_device_info(session: UserSession | None = Depends(get_current_session)):
     """Get dynamic system, hardware model, OS, and kernel metadata."""
     return get_system_info()
 
 
 @router.get("/battery", summary="Get battery, thermal sensors, and CPU frequencies")
 @router.get("/device/battery", include_in_schema=False)
-async def api_battery(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_battery(session: UserSession | None = Depends(get_current_session)):
     """Get battery, thermal zones, CPU frequency, and system uptime."""
     return {
         "battery": get_battery_info(),

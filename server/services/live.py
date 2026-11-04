@@ -5,7 +5,6 @@ Live telemetry orchestrator and backward-compatible collector facade.
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 from server.core.sysfs import get_sysfs_reader
 
@@ -13,7 +12,7 @@ from server.core.sysfs import get_sysfs_reader
 # Shared sysfs helpers (kept here for backward compatibility and test patching)
 # ---------------------------------------------------------------------------
 
-def _read_file(path: str) -> Optional[str]:
+def _read_file(path: str) -> str | None:
     """Read a single sysfs/proc file via swappable sysfs reader."""
     return get_sysfs_reader().read_file(path)
 
@@ -29,24 +28,23 @@ def _read_float(path: str, default: float = 0.0) -> float:
 # ---------------------------------------------------------------------------
 # Backward-compat re-exports — importers can use canonical paths directly
 # ---------------------------------------------------------------------------
-from server.services.live_buffer import RingBuffer, MetricCollector, CollectorStats  # noqa: F401
+from server.services.collectors.battery import BatteryCollector, BatteryInfo  # noqa: F401
 from server.services.collectors.cpu import (  # noqa: F401
+    CpuCollector,
     CPUCoreInfo,
     CPUFreqCollector,
-    CpuCollector,
+    _calc_cpu_usage,
     _get_loadavg,
     _parse_proc_stat,
-    _calc_cpu_usage,
 )
+from server.services.collectors.network import NetworkCollector, NetworkRateCollector  # noqa: F401
 from server.services.collectors.ram import RAMCollector, RamCollector  # noqa: F401
 from server.services.collectors.thermal import (  # noqa: F401
-    ThermalZone,
     THERMAL_NAME_MAP,
     ThermalCollector,
+    ThermalZone,
 )
-from server.services.collectors.battery import BatteryCollector, BatteryInfo  # noqa: F401
-from server.services.collectors.network import NetworkRateCollector, NetworkCollector  # noqa: F401
-
+from server.services.live_buffer import CollectorStats, MetricCollector, RingBuffer  # noqa: F401
 
 # ---------------------------------------------------------------------------
 # Live Monitoring Engine (singleton orchestrator)
@@ -162,7 +160,7 @@ class LiveMonitor:
 # Singleton
 # ---------------------------------------------------------------------------
 
-_live_monitor: Optional[LiveMonitor] = None
+_live_monitor: LiveMonitor | None = None
 
 
 def get_live_monitor() -> LiveMonitor:

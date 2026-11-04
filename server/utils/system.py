@@ -3,12 +3,11 @@ System and user privilege introspection utilities.
 """
 import os
 import shutil
-from typing import Optional
 
 from server.core.executor import get_executor
 
 
-def which(program: str) -> Optional[str]:
+def which(program: str) -> str | None:
     """Find program in PATH, return full path or None."""
     return shutil.which(program)
 
@@ -33,7 +32,7 @@ def get_current_user_info() -> dict:
 def read_sudoers(path: str = "/etc/sudoers") -> str:
     """Read /etc/sudoers content (read-only)."""
     try:
-        with open(path, "r", errors="replace") as f:
+        with open(path, errors="replace") as f:
             return f.read()
     except Exception:
         return ""

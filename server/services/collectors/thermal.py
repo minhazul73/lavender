@@ -6,13 +6,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import List, Optional
 
 from server.core.config import SSE_THERMAL_INTERVAL_MS
 from server.services.live_buffer import MetricCollector
 
 
-def _read_file(path: str) -> Optional[str]:
+def _read_file(path: str) -> str | None:
     import server.services.live as live
     return live._read_file(path)
 
@@ -25,9 +24,9 @@ def _read_int(path: str, default: int = 0) -> int:
 @dataclass
 class ThermalZone:
     name: str
-    type: Optional[str] = None
-    temp_millicelsius: Optional[int] = None
-    temp_celsius: Optional[float] = None
+    type: str | None = None
+    temp_millicelsius: int | None = None
+    temp_celsius: float | None = None
     warning: bool = False
     crit: bool = False
 
@@ -77,7 +76,7 @@ class ThermalCollector(MetricCollector):
 
     async def collect(self) -> list:
         """Return list of ThermalZone dicts (JSON-serializable)."""
-        zones: List[dict] = []
+        zones: list[dict] = []
         seen_names: set = set()
 
         # 1) hwmon thermal zones

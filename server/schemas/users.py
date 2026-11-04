@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -11,7 +12,7 @@ class AddSshKeyRequest(BaseModel):
 
 
 class UpdateUserGroupsRequest(BaseModel):
-    groups: List[str] = Field(..., description="Target list of secondary group names")
+    groups: list[str] = Field(..., description="Target list of secondary group names")
 
 
 class ChangePasswordRequest(BaseModel):
@@ -19,15 +20,15 @@ class ChangePasswordRequest(BaseModel):
 
 
 class UsersOverviewResponse(BaseModel):
-    human_users: List[Dict[str, Any]]
-    system_users: List[Dict[str, Any]]
-    groups_categorized: Dict[str, Any]
-    active_sessions: List[Dict[str, Any]]
-    login_history: List[Dict[str, Any]]
-    security: Dict[str, Any]
-    metrics: Dict[str, Any]
-    users: List[Dict[str, Any]]
-    all_users: List[Dict[str, Any]]
-    groups: Dict[str, Any]
-    current_user: Dict[str, Any]
+    human_users: list[dict[str, Any]]
+    system_users: list[dict[str, Any]]
+    groups_categorized: dict[str, Any]
+    active_sessions: list[dict[str, Any]]
+    login_history: list[dict[str, Any]]
+    security: dict[str, Any]
+    metrics: dict[str, Any]
+    users: list[dict[str, Any]]
+    all_users: list[dict[str, Any]]
+    groups: dict[str, Any]
+    current_user: dict[str, Any]
     sudoers: str

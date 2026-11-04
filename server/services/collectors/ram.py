@@ -4,13 +4,11 @@ RAM metric collector from /proc/meminfo.
 
 from __future__ import annotations
 
-from typing import Dict, Optional
-
 from server.core.config import SSE_RAM_INTERVAL_MS
 from server.services.live_buffer import MetricCollector
 
 
-def _read_file(path: str) -> Optional[str]:
+def _read_file(path: str) -> str | None:
     import server.services.live as live
     return live._read_file(path)
 
@@ -60,9 +58,9 @@ class RAMCollector(MetricCollector):
             "swap_used": swap_used_kb,
         }
 
-    def _parse_meminfo(self) -> Dict[str, int]:
+    def _parse_meminfo(self) -> dict[str, int]:
         """Parse /proc/meminfo, return dict of kB values."""
-        result: Dict[str, int] = {}
+        result: dict[str, int] = {}
         text = _read_file("/proc/meminfo")
         if text is None:
             return result

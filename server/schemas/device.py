@@ -1,36 +1,37 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class SystemInfoResponse(BaseModel):
-    hostname: Optional[str] = None
-    distro: Optional[str] = None
-    os_name: Optional[str] = None
-    kernel: Optional[str] = None
-    arch: Optional[str] = None
-    uptime: Optional[str] = None
-    hardware_model: Optional[str] = None
-    device_tree_model: Optional[str] = None
-    cpu_model: Optional[str] = None
-    cpu_cores: Optional[int] = None
-    total_memory: Optional[str] = None
-    is_chroot: Optional[bool] = False
+    hostname: str | None = None
+    distro: str | None = None
+    os_name: str | None = None
+    kernel: str | None = None
+    arch: str | None = None
+    uptime: str | None = None
+    hardware_model: str | None = None
+    device_tree_model: str | None = None
+    cpu_model: str | None = None
+    cpu_cores: int | None = None
+    total_memory: str | None = None
+    is_chroot: bool | None = False
 
 
 class BatteryStatus(BaseModel):
     present: bool
-    status: Optional[str] = None
-    capacity: Optional[int] = None
-    health: Optional[str] = None
-    technology: Optional[str] = None
-    voltage_now: Optional[float] = None
-    current_now: Optional[float] = None
-    power_now: Optional[float] = None
+    status: str | None = None
+    capacity: int | None = None
+    health: str | None = None
+    technology: str | None = None
+    voltage_now: float | None = None
+    current_now: float | None = None
+    power_now: float | None = None
 
 
 class DeviceStatsResponse(BaseModel):
-    battery: Dict[str, Any]
-    thermal: List[Dict[str, Any]]
-    cpu_freq: List[Dict[str, Any]]
-    cpu_scaling: Dict[str, Any]
-    uptime: Dict[str, Any]
+    battery: dict[str, Any]
+    thermal: list[dict[str, Any]]
+    cpu_freq: list[dict[str, Any]]
+    cpu_scaling: dict[str, Any]
+    uptime: dict[str, Any]

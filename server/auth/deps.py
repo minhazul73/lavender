@@ -1,16 +1,14 @@
 """
 FastAPI dependencies for authentication and authorization.
 """
-from typing import Optional
-from fastapi import Request, Depends, HTTPException, status
-from fastapi.responses import RedirectResponse
 
-from server.core.config import SESSION_COOKIE_NAME, DEBUG
+from fastapi import Depends, HTTPException, Request, status
+
 from server.auth.session import UserSession, session_store
-from server.auth.bridge import verify_sudo_password
+from server.core.config import DEBUG, SESSION_COOKIE_NAME
 
 
-async def get_current_session(request: Request) -> Optional[UserSession]:
+async def get_current_session(request: Request) -> UserSession | None:
     """
     Extract session from signed cookie, if valid and active.
     Attaches session to request.state for template rendering.
@@ -44,7 +42,7 @@ async def get_current_session(request: Request) -> Optional[UserSession]:
 
 async def require_session(
     request: Request,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ) -> UserSession:
     """
     Ensure caller is authenticated.

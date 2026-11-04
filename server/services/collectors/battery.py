@@ -7,13 +7,12 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass
-from typing import List, Optional
 
 from server.core.config import SSE_BATTERY_INTERVAL_MS
 from server.services.live_buffer import MetricCollector
 
 
-def _read_file(path: str) -> Optional[str]:
+def _read_file(path: str) -> str | None:
     import server.services.live as live
     return live._read_file(path)
 
@@ -25,20 +24,20 @@ def _read_int(path: str, default: int = 0) -> int:
 
 @dataclass
 class BatteryInfo:
-    percentage: Optional[int] = None
+    percentage: int | None = None
     state: str = "unknown"
-    temperature: Optional[float] = None
-    voltage: Optional[float] = None
-    energy_rate: Optional[float] = None
-    time_to_full: Optional[int] = None  # seconds
-    time_to_empty: Optional[int] = None
-    energy: Optional[float] = None  # Wh
-    energy_full: Optional[float] = None
-    capacity: Optional[int] = None  # design capacity Wh
+    temperature: float | None = None
+    voltage: float | None = None
+    energy_rate: float | None = None
+    time_to_full: int | None = None  # seconds
+    time_to_empty: int | None = None
+    energy: float | None = None  # Wh
+    energy_full: float | None = None
+    capacity: int | None = None  # design capacity Wh
     discharging: bool = False
     charging: bool = False
     online: bool = False
-    serial: Optional[str] = None
+    serial: str | None = None
     vendor: str = ""
     model: str = ""
     icon_name: str = ""
@@ -63,10 +62,10 @@ class BatteryCollector(MetricCollector):
     def __init__(self, interval_ms: int = SSE_BATTERY_INTERVAL_MS,
                  history_size: int = 20) -> None:
         super().__init__(interval_ms, history_size, "battery")
-        self._sysfs_batteries: List[str] = []
+        self._sysfs_batteries: list[str] = []
         self._upower_available = False
         self._upower_checked = False
-        self._upower_device: Optional[str] = None
+        self._upower_device: str | None = None
 
     async def collect(self) -> dict:
         """Return aggregated battery info (dict, not BatteryInfo dataclass,
@@ -292,7 +291,7 @@ class BatteryCollector(MetricCollector):
 
         return result
 
-    def _discover_batteries(self) -> List[str]:
+    def _discover_batteries(self) -> list[str]:
         """Find battery devices in /sys/class/power_supply."""
         batteries = []
         ps_path = "/sys/class/power_supply"
@@ -304,7 +303,7 @@ class BatteryCollector(MetricCollector):
                 batteries.append(name)
         return batteries
 
-    def _get_upower_device(self) -> Optional[str]:
+    def _get_upower_device(self) -> str | None:
         """Dynamically detect battery device path in upower."""
         if self._upower_device is not None:
             return self._upower_device or None

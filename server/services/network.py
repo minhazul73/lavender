@@ -6,9 +6,7 @@ and standard Linux kernel sysfs / procfs.
 import os
 import re
 import socket
-import subprocess
 import time
-from typing import Optional
 
 from server.core.executor import get_executor
 from server.utils.cmd import which

@@ -7,7 +7,6 @@ from __future__ import annotations
 import asyncio
 from collections import deque
 from dataclasses import dataclass
-from typing import List, Optional
 
 
 class RingBuffer:
@@ -34,7 +33,7 @@ class RingBuffer:
     def __iter__(self):
         return iter(self._buf)
 
-    def values(self) -> List[float]:
+    def values(self) -> list[float]:
         return list(self._buf)
 
     @property
@@ -46,7 +45,7 @@ class RingBuffer:
 class CollectorStats:
     """Running stats for a single collector."""
     sample_count: int = 0
-    last_error: Optional[str] = None
+    last_error: str | None = None
     errors_in_row: int = 0
 
 
@@ -72,7 +71,7 @@ class MetricCollector:
         self._buffer = RingBuffer(history_size)
         self._stats = CollectorStats()
         self._stop_event = asyncio.Event()
-        self._task: Optional[asyncio.Task[None]] = None
+        self._task: asyncio.Task[None] | None = None
         self._buffer_key = buffer_key
 
     @property

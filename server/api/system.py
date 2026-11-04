@@ -4,30 +4,28 @@ Protected with session authentication and privilege verification.
 """
 import asyncio
 import re
-from typing import Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
 
-from server.auth.session import UserSession
-from server.auth.deps import require_session, require_admin, get_current_session
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 from server.auth.bridge import (
-    run_user_service_async,
     run_sudo_async,
+    run_user_service_async,
 )
-from server.services.systemd import (
-    list_services,
-    get_service_status,
-    get_service_logs,
-    service_action,
-    get_recent_logs,
-)
+from server.auth.deps import get_current_session, require_admin, require_session
+from server.auth.session import UserSession
 from server.services.processes import (
-    get_top_processes,
-    get_system_load,
-    kill_process,
-    get_memory_info,
     get_memory_human,
+    get_memory_info,
+    get_system_load,
+    get_top_processes,
 )
 from server.services.storage import get_disk_usage, unmount
+from server.services.systemd import (
+    get_recent_logs,
+    get_service_logs,
+    get_service_status,
+    list_services,
+)
 
 router = APIRouter()
 
@@ -50,7 +48,7 @@ def validate_service_name(name: str) -> str:
 @router.get("/system/services", include_in_schema=False)
 async def api_list_services(
     scope: str = Query(None, description="Filter by scope: user, system, or all"),
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """List systemd services for current user and system."""
     user_only = scope == "user"
@@ -157,7 +155,7 @@ async def api_service_action_body(
 
 @router.get("/storage", summary="Get storage usage")
 @router.get("/system/storage", include_in_schema=False)
-async def api_storage(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_storage(session: UserSession | None = Depends(get_current_session)):
     """Get disk usage information."""
     return {
         "disks": get_disk_usage(),
@@ -184,7 +182,7 @@ async def api_unmount(
 async def api_processes(
     sort_by: str = Query("mem", pattern="^(cpu|mem|pid|user|name)$"),
     limit: int = Query(0, ge=0, le=2000, description="0 returns all processes"),
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Get processes and system resource stats."""
     return {
@@ -209,7 +207,7 @@ async def api_kill_process(
 
 @router.get("/memory", summary="Get system memory info")
 @router.get("/system/memory", include_in_schema=False)
-async def api_memory(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_memory(session: UserSession | None = Depends(get_current_session)):
     """Get detailed memory info."""
     return {
         "human": get_memory_human(),
@@ -223,9 +221,9 @@ async def api_memory(session: Optional[UserSession] = Depends(get_current_sessio
 @router.get("/system/logs", include_in_schema=False)
 async def api_recent_logs(
     lines: int = Query(20, ge=1, le=200),
-    limit: Optional[int] = Query(None, ge=1, le=200),
-    service: Optional[str] = Query(None),
-    session: Optional[UserSession] = Depends(get_current_session),
+    limit: int | None = Query(None, ge=1, le=200),
+    service: str | None = Query(None),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Get recent system journal logs."""
     effective_lines = limit if limit is not None else lines

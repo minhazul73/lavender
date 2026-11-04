@@ -3,9 +3,7 @@ Systemd service management.
 """
 import datetime
 import json
-import subprocess
 import re
-from typing import Optional
 
 from server.core.executor import get_executor
 
@@ -28,7 +26,7 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
     If both false: list both user and system.
     """
     results = []
-    
+
     if not system_only:
         # User services
         code, out, err = run_command(["systemctl", "--user", "list-units", "--type=service", "--all", "--no-pager", "--no-legend"], timeout=15)
@@ -50,7 +48,7 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
                         "sub": parts[3],
                         "scope": "user",
                     })
-    
+
     if not user_only:
         # System services — may need sudo for full list
         code, out, err = run_command(["systemctl", "list-units", "--type=service", "--all", "--no-pager", "--no-legend"], timeout=15)
@@ -75,7 +73,7 @@ def list_services(user_only: bool = False, system_only: bool = False) -> list[di
                         "sub": parts[3],
                         "scope": "system",
                     })
-    
+
     return results
 
 
@@ -83,13 +81,13 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
     """Get detailed status for a single service."""
     cmd = ["systemctl", "--user", "status", service_name, "--no-pager"] if user else ["systemctl", "status", service_name, "--no-pager"]
     code, out, err = run_command(cmd, timeout=15)
-    
+
     # Try with sudo for system services only if direct failed completely (no output returned)
     if not out.strip() and not user:
         sudo_code, sudo_out, sudo_err = run_sudo_command(cmd, timeout=15)
         if sudo_out.strip():
             code, out, err = sudo_code, sudo_out, sudo_err
-    
+
     # Parse key info
     info = {
         "name": service_name,
@@ -109,13 +107,13 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
         "cpu": "",
         "docs": "",
     }
-    
+
     if out.strip():
         first_line = out.strip().split("\n")[0]
         desc_m = re.search(r"^[●○×*]?\s*[\w\.\@\-]+\s*-\s*(.+)$", first_line)
         if desc_m:
             info["description"] = desc_m.group(1).strip()
-    
+
     # Parse from output
     for line in out.split("\n"):
         if "Loaded:" in line:
@@ -150,7 +148,7 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
         m = re.search(r"Docs:\s+(.+)", line)
         if m:
             info["docs"] = m.group(1).strip()
-    
+
     return info
 
 
@@ -180,7 +178,7 @@ def service_action(service_name: str, action: str, user: bool = False) -> dict:
         # If direct failed, try with sudo
         if code != 0:
             code, out, err = run_sudo_command(cmd, timeout=15)
-    
+
     return {
         "action": action,
         "service": service_name,
@@ -215,7 +213,7 @@ def get_all_units() -> list[dict]:
                     "sub": parts[3],
                     "scope": "user",
                 })
-    
+
     # System units
     code, out, err = run_sudo_command(["systemctl", "list-units", "--all", "--no-pager", "--no-legend"], timeout=15)
     if code == 0:
@@ -232,7 +230,7 @@ def get_all_units() -> list[dict]:
                     "sub": parts[3],
                     "scope": "system",
                 })
-    
+
     return units
 
 
@@ -265,7 +263,7 @@ def get_recent_logs(lines: int = 20) -> list[dict]:
                     secs = us / 1_000.0
                 else:
                     secs = float(us)
-                dt = datetime.datetime.fromtimestamp(secs, tz=datetime.timezone.utc)
+                dt = datetime.datetime.fromtimestamp(secs, tz=datetime.UTC)
                 timestamp = dt.isoformat()
             except Exception:
                 timestamp = str(raw_ts)

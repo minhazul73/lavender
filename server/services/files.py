@@ -2,15 +2,15 @@
 File browser service for Lavender dashboard.
 Provides filesystem exploration, file viewing/editing, creation, deletion, rename, upload, and bookmark shortcuts.
 """
-import os
-import shutil
-import stat
-import pwd
 import grp
 import mimetypes
+import os
+import pwd
+import shutil
+import stat
 import tempfile
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any
 
 from server.core.executor import get_executor
 
@@ -80,7 +80,7 @@ def human_size(num_bytes: int) -> str:
     return f"{num_bytes:.1f} PB"
 
 
-def get_category(ext: str, mime: Optional[str] = None) -> str:
+def get_category(ext: str, mime: str | None = None) -> str:
     """Determine high-level file category for icons and viewer behavior."""
     ext_lower = ext.lower() if ext else ""
     mime_lower = mime.lower() if mime else ""
@@ -133,7 +133,7 @@ def is_text_file(path: str, max_check: int = 8192) -> bool:
         return ext_lower in CODE_EXTENSIONS or base in KNOWN_TEXT_BASENAMES
 
 
-def sanitize_path(path: Optional[str], default_path: Optional[str] = None) -> str:
+def sanitize_path(path: str | None, default_path: str | None = None) -> str:
     """Resolve and normalize path to a clean absolute path."""
     if not path or not path.strip():
         if default_path and os.path.exists(default_path):
@@ -148,13 +148,13 @@ def sanitize_path(path: Optional[str], default_path: Optional[str] = None) -> st
 
 
 def list_directory(
-    path: Optional[str] = None,
+    path: str | None = None,
     show_hidden: bool = False,
     sort_by: str = "name",
     order: str = "asc",
-    user_home: Optional[str] = None,
+    user_home: str | None = None,
     is_admin: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     List contents of directory with rich POSIX metadata, disk usage, and permission details.
     """
@@ -187,7 +187,7 @@ def list_directory(
     except Exception:
         pass
 
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     total_dirs = 0
     total_files = 0
 
@@ -275,7 +275,7 @@ def list_directory(
     # Sorting: folders first, then files
     reverse = (order.lower() == "desc")
 
-    def sort_key(item: Dict[str, Any]):
+    def sort_key(item: dict[str, Any]):
         is_dir_priority = 0 if item["is_dir"] else 1
         val: Any = item.get(sort_by)
         if val is None:
@@ -307,7 +307,7 @@ def list_directory(
     }
 
 
-def read_file_preview(path: str, max_bytes: int = 2 * 1024 * 1024, is_admin: bool = False) -> Dict[str, Any]:
+def read_file_preview(path: str, max_bytes: int = 2 * 1024 * 1024, is_admin: bool = False) -> dict[str, Any]:
     """
     Read file content for preview / editor.
     If text, returns decoded string content up to max_bytes.
@@ -335,12 +335,12 @@ def read_file_preview(path: str, max_bytes: int = 2 * 1024 * 1024, is_admin: boo
         or base_name in KNOWN_TEXT_BASENAMES
         or bool(mime_type and (mime_type.startswith("text/") or any(k in mime_type for k in ("json", "xml", "yaml", "script", "config"))))
     )
-    content: Optional[str] = None
+    content: str | None = None
     truncated = False
     line_count = 0
 
     if text_check:
-        raw_bytes: Optional[bytes] = None
+        raw_bytes: bytes | None = None
         try:
             with open(canonical_path, "rb") as f:
                 raw_bytes = f.read(max_bytes + 1)
@@ -386,7 +386,7 @@ def read_file_preview(path: str, max_bytes: int = 2 * 1024 * 1024, is_admin: boo
     }
 
 
-def save_file_content(path: str, content: str, is_admin: bool = False) -> Dict[str, Any]:
+def save_file_content(path: str, content: str, is_admin: bool = False) -> dict[str, Any]:
     """Save updated text content to file, using elevated sudo write if needed and permitted."""
     canonical_path = sanitize_path(path)
     if not os.path.exists(canonical_path):
@@ -439,7 +439,7 @@ def save_file_content(path: str, content: str, is_admin: bool = False) -> Dict[s
     }
 
 
-def make_directory(parent_path: str, name: str, is_admin: bool = False) -> Dict[str, Any]:
+def make_directory(parent_path: str, name: str, is_admin: bool = False) -> dict[str, Any]:
     """Create a new directory inside parent_path, using sudo if needed and permitted."""
     name = name.strip()
     if not name or "/" in name or "\\" in name or name in (".", ".."):
@@ -469,7 +469,7 @@ def make_directory(parent_path: str, name: str, is_admin: bool = False) -> Dict[
     return {"success": True, "path": target_path, "name": name}
 
 
-def create_new_file(parent_path: str, name: str, content: str = "", is_admin: bool = False) -> Dict[str, Any]:
+def create_new_file(parent_path: str, name: str, content: str = "", is_admin: bool = False) -> dict[str, Any]:
     """Create a new file with optional content, using sudo if needed and permitted."""
     name = name.strip()
     if not name or "/" in name or "\\" in name or name in (".", ".."):
@@ -511,7 +511,7 @@ def create_new_file(parent_path: str, name: str, content: str = "", is_admin: bo
     return {"success": True, "path": target_path, "name": name}
 
 
-def rename_entry(old_path: str, new_name: str, is_admin: bool = False) -> Dict[str, Any]:
+def rename_entry(old_path: str, new_name: str, is_admin: bool = False) -> dict[str, Any]:
     """Rename a file or folder, using sudo if needed and permitted."""
     new_name = new_name.strip()
     if not new_name or "/" in new_name or "\\" in new_name or new_name in (".", ".."):
@@ -544,7 +544,7 @@ def rename_entry(old_path: str, new_name: str, is_admin: bool = False) -> Dict[s
     return {"success": True, "old_path": canonical_old, "new_path": target_path, "name": new_name}
 
 
-def delete_entries(paths: List[str], is_admin: bool = False) -> Dict[str, Any]:
+def delete_entries(paths: list[str], is_admin: bool = False) -> dict[str, Any]:
     """Delete files and directories safely, using sudo if needed and permitted."""
     results = []
     for p in paths:
@@ -578,7 +578,7 @@ def delete_entries(paths: List[str], is_admin: bool = False) -> Dict[str, Any]:
     return {"success": True, "deleted": results}
 
 
-def get_quick_bookmarks(user_home: Optional[str] = None) -> List[Dict[str, Any]]:
+def get_quick_bookmarks(user_home: str | None = None) -> list[dict[str, Any]]:
     """Return common user folders and system shortcut bookmarks."""
     home = sanitize_path(user_home or os.path.expanduser("~"))
 
@@ -604,7 +604,7 @@ def get_quick_bookmarks(user_home: Optional[str] = None) -> List[Dict[str, Any]]
     return valid_bookmarks
 
 
-def get_raw_file_stream(path: str, is_admin: bool = False) -> Dict[str, Any]:
+def get_raw_file_stream(path: str, is_admin: bool = False) -> dict[str, Any]:
     """Validate and prepare a file for streaming raw bytes."""
     canonical_path = sanitize_path(path)
     if not os.path.isfile(canonical_path):
@@ -630,9 +630,9 @@ def get_raw_file_stream(path: str, is_admin: bool = False) -> Dict[str, Any]:
 
 def save_uploaded_files(
     dest_dir: str,
-    files_data: List[tuple[str, Any]],
+    files_data: list[tuple[str, Any]],
     is_admin: bool = False,
-) -> List[str]:
+) -> list[str]:
     """Save uploaded files into target directory with permission checks."""
     canonical_dir = sanitize_path(dest_dir)
     if not os.path.isdir(canonical_dir):

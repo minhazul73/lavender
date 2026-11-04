@@ -1,11 +1,11 @@
-from typing import Optional, List
+
 from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, description="Linux username")
     password: str = Field(..., min_length=1, description="Linux password")
-    next: Optional[str] = Field(default="/", description="Redirect path after login")
+    next: str | None = Field(default="/", description="Redirect path after login")
 
 
 class ElevateRequest(BaseModel):
@@ -32,7 +32,7 @@ class UserProfileResponse(BaseModel):
     gid: int
     home: str
     shell: str
-    groups: List[str]
+    groups: list[str]
     is_admin: bool
     can_elevate: bool
     admin_remaining_seconds: int

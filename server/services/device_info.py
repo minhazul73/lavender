@@ -8,7 +8,7 @@ import platform
 import socket
 import subprocess
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any
 
 from server.core.config import APP_VERSION
 
@@ -41,7 +41,7 @@ def get_device_model() -> str:
     # 2. postmarketOS / Alpine deviceinfo
     if os.path.exists("/etc/deviceinfo"):
         try:
-            with open("/etc/deviceinfo", "r", encoding="utf-8", errors="ignore") as f:
+            with open("/etc/deviceinfo", encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     line = line.strip()
                     if line.startswith("deviceinfo_name="):
@@ -59,7 +59,7 @@ def get_device_model() -> str:
     ):
         if os.path.exists(dmi_path):
             try:
-                with open(dmi_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(dmi_path, encoding="utf-8", errors="ignore") as f:
                     val = f.read().strip()
                 if val and val.lower() not in (
                     "none",
@@ -96,7 +96,7 @@ def get_device_model() -> str:
     # 5. /etc/machine-info (systemd PRETTY_HOSTNAME)
     if os.path.exists("/etc/machine-info"):
         try:
-            with open("/etc/machine-info", "r", encoding="utf-8", errors="ignore") as f:
+            with open("/etc/machine-info", encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     if line.strip().startswith("PRETTY_HOSTNAME="):
                         val = line.strip().split("=", 1)[1].strip().strip("\"'")
@@ -116,16 +116,16 @@ def get_device_model() -> str:
     return platform.node() or "Linux Device"
 
 
-def get_os_info() -> Dict[str, str]:
+def get_os_info() -> dict[str, str]:
     """
     Retrieve OS distribution details.
     Parses /etc/os-release or /usr/lib/os-release.
     """
-    data: Dict[str, str] = {}
+    data: dict[str, str] = {}
     for rel_path in ("/etc/os-release", "/usr/lib/os-release"):
         if os.path.exists(rel_path):
             try:
-                with open(rel_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(rel_path, encoding="utf-8", errors="ignore") as f:
                     for line in f:
                         line = line.strip()
                         if "=" in line and not line.startswith("#"):
@@ -150,7 +150,7 @@ def get_os_info() -> Dict[str, str]:
 
 
 @lru_cache(maxsize=1)
-def get_system_info() -> Dict[str, Any]:
+def get_system_info() -> dict[str, Any]:
     """
     Get cached system and device metadata for templates and API responses.
     Result is cached since hardware model, OS name, and architecture do not

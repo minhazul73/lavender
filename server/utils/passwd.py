@@ -19,7 +19,7 @@ def parse_passwd_users(
     """Parse /etc/passwd and return human users (uid >= min_uid)."""
     users = []
     try:
-        with open(path, "r", errors="replace") as f:
+        with open(path, errors="replace") as f:
             for line in f:
                 parts = line.strip().split(":")
                 if len(parts) >= 7:
@@ -50,7 +50,7 @@ def parse_all_passwd_users(path: str = "/etc/passwd") -> list[dict]:
     """Parse /etc/passwd and return all users with is_human flag."""
     users = []
     try:
-        with open(path, "r", errors="replace") as f:
+        with open(path, errors="replace") as f:
             for line in f:
                 parts = line.strip().split(":")
                 if len(parts) >= 7:
@@ -79,7 +79,7 @@ def parse_groups(path: str = "/etc/group") -> list[dict]:
     """Parse /etc/group and return all groups."""
     groups = []
     try:
-        with open(path, "r", errors="replace") as f:
+        with open(path, errors="replace") as f:
             for line in f:
                 parts = line.strip().split(":")
                 if len(parts) >= 4:

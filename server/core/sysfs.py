@@ -1,11 +1,11 @@
 import os
-from typing import Optional, Protocol
+from typing import Protocol
 
 
 class SysfsReader(Protocol):
     """Mockable interface for reading sysfs and procfs files."""
 
-    def read_file(self, path: str) -> Optional[str]:
+    def read_file(self, path: str) -> str | None:
         """Read a sysfs/procfs file, return None on failure."""
         ...
 
@@ -29,9 +29,9 @@ class SysfsReader(Protocol):
 class SystemSysfsReader:
     """Production reader using real Linux filesystem."""
 
-    def read_file(self, path: str) -> Optional[str]:
+    def read_file(self, path: str) -> str | None:
         try:
-            with open(path, "r", errors="replace") as f:
+            with open(path, errors="replace") as f:
                 return f.read().strip()
         except (FileNotFoundError, PermissionError, OSError):
             return None

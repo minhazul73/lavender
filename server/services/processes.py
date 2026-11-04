@@ -1,10 +1,6 @@
 """
 Process and resource management.
 """
-import subprocess
-import os
-import time
-from datetime import datetime
 
 from server.core.executor import get_executor
 
@@ -31,7 +27,7 @@ def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
 
     total_mem_kb = 0
     try:
-        with open("/proc/meminfo", "r") as f:
+        with open("/proc/meminfo") as f:
             for line in f:
                 if line.startswith("MemTotal:"):
                     total_mem_kb = float(line.split()[1])
@@ -70,7 +66,7 @@ def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
                 rss_kb = 0
                 vsz_kb = 0
                 try:
-                    with open(f"/proc/{pid}/stat", "r") as f:
+                    with open(f"/proc/{pid}/stat") as f:
                         content = f.read()
                         rparen = content.rfind(")")
                         if rparen != -1:
@@ -153,7 +149,7 @@ def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
 def get_system_load() -> dict:
     """Get system load averages and uptime."""
     try:
-        with open("/proc/loadavg", "r") as f:
+        with open("/proc/loadavg") as f:
             parts = f.read().strip().split()
             l1 = float(parts[0])
             l5 = float(parts[1])
@@ -175,7 +171,7 @@ def get_system_load() -> dict:
         load_avg = {"error": "Cannot read /proc/loadavg"}
 
     try:
-        with open("/proc/uptime", "r") as f:
+        with open("/proc/uptime") as f:
             uptime_seconds = float(f.read().strip().split()[0])
             load_avg["uptime_seconds"] = uptime_seconds
             days = int(uptime_seconds // 86400)
@@ -204,7 +200,7 @@ def get_memory_info() -> dict:
     """Get detailed memory information from /proc/meminfo."""
     info = {}
     try:
-        with open("/proc/meminfo", "r") as f:
+        with open("/proc/meminfo") as f:
             for line in f:
                 parts = line.strip().split(": ")
                 if len(parts) == 2:
@@ -242,7 +238,7 @@ def get_memory_human() -> dict:
 
     # Add calculated memory percentage from /proc/meminfo
     try:
-        with open("/proc/meminfo", "r") as f:
+        with open("/proc/meminfo") as f:
             meminfo = {}
             for line in f:
                 p = line.split(":")

@@ -22,7 +22,6 @@ from server.core.config import (
 )
 from server.services.live import get_live_monitor
 
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -107,9 +106,10 @@ async def sse_generator(metrics: list[str] | None):
         await monitor.remove_client()
 
 
+from fastapi import Depends
+
 from server.auth.deps import get_current_session
 from server.auth.session import UserSession
-from fastapi import HTTPException, Depends
 
 
 @router.get("/device/live")

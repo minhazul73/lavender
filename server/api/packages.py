@@ -4,7 +4,7 @@ Supports Alpine (apk), Debian/Ubuntu (apt), Arch (pacman), and Fedora (dnf).
 """
 import asyncio
 import re
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from server.auth.bridge import run_sudo_async
@@ -26,7 +26,7 @@ PACKAGE_NAME_REGEX = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9.+:_-]*$")
 QUERY_REGEX = re.compile(r"^[a-zA-Z0-9.+:_-]+$")
 
 
-def _validate_package_name(pkg: Optional[str]) -> Optional[str]:
+def _validate_package_name(pkg: str | None) -> str | None:
     if pkg is None:
         return None
     pkg = pkg.strip()
@@ -69,7 +69,7 @@ async def api_packages(
 @router.post("/upgrade", summary="Upgrade packages")
 @router.post("/packages/upgrade", include_in_schema=False)
 async def api_upgrade_packages(
-    package: Optional[str] = Query(None, description="Optional single package name to upgrade"),
+    package: str | None = Query(None, description="Optional single package name to upgrade"),
     session: UserSession = Depends(require_admin),
 ):
     """Upgrade all packages or a single package (requires administrative privileges)."""

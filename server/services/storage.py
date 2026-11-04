@@ -2,8 +2,7 @@
 Storage utilities: disk usage via df -h, mount info, and directory usage.
 """
 import subprocess
-from typing import List, Dict, Any
-
+from typing import Any
 
 PSEUDO_FS = frozenset([
     "tmpfs", "devtmpfs", "devpts", "proc", "sysfs", "cgroup",
@@ -43,7 +42,7 @@ def _parse_pct(pct_str: str):
         return 0
 
 
-def _run_df() -> List[Dict[str, Any]]:
+def _run_df() -> list[dict[str, Any]]:
     """Run 'df -h' and parse output, filtering pseudo FSes and hidden mounts.
 
     Returns a list of dicts with keys: fs, size, used, avail, use_pct,
@@ -60,7 +59,7 @@ def _run_df() -> List[Dict[str, Any]]:
         if len(lines) < 2:
             return []
 
-        entries: List[Dict[str, Any]] = []
+        entries: list[dict[str, Any]] = []
         for line in lines[1:]:
             parts = line.split()
             if len(parts) < 6:
@@ -91,7 +90,7 @@ def _run_df() -> List[Dict[str, Any]]:
             })
 
         # Deduplicate by device: keep the entry with the shortest mount path
-        seen: Dict[str, Dict[str, Any]] = {}
+        seen: dict[str, dict[str, Any]] = {}
         for e in entries:
             device = e["fs"]
             mount_path = e.get("mount") or e.get("mount_point") or ""
@@ -107,16 +106,16 @@ def _run_df() -> List[Dict[str, Any]]:
         return []
 
 
-def get_disk_usage() -> List[Dict[str, Any]]:
+def get_disk_usage() -> list[dict[str, Any]]:
     """Get disk usage from df -h, with external storage categorization."""
     return _run_df()
 
 
-def get_mounts() -> List[Dict[str, str]]:
+def get_mounts() -> list[dict[str, str]]:
     """Read /proc/mounts for mount info, filtering pseudo FSes."""
     mounts = []
     try:
-        with open('/proc/mounts', 'r') as f:
+        with open('/proc/mounts') as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 4:
@@ -135,7 +134,7 @@ def get_mounts() -> List[Dict[str, str]]:
     return mounts
 
 
-def get_dir_usage() -> List[Dict[str, Any]]:
+def get_dir_usage() -> list[dict[str, Any]]:
     """Get directory usage via du -sh on common paths."""
     paths = ['/', '/home', '/var', '/tmp']
     result = []
@@ -162,7 +161,7 @@ def get_dir_usage() -> List[Dict[str, Any]]:
     return result
 
 
-def unmount(mount_point: str) -> Dict[str, Any]:
+def unmount(mount_point: str) -> dict[str, Any]:
     """Unmount a filesystem (requires sudo)."""
     try:
         result = subprocess.run(

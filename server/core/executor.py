@@ -1,7 +1,7 @@
 import asyncio
 import os
 import re
-from typing import NamedTuple, Optional, Protocol
+from typing import NamedTuple, Protocol
 
 
 class CommandResult(NamedTuple):
@@ -18,7 +18,7 @@ class CommandExecutor(Protocol):
         self,
         cmd: list[str],
         timeout: float = 15.0,
-        env_overrides: Optional[dict[str, str]] = None,
+        env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
         """Run a command and capture output."""
         ...
@@ -45,7 +45,7 @@ class CommandExecutor(Protocol):
         self,
         cmd: list[str],
         timeout: float = 15.0,
-        env_overrides: Optional[dict[str, str]] = None,
+        env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
         """Synchronous command execution helper for worker threads."""
         ...
@@ -67,7 +67,7 @@ class SystemCommandExecutor:
     _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
     _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
 
-    def _validate_command(self, cmd: list[str]) -> Optional[str]:
+    def _validate_command(self, cmd: list[str]) -> str | None:
         if not cmd:
             return "Invalid command specification"
         exe = os.path.basename(cmd[0])
@@ -85,7 +85,7 @@ class SystemCommandExecutor:
 
         return None
 
-    def _build_env(self, uid: Optional[int] = None, overrides: Optional[dict[str, str]] = None) -> dict[str, str]:
+    def _build_env(self, uid: int | None = None, overrides: dict[str, str] | None = None) -> dict[str, str]:
         env = os.environ.copy()
         effective_uid = uid if uid is not None else os.getuid()
         if "XDG_RUNTIME_DIR" not in env or uid is not None:
@@ -101,7 +101,7 @@ class SystemCommandExecutor:
         self,
         cmd: list[str],
         timeout: float = 15.0,
-        env_overrides: Optional[dict[str, str]] = None,
+        env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
         env = self._build_env(overrides=env_overrides)
         proc = None
@@ -119,7 +119,7 @@ class SystemCommandExecutor:
                 stderr=stderr.decode("utf-8", errors="replace").strip(),
                 timed_out=False,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if proc:
                 try:
                     proc.kill()
@@ -160,7 +160,7 @@ class SystemCommandExecutor:
                 stderr=stderr.decode("utf-8", errors="replace").strip(),
                 timed_out=False,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             if proc:
                 try:
                     proc.kill()
@@ -189,7 +189,7 @@ class SystemCommandExecutor:
         self,
         cmd: list[str],
         timeout: float = 15.0,
-        env_overrides: Optional[dict[str, str]] = None,
+        env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
         if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
             return CommandResult(-1, "", "Invalid command specification")

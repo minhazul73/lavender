@@ -1,8 +1,9 @@
-from typing import Any, Dict, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class LiveMetricEvent(BaseModel):
     metric: str
-    data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    data: dict[str, Any] | None = None
+    error: str | None = None
