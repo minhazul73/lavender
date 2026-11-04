@@ -212,7 +212,12 @@ class CPUFreqCollector(MetricCollector):
                 online_path = f"{self._cpu_dir}/{entry}/online"
                 online = _read_int(online_path, 1)
                 if online:
-                    if os.path.isdir(f"{self._cpu_dir}/{entry}/cpufreq"):
+                    # Probe via file read (routes through the sysfs reader, so
+                    # it works in tests) instead of os.path.isdir, which bypasses
+                    # mocks and is unavailable on some ARM SoCs.
+                    if _read_int(
+                        f"{self._cpu_dir}/{entry}/cpufreq/scaling_cur_freq", 0
+                    ) > 0:
                         has_cpufreq = True
                     capacity = _read_int(
                         f"{self._cpu_dir}/{entry}/cpu_capacity", 0

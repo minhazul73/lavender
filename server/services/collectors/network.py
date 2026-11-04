@@ -42,6 +42,8 @@ class NetworkRateCollector(MetricCollector):
         if iface is None or iface not in counters:
             return {
                 "iface": iface or "none",
+                "rx_bytes": 0,
+                "tx_bytes": 0,
                 "rx_rate_bps": 0,
                 "tx_rate_bps": 0,
             }
