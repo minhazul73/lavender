@@ -12,8 +12,8 @@ vi.mock('../../api/client', () => ({
 
 describe('Sidebar Component', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     localStorage.clear();
+    vi.clearAllMocks();
   });
 
   it('renders branding and all navigation links', async () => {
