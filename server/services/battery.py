@@ -3,6 +3,7 @@ Battery, thermal, and CPU frequency management.
 """
 import os
 import subprocess
+import re
 
 from server.core.executor import get_executor
 
@@ -399,4 +400,3 @@ def set_cpu_governor(governor: str) -> dict:
         "success": False,
         "error": "; ".join(errors) or err or "Failed to set CPU governor",
     }
-
