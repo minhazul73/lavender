@@ -2,8 +2,8 @@
 Battery, thermal, and CPU frequency management.
 """
 import os
-import subprocess
 import re
+import subprocess
 
 from server.core.executor import get_executor
 
