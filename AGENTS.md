@@ -26,7 +26,7 @@ FastAPI, Pydantic v2. Frontend: React 18, TypeScript, Vite, Vanilla CSS.
 - **Config:** All env vars must be read in `server/core/config.py`.
 - **Executor:** Use `get_executor()` from `server.core.executor` for subprocess
   calls, not raw `subprocess.run` or `asyncio.create_subprocess_*` directly.
-- **Tests:** `uv run pytest tests/ -v --timeout=60` must pass after every change.
+- **Tests:** `uv run pytest tests/ -v` must pass after every change.
 
 ## Frontend (TypeScript / React)
 - **Target file size:** 250 lines max per `.tsx`/`.ts` file.

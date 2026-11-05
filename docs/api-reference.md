@@ -8,6 +8,7 @@ Lavender exposes RESTful JSON endpoints and a Server-Sent Events (SSE) telemetry
 
 | Method | Endpoint | Access | Description | Payload / Query |
 |:---|:---|:---|:---|:---|
+| `GET` | `/auth/config` | Public | Retrieve public auth & navigation config (`require_auth_for_homepage`) | None |
 | `POST` | `/auth/login` | Public | Authenticate credentials; sets signed session cookie | Form or JSON: `{"username": "...", "password": "..."}` |
 | `GET, POST` | `/auth/logout` | Session | Clear session, drop sudo ticket, and delete cookie | None |
 | `GET` | `/auth/me` | Session | Retrieve active user profile, UID/GID, groups, and admin elevation status | None |
@@ -21,7 +22,7 @@ Lavender exposes RESTful JSON endpoints and a Server-Sent Events (SSE) telemetry
 | Method | Endpoint | Access | Description | Payload / Query |
 |:---|:---|:---|:---|:---|
 | `GET` | `/api/storage` | Session | Get disk partitions, mount usage, and top directory breakdown | None |
-| `POST` | `/api/storage/unmount` | Admin | Unmount filesystem or external drive | JSON: `{"mount_point": "..."}` |
+| `POST` | `/api/storage/unmount` | Admin | Unmount filesystem or external drive | Query: `?mount_point=/path/to/mount` |
 | `GET` | `/api/storage/files` | Session | List directory contents with metadata (size, permissions, timestamps) | Query: `?path=/path/to/dir` |
 | `GET` | `/api/storage/bookmarks` | Session | Retrieve quick-access drive bookmarks and system shortcuts | None |
 | `GET` | `/api/storage/file/view` | Session | Read/preview text file content with line limit | Query: `?path=/path/to/file` |
@@ -44,11 +45,14 @@ Lavender exposes RESTful JSON endpoints and a Server-Sent Events (SSE) telemetry
 | `GET` | `/api/system/services` | Session | List systemd units | Query: `?scope=user\|system\|all` |
 | `GET` | `/api/system/services/{unit}` | Session | Get detailed unit status and properties | Query: `?user=true\|false` |
 | `GET` | `/api/system/services/{unit}/logs` | Session | Fetch recent journalctl logs for service unit | Query: `?lines=50&user=bool` |
-| `POST` | `/api/system/services/{unit}/{action}` | Admin | Execute action (`start`, `stop`, `restart`, `enable`, `disable`) | Query: `?user=bool` |
+| `POST` | `/api/system/services/{unit}/{action}` | User/Admin* | Execute action (`start`, `stop`, `restart`, `enable`, `disable`) | Query: `?user=bool` |
+| `POST` | `/api/system/services/action` | User/Admin* | Execute action on service via request body | JSON: `{"service": "...", "action": "...", "user": bool}` |
 | `GET` | `/api/system/processes` | Session | List running processes and system load stats | Query: `?sort_by=cpu\|mem\|pid\|user\|name&limit=20` |
 | `POST` | `/api/system/processes/kill` | Admin | Terminate process by PID (`kill -9`) | Query: `?pid={n}` |
 | `GET` | `/api/system/memory` | Session | Get human-readable and raw memory statistics | None |
-| `GET` | `/api/system/logs` | Session | Fetch recent system journal entries | Query: `?lines=50` |
+| `GET` | `/api/system/logs` | Session | Fetch recent system journal entries | Query: `?lines=20&limit=n&service=name` |
+
+*\*User units (`?user=true`) operate under user session privileges; system units (`?user=false`) require Admin.*
 
 ---
 
@@ -70,9 +74,9 @@ Lavender exposes RESTful JSON endpoints and a Server-Sent Events (SSE) telemetry
 | `GET` | `/api/packages` | Session | Installed count, active package manager backend, and upgradable list | None |
 | `GET` | `/api/packages/search` | Session | Search upstream distribution repositories | Query: `?query={name}` |
 | `GET` | `/api/packages/info` | Session | Retrieve detailed package metadata | Query: `?package={name}` |
-| `POST` | `/api/packages/upgrade` | Admin | Upgrade all packages or a single specified package | Optional JSON: `{"package": "..."}` |
-| `POST` | `/api/packages/install` | Admin | Install package | JSON: `{"package": "..."}` |
-| `POST` | `/api/packages/remove` | Admin | Remove package | JSON: `{"package": "..."}` |
+| `POST` | `/api/packages/upgrade` | Admin | Upgrade all packages or a single specified package | Optional Query: `?package={name}` |
+| `POST` | `/api/packages/install` | Admin | Install package | Query: `?package={name}` |
+| `POST` | `/api/packages/remove` | Admin | Remove package | Query: `?package={name}` |
 
 ---
 
@@ -81,7 +85,7 @@ Lavender exposes RESTful JSON endpoints and a Server-Sent Events (SSE) telemetry
 | Method | Endpoint | Access | Description | Payload / Query |
 |:---|:---|:---|:---|:---|
 | `GET` | `/api/power/state` | Session | Battery, thermal, current and available CPU governors, scheduled actions | None |
-| `POST` | `/api/power/governor` | Admin | Set CPU frequency scaling governor across all cores | JSON: `{"governor": "powersave\|performance\|schedutil"}` |
+| `POST` | `/api/power/governor` | Admin | Set CPU frequency scaling governor across all cores | Query: `?governor=powersave\|performance\|schedutil` |
 | `POST` | `/api/power/schedule` | Admin | Schedule a shutdown or reboot with broadcast message | JSON: `{"action": "reboot\|poweroff", "minutes": 15, "message": "..."}` |
 | `POST` | `/api/power/cancel-scheduled` | Admin | Cancel pending scheduled shutdown/reboot | None |
 | `POST` | `/api/power/reboot` | Admin | Reboot host immediately | None |
@@ -96,11 +100,11 @@ Lavender exposes RESTful JSON endpoints and a Server-Sent Events (SSE) telemetry
 |:---|:---|:---|:---|:---|
 | `GET` | `/api/users` | Session | Human vs system accounts, active sessions, and security posture | None |
 | `POST` | `/api/users/session/terminate`| Admin | Terminate active terminal/SSH session (`who -u`) | JSON: `{"tty": "...", "pid": 1234}` |
-| `GET` | `/api/users/{user}/ssh-keys` | Session | List public keys in `authorized_keys` | None |
-| `POST` | `/api/users/{user}/ssh-keys` | Admin | Add public SSH key to user's authorized keys | JSON: `{"key": "ssh-ed25519 ..."}` |
-| `DELETE`| `/api/users/{user}/ssh-keys/{idx}` | Admin | Delete public SSH key by 0-indexed line position | None |
+| `GET` | `/api/users/{user}/ssh-keys` | Self/Admin | List public keys in `authorized_keys` | None |
+| `POST` | `/api/users/{user}/ssh-keys` | Self/Admin | Add public SSH key to user's authorized keys | JSON: `{"key": "ssh-ed25519 ..."}` |
+| `DELETE`| `/api/users/{user}/ssh-keys/{idx}` | Self/Admin | Delete public SSH key by 0-indexed line position | None |
 | `POST` | `/api/users/{user}/groups` | Admin | Update secondary group memberships | JSON: `{"groups": ["wheel", "docker"]}` |
-| `POST` | `/api/users/{user}/password`| Self/Admin | Change user password | JSON: `{"current_password": "...", "new_password": "..."}` |
+| `POST` | `/api/users/{user}/password`| Self/Admin | Change user password | JSON: `{"new_password": "..."}` |
 
 ---
 

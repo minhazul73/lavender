@@ -49,7 +49,7 @@ Lavender is engineered with a clean, decoupled design: a high-performance asynch
 
 ## 3. Frontend Architecture (`frontend/`)
 
-- **React 18 + TypeScript:** Strict compile-time type safety with centralized domain types in `frontend/src/api/types.ts`.
+- **React 18 + TypeScript:** Strict compile-time type safety with modular domain types in `frontend/src/api/types/` (and backward-compatibility shim `frontend/src/api/types.ts`).
 - **Vite & Bun:** High-speed development environment with Hot Module Replacement (HMR) and lightweight dependency management.
 - **Vanilla CSS Design System:**
   - Tokenized color variables (`variables.css`, `base.css`).
@@ -78,10 +78,8 @@ For single-board computers (Raspberry Pi, PinePhone, Rockchip, Alpine Linux, etc
 lavender/
 ├── server/                      # FastAPI Modular Backend
 │   ├── main.py                  # Entrypoint, middleware, routes, and SPA fallback
-│   ├── config.py                # Re-export of core configuration
-│   ├── dependencies.py          # Command runners and system utility helpers
-│   ├── core/                    # Core configuration, executor, and sysfs helpers
-│   ├── auth/                    # Linux PAM, shadow, session store, elevation
+│   ├── core/                    # Core configuration, async executor, and sysfs helpers
+│   ├── auth/                    # Linux PAM, shadow bridge, session store, dependencies
 │   ├── api/                     # Domain REST API routers (auth, storage, network...)
 │   ├── services/                # Linux integrations (systemd, packages, files, power...)
 │   ├── schemas/                 # Pydantic v2 validation models
@@ -95,13 +93,13 @@ lavender/
 │   └── src/
 │       ├── main.tsx             # Application bootstrap
 │       ├── App.tsx              # Routing, auth gate, layout shell
-│       ├── api/                 # API client & TypeScript interfaces
-│       ├── components/          # Reusable UI components & layouts
+│       ├── api/                 # API client, endpoints, and domain types (api/types/)
+│       ├── components/          # Reusable UI components (common/, layout/)
 │       ├── context/             # AuthContext, ToastContext
-│       ├── hooks/               # useSSE telemetry hook
+│       ├── hooks/               # Custom hooks (useSSE, useAsyncData, useClipboard...)
 │       ├── pages/               # Page views (Overview, Storage, Services, etc.)
-│       ├── styles/              # Design system stylesheets
-│       └── utils/               # Formatters and test utilities
+│       ├── styles/              # Design system stylesheets (live, components, modals...)
+│       └── utils/               # Formatters, sparkline math, and test utilities
 │
 ├── docs/                        # Project documentation
 │   ├── api-reference.md         # Complete REST API reference

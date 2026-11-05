@@ -28,7 +28,7 @@ Originally designed for postmarketOS on ARM64 mobile devices (such as the Redmi 
 - **Frontend:** React 18 · TypeScript · Vite · Lucide React · Bun
 - **Real-Time:** Server-Sent Events (SSE) via FastAPI `StreamingResponse` & in-memory ring buffers
 - **Authentication:** Native Linux PAM (`python-pam`), `/etc/shadow`, `sudo -v` timestamp tickets, signed cookies (`itsdangerous`)
-- **Testing:** 140+ automated tests across `pytest` (backend) and `vitest` (frontend)
+- **Testing:** 190+ automated tests across `pytest` (backend) and `vitest` (frontend)
 
 ---
 
@@ -90,10 +90,10 @@ Detailed guides and references are organized in the [`docs/`](docs/) directory:
 ## Testing
 
 ```bash
-# Backend test suite (61 unit & integration tests)
+# Backend test suite (90 unit & integration tests)
 make test
 
-# Frontend test suite (81 component & hook tests)
+# Frontend test suite (100 component & hook tests)
 make test-frontend
 
 # Frontend TypeScript check

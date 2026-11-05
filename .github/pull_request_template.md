@@ -10,6 +10,7 @@ Brief description of what this PR changes and why.
 ## Checklist
 - [ ] `uv run pytest tests/ -v` passes
 - [ ] `cd frontend && bun run typecheck` passes
+- [ ] `cd frontend && bun run test` passes
 - [ ] Relevant tests added or updated
 - [ ] Docs updated if behavior changed
 - [ ] No secrets committed

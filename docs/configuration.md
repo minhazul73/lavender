@@ -13,6 +13,7 @@ All Lavender configuration constants are defined in [`server/core/config.py`](fi
 | `LAVENDER_PORT` / `PORT` | `8080` | Port for the FastAPI web server |
 | `LAVENDER_HOST` / `HOST` | `"0.0.0.0"` | Bind network interface (`0.0.0.0` binds all interfaces) |
 | `LAVENDER_DEBUG` | `False` | Enable debug mode (`true`/`false` or `1`/`0`) |
+| `LAVENDER_CORS_ORIGINS` | `""` | Comma-separated list of allowed CORS origins (empty allows same-origin only) |
 | `APP_VERSION` | `"0.5.0"` | Current application version |
 
 ### Authentication & Sessions
@@ -22,8 +23,9 @@ All Lavender configuration constants are defined in [`server/core/config.py`](fi
 | `SESSION_COOKIE_NAME` | `"lavender_session"` | Name of the signed HTTP session cookie |
 | `SESSION_MAX_IDLE_MINUTES` | `60` | Maximum inactivity duration (in minutes) before session expires |
 | `ADMIN_ELEVATION_TIMEOUT_MINUTES` | `15` | Sudo elevation ticket lifetime (in minutes) before re-auth is needed |
-| `LAVENDER_SECRET_KEY` / `DASHBOARD_SECRET_KEY` | *(built-in fallback)* | Secret key used by `itsdangerous` to sign session cookies |
+| `LAVENDER_SECRET_KEY` / `DASHBOARD_SECRET_KEY` | *(auto-managed)* | Secret key used by `itsdangerous` to sign session cookies. Auto-generates and persists to `~/.config/lavender/secret.key` (0600) on first run if not set |
 | `PAM_SERVICE` | `"login"` | Primary PAM service name for authentication (falls back to `base-auth` or `/etc/shadow`) |
+| `LAVENDER_REQUIRE_AUTH_FOR_HOMEPAGE` / `REQUIRE_AUTH_FOR_HOMEPAGE` | `False` | Require authentication to view homepage and live telemetry (`true`/`false` or `1`/`0`) |
 | `LOGIN_RATE_LIMIT` | `"10/minute"` | Brute-force rate limit enforced by `slowapi` on `/auth/login` |
 
 ### System Thresholds & Limits

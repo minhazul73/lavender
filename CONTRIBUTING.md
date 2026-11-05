@@ -61,7 +61,7 @@ Open `http://localhost:3000` in your browser. Changes in `frontend/src/` will ho
   - Place domain API routes in `server/api/<domain>.py`.
   - Place business logic, OS/sysfs interactions, and command runners in `server/services/<domain>.py`.
   - Place request/response validation models in `server/schemas/<domain>.py`.
-  - Use `server.core.executor.run_command` or async subprocesses rather than blocking synchronous I/O.
+  - Use `get_executor().run(...)` from `server.core.executor` or async subprocesses rather than blocking synchronous I/O.
 - **Error Handling:** Return structured `HTTPException` responses with user-friendly error details.
 
 ### Frontend (`frontend/src/`)

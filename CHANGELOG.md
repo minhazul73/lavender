@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Security
+- Eliminated subprocess sink in command executor and replaced with strict executable allowlist
+- Resolved CodeQL alerts for path traversal in storage file preview, raw streaming, and upload endpoints
+- Added strict destination sanitization for open redirect protection in `/auth/login`, `/auth/logout`, and SPA fallback routing
+- Hardened input validation for package names, ping targets, and DNS resolution hostnames
+
+### Changed
+- Removed obsolete `server/dependencies.py` and `server/config.py` shims in favor of direct modular imports
+- Split monolithic styles into domain stylesheets (`live.css`, `components.css`, `tables.css`, `forms.css`, `modals.css`, `file-browser.css`, `animations.css`)
+- Extracted modular power components (`PowerActionsCard`, `CpuGovernorCard`, `ScheduledPowerCard`) from `PowerPage`
+
+### Performance
+- Added `React.lazy()` route-based code splitting for dashboard page bundles
+- Audited and deduplicated CSS declarations in `live.css`
+
+### Reliability & UX
+- Added per-page React Error Boundaries to prevent full dashboard crashes from component errors
+- Enhanced native system font fallbacks (`system-ui`, `ui-monospace`) for resilient air-gapped deployments
+
+### CI & Tooling
+- Added non-blocking Ruff lint step to backend CI workflow
+- Added ESLint lint step to frontend CI workflow
+
+### Dependencies
+- Bumped `certifi` from 2026.7.22 to 2026.10.18
 
 ## [0.5.0] — 2026-11-02
 ### Added
