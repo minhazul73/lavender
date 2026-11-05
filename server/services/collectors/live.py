@@ -1,10 +1,9 @@
-"""Live telemetry collector."""
+"""Live telemetry collector facade for backward compatibility.
+"""
 
-from server.services.live import LiveMonitor, get_live_monitor as _get_live_monitor
+# Re-export the new LiveMonitor implementation that's split into a separate module.
+# The wrapper keeps the original public API `get_live_monitor`.
+
+from server.services.live_monitor import get_live_monitor
 
 __all__ = ["get_live_monitor"]
-
-
-def get_live_monitor() -> LiveMonitor:
-    """Get the live monitor instance."""
-    return _get_live_monitor()
