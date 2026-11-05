@@ -2,7 +2,6 @@
 Power control operations.
 """
 import re
-import subprocess
 
 from server.core.executor import get_executor
 

@@ -5,28 +5,28 @@ and a convenient file explorer with preview, editing, file creation, rename, del
 and file upload capabilities.
 """
 import asyncio
-from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form, status
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 
-from server.auth.deps import get_current_session, require_admin, require_session
+from server.auth.deps import get_current_session, require_admin
 from server.auth.session import UserSession
-from server.services.storage import get_disk_usage, unmount
-from server.services import files as files_service
 from server.schemas.storage import (
-    SaveFileRequest,
     CreateDirRequest,
     CreateFileRequest,
-    RenameRequest,
     DeleteFilesRequest,
+    RenameRequest,
+    SaveFileRequest,
 )
+from server.services import files as files_service
+from server.services.storage import get_disk_usage, unmount
 
 router = APIRouter()
 
 
 @router.get("", summary="Get disk and mount usage information")
 @router.get("/", include_in_schema=False)
-async def api_storage(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_storage(session: UserSession | None = Depends(get_current_session)):
     """Get disk usage, partitions, and mounted filesystems."""
     return {
         "disks": get_disk_usage(),
@@ -45,7 +45,7 @@ async def api_unmount(
     return res
 
 
-def is_session_admin(session: Optional[UserSession]) -> bool:
+def is_session_admin(session: UserSession | None) -> bool:
     """Check if session is currently elevated or has admin status."""
     if not session:
         return False
@@ -54,7 +54,7 @@ def is_session_admin(session: Optional[UserSession]) -> bool:
 
 def _handle_fs_error(
     exc: Exception,
-    session: "Optional[UserSession]",
+    session: "UserSession | None",
     is_admin: bool,
     elevation_msg: str,
 ) -> None:
@@ -80,11 +80,11 @@ def _handle_fs_error(
 
 @router.get("/files", summary="List files and directories in a path")
 async def api_list_files(
-    path: Optional[str] = Query(None, description="Path to list (defaults to user home)"),
+    path: str | None = Query(None, description="Path to list (defaults to user home)"),
     show_hidden: bool = Query(False, description="Whether to include hidden dotfiles"),
     sort_by: str = Query("name", description="Property to sort by (name, size, modified)"),
     order: str = Query("asc", description="Sort order (asc or desc)"),
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """List directory contents with rich file metadata and disk usage."""
     user_home = session.home if session else None
@@ -108,7 +108,7 @@ async def api_list_files(
 
 
 @router.get("/bookmarks", summary="Get quick navigation bookmarks and drive shortcuts")
-async def api_get_bookmarks(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_get_bookmarks(session: UserSession | None = Depends(get_current_session)):
     """Get quick access directories and mounted disk shortcuts."""
     user_home = session.home if session else None
     bookmarks = await asyncio.to_thread(files_service.get_quick_bookmarks, user_home=user_home)
@@ -122,7 +122,7 @@ async def api_get_bookmarks(session: Optional[UserSession] = Depends(get_current
 @router.get("/file/view", summary="Preview or read text file content")
 async def api_view_file(
     path: str = Query(..., description="Absolute path to file"),
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Read file content and metadata for preview or code editor."""
     is_admin = is_session_admin(session)
@@ -140,7 +140,7 @@ async def api_view_file(
 async def api_raw_file(
     path: str = Query(..., description="Absolute path to file"),
     download: bool = Query(False, description="Force file download attachment"),
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Stream raw file content (for inline image/video display or download)."""
     is_admin = is_session_admin(session)
@@ -159,7 +159,7 @@ async def api_raw_file(
 @router.post("/file/save", summary="Save edited file content")
 async def api_save_file(
     req: SaveFileRequest,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Save updated text content to an existing file."""
     is_admin = is_session_admin(session)
@@ -181,7 +181,7 @@ async def api_save_file(
 @router.post("/mkdir", summary="Create a new folder")
 async def api_mkdir(
     req: CreateDirRequest,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Create a new directory inside target path."""
     is_admin = is_session_admin(session)
@@ -203,7 +203,7 @@ async def api_mkdir(
 @router.post("/file/create", summary="Create a new file")
 async def api_create_file(
     req: CreateFileRequest,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Create a new file with optional content."""
     is_admin = is_session_admin(session)
@@ -226,7 +226,7 @@ async def api_create_file(
 @router.post("/rename", summary="Rename a file or folder")
 async def api_rename(
     req: RenameRequest,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Rename a file or folder."""
     is_admin = is_session_admin(session)
@@ -248,7 +248,7 @@ async def api_rename(
 @router.post("/delete", summary="Delete files or folders")
 async def api_delete(
     req: DeleteFilesRequest,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Delete one or more files/folders safely."""
     is_admin = is_session_admin(session)
@@ -265,8 +265,8 @@ async def api_delete(
 @router.post("/upload", summary="Upload one or more files to a directory")
 async def api_upload_files(
     path: str = Form(..., description="Destination directory path"),
-    files: List[UploadFile] = File(..., description="Files to upload"),
-    session: Optional[UserSession] = Depends(get_current_session),
+    files: list[UploadFile] = File(..., description="Files to upload"),
+    session: UserSession | None = Depends(get_current_session),
 ):
     """Upload files directly into the specified directory."""
     is_admin = is_session_admin(session)

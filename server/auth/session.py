@@ -1,17 +1,17 @@
 """
 In-memory session management for authenticated Linux users (Native Linux PAM).
 """
-import time
-import secrets
 import logging
+import secrets
+import time
 from dataclasses import dataclass, field
-from typing import Optional
-from itsdangerous import URLSafeSerializer, BadSignature, SignatureExpired
+
+from itsdangerous import BadSignature, SignatureExpired, URLSafeSerializer
 
 from server.core.config import (
-    SESSION_SECRET_KEY,
-    SESSION_MAX_IDLE_MINUTES,
     ADMIN_ELEVATION_TIMEOUT_MINUTES,
+    SESSION_MAX_IDLE_MINUTES,
+    SESSION_SECRET_KEY,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class UserSession:
     shell: str
     groups: list[str] = field(default_factory=list)
     is_admin: bool = False
-    admin_until: Optional[float] = None
+    admin_until: float | None = None
     created_at: float = field(default_factory=time.time)
     last_used: float = field(default_factory=time.time)
 
@@ -100,7 +100,7 @@ class SessionStore:
         """Sign session ID into a cryptographically secured token for cookie storage."""
         return self._serializer.dumps({"sid": session_id})
 
-    def verify_token(self, token: str) -> Optional[str]:
+    def verify_token(self, token: str) -> str | None:
         """Verify signed cookie token and return the raw session_id."""
         try:
             data = self._serializer.loads(token)
@@ -133,7 +133,7 @@ class SessionStore:
         )
         return session
 
-    async def get(self, session_id: str) -> Optional[UserSession]:
+    async def get(self, session_id: str) -> UserSession | None:
         """Retrieve active session, verifying idle timeout."""
         session = self._sessions.get(session_id)
         if not session:

@@ -1,18 +1,19 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class ServiceItem(BaseModel):
     unit: str
-    load: Optional[str] = None
-    active: Optional[str] = None
-    sub: Optional[str] = None
-    description: Optional[str] = None
-    scope: Optional[str] = None
+    load: str | None = None
+    active: str | None = None
+    sub: str | None = None
+    description: str | None = None
+    scope: str | None = None
 
 
 class ServicesListResponse(BaseModel):
-    services: List[Dict[str, Any]]
+    services: list[dict[str, Any]]
     count: int
 
 
@@ -21,7 +22,7 @@ class ServiceActionResponse(BaseModel):
     action: str
     service: str
     user: bool
-    output: Optional[str] = None
+    output: str | None = None
 
 
 class ProcessItem(BaseModel):
@@ -34,18 +35,18 @@ class ProcessItem(BaseModel):
 
 
 class ProcessesOverviewResponse(BaseModel):
-    processes: List[Dict[str, Any]]
-    load: Dict[str, Any]
-    memory: Dict[str, Any]
+    processes: list[dict[str, Any]]
+    load: dict[str, Any]
+    memory: dict[str, Any]
 
 
 class KillProcessResponse(BaseModel):
     action: str
     pid: int
     success: bool
-    output: Optional[str] = None
+    output: str | None = None
 
 
 class SystemLogsResponse(BaseModel):
-    logs: List[str]
+    logs: list[str]
     count: int

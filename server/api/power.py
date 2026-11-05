@@ -4,7 +4,7 @@ Provides system reboot, poweroff, suspend, CPU governor tuning, and timed power 
 """
 import asyncio
 import os
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from server.auth.bridge import run_sudo_async
@@ -65,13 +65,13 @@ async def api_set_governor(
 
 @router.get("/state", summary="Get CPU governor and scheduled power state")
 @router.get("/power/state", include_in_schema=False)
-async def api_power_state(session: Optional[UserSession] = Depends(get_current_session)):
+async def api_power_state(session: UserSession | None = Depends(get_current_session)):
     """Get active CPU power profile and pending scheduled power actions."""
     gov_file = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
     current_gov = "unknown"
     if os.path.isfile(gov_file):
         try:
-            with open(gov_file, "r") as f:
+            with open(gov_file) as f:
                 current_gov = f.read().strip()
         except Exception:
             pass

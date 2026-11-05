@@ -60,7 +60,7 @@ describe('PowerPage', () => {
     expect(screen.getByRole('heading', { name: /^System Reboot$/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^Power Off$/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^Suspend to RAM$/i })).toBeInTheDocument();
-    expect(screen.getByText(/Active: schedutil/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Active: schedutil/i)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^Power Saver/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /^High Performance/i })).toBeInTheDocument();
   });

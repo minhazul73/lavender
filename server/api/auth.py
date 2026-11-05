@@ -2,28 +2,28 @@
 Authentication API endpoints: Login, Logout, Elevation, and User Profile.
 """
 import logging
-from typing import Optional
 from urllib.parse import quote_plus
-from fastapi import APIRouter, Request, Response, Depends, HTTPException, Form, status
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from server.core.config import (
-    SESSION_COOKIE_NAME,
-    SESSION_MAX_IDLE_MINUTES,
-    LOGIN_RATE_LIMIT,
-    REQUIRE_AUTH_FOR_HOMEPAGE,
-)
-from server.auth.session import UserSession, session_store
 from server.auth.bridge import (
-    authenticate_user,
-    verify_sudo_password,
-    drop_sudo_ticket,
     AuthError,
+    authenticate_user,
+    drop_sudo_ticket,
+    verify_sudo_password,
 )
 from server.auth.deps import get_current_session, require_session
+from server.auth.session import UserSession, session_store
+from server.core.config import (
+    LOGIN_RATE_LIMIT,
+    REQUIRE_AUTH_FOR_HOMEPAGE,
+    SESSION_COOKIE_NAME,
+    SESSION_MAX_IDLE_MINUTES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ async def api_auth_config():
 class LoginRequest(BaseModel):
     username: str
     password: str
-    next: Optional[str] = "/"
+    next: str | None = "/"
 
 
 class ElevateRequest(BaseModel):
@@ -62,7 +62,7 @@ SAFE_REDIRECT_ROUTES = {
 }
 
 
-def _sanitize_next_url(target: Optional[str]) -> str:
+def _sanitize_next_url(target: str | None) -> str:
     """Ensure redirect URL strictly matches a known internal application route."""
     if not target or not isinstance(target, str):
         return "/"
@@ -75,9 +75,9 @@ def _sanitize_next_url(target: Optional[str]) -> str:
 async def api_login(
     request: Request,
     response: Response,
-    username: Optional[str] = Form(None, max_length=64),
-    password: Optional[str] = Form(None, max_length=256),
-    next: Optional[str] = Form("/", max_length=512),
+    username: str | None = Form(None, max_length=64),
+    password: str | None = Form(None, max_length=256),
+    next: str | None = Form("/", max_length=512),
 ):
     """
     Authenticate Linux user credentials against localhost SSH bridge.
@@ -165,7 +165,7 @@ async def api_login(
     return res
 
 
-async def _do_logout(request: Request, session: Optional[UserSession]):
+async def _do_logout(request: Request, session: UserSession | None):
     if session:
         await drop_sudo_ticket()
         await session_store.delete(session.session_id)
@@ -188,7 +188,7 @@ async def _do_logout(request: Request, session: Optional[UserSession]):
 @router.get("/logout", summary="Log out user via GET")
 async def api_logout_get(
     request: Request,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     return await _do_logout(request, session)
 
@@ -196,7 +196,7 @@ async def api_logout_get(
 @router.post("/logout", summary="Log out user via POST")
 async def api_logout_post(
     request: Request,
-    session: Optional[UserSession] = Depends(get_current_session),
+    session: UserSession | None = Depends(get_current_session),
 ):
     return await _do_logout(request, session)
 

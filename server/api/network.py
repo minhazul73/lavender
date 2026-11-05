@@ -3,7 +3,7 @@ Network API routes for Lavender.
 Provides network overview, interface inspection, WiFi scanning, ping, and DNS resolution.
 """
 import re
-from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from server.auth.deps import require_session

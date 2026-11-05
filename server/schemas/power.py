@@ -1,20 +1,21 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
 class PowerActionResponse(BaseModel):
     action: str
     success: bool
-    output: Optional[str] = None
+    output: str | None = None
 
 
 class PowerStateResponse(BaseModel):
     active_governor: str
-    available_governors: List[str]
-    scheduled: Optional[Dict[str, Any]] = None
+    available_governors: list[str]
+    scheduled: dict[str, Any] | None = None
 
 
 class SchedulePowerRequest(BaseModel):
     action: str = Field(..., description="Action to schedule: 'reboot' or 'poweroff'")
     minutes: int = Field(..., ge=1, le=1440, description="Minutes until action executes")
-    message: Optional[str] = Field(default="Scheduled from Lavender", description="Broadcast warning message")
+    message: str | None = Field(default="Scheduled from Lavender", description="Broadcast warning message")

@@ -3,15 +3,13 @@ User, session, and permission management service for Lavender.
 """
 import os
 import shutil
-import subprocess
-from typing import Optional
 
 from server.core.executor import get_executor
 from server.utils.cmd import which
 from server.utils.passwd import (
-    parse_passwd_users,
     parse_all_passwd_users,
     parse_groups,
+    parse_passwd_users,
 )
 from server.utils.sessions import (
     parse_active_sessions,
@@ -91,7 +89,7 @@ def get_user_ssh_keys(username: str) -> list[dict]:
         return keys
 
     try:
-        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(path, encoding="utf-8", errors="ignore") as f:
             for idx, line in enumerate(f):
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -151,7 +149,7 @@ def delete_user_ssh_key(username: str, key_index: int) -> bool:
         return False
 
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             lines = f.readlines()
 
         if 0 <= key_index < len(lines):
@@ -164,7 +162,7 @@ def delete_user_ssh_key(username: str, key_index: int) -> bool:
     return False
 
 
-def get_home_storage_info(home_path: str) -> Optional[dict]:
+def get_home_storage_info(home_path: str) -> dict | None:
     """Fast check of filesystem storage on the partition hosting home."""
     if not home_path or not os.path.isdir(home_path):
         return None
@@ -181,7 +179,7 @@ def get_home_storage_info(home_path: str) -> Optional[dict]:
         return None
 
 
-def get_human_users(current_username: Optional[str] = None) -> list[dict]:
+def get_human_users(current_username: str | None = None) -> list[dict]:
     """Get list of enriched human interactive users."""
     raw_users = parse_passwd_users(min_uid=1000, exclude_nologin=True)
     all_groups = parse_groups()
@@ -322,7 +320,7 @@ def get_security_posture() -> dict:
     for cfg_path in ("/etc/ssh/sshd_config", "/etc/ssh/sshd_config.d"):
         if os.path.isfile(cfg_path):
             try:
-                with open(cfg_path, "r", encoding="utf-8", errors="ignore") as f:
+                with open(cfg_path, encoding="utf-8", errors="ignore") as f:
                     for line in f:
                         line = line.strip()
                         if line.startswith("PermitRootLogin"):

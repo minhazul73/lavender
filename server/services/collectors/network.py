@@ -6,13 +6,12 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Dict, Optional, Tuple
 
 from server.core.config import SSE_NETWORK_INTERVAL_MS
 from server.services.live_buffer import MetricCollector
 
 
-def _read_file(path: str) -> Optional[str]:
+def _read_file(path: str) -> str | None:
     import server.services.live as live
     return live._read_file(path)
 
@@ -31,7 +30,7 @@ class NetworkRateCollector(MetricCollector):
     def __init__(self, interval_ms: int = SSE_NETWORK_INTERVAL_MS,
                  history_size: int = 30) -> None:
         super().__init__(interval_ms, history_size, "network")
-        self._prev_counters: Dict[str, Tuple[int, int]] = {}
+        self._prev_counters: dict[str, tuple[int, int]] = {}
         self._prev_time: float = 0.0
 
     async def collect(self) -> dict:
@@ -43,6 +42,8 @@ class NetworkRateCollector(MetricCollector):
         if iface is None or iface not in counters:
             return {
                 "iface": iface or "none",
+                "rx_bytes": 0,
+                "tx_bytes": 0,
                 "rx_rate_bps": 0,
                 "tx_rate_bps": 0,
             }
@@ -69,9 +70,9 @@ class NetworkRateCollector(MetricCollector):
             "tx_rate_bps": tx_rate,
         }
 
-    def _read_network_counters(self) -> Dict[str, Tuple[int, int]]:
+    def _read_network_counters(self) -> dict[str, tuple[int, int]]:
         """Read /proc/net/dev, return {iface: (rx_bytes, tx_bytes)}."""
-        counters: Dict[str, Tuple[int, int]] = {}
+        counters: dict[str, tuple[int, int]] = {}
         text = _read_file("/proc/net/dev")
         if text is None:
             return counters
@@ -88,7 +89,7 @@ class NetworkRateCollector(MetricCollector):
         return counters
 
     @staticmethod
-    def _default_route_interface() -> Optional[str]:
+    def _default_route_interface() -> str | None:
         """Find the interface with default gateway (Destination == 00000000) from /proc/net/route."""
         text = _read_file("/proc/net/route")
         if not text:
@@ -132,7 +133,7 @@ class NetworkRateCollector(MetricCollector):
             return 8
         return 5
 
-    def _primary_interface(self, counters: Dict[str, Tuple[int, int]]) -> Optional[str]:
+    def _primary_interface(self, counters: dict[str, tuple[int, int]]) -> str | None:
         """Pick the best interface to report on the overview dashboard.
 
         Prioritizes WiFi, Ethernet, and USB interfaces over virtual / VPN interfaces

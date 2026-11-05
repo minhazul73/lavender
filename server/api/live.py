@@ -10,9 +10,11 @@ import json
 import logging
 import time
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
+from server.auth.deps import get_current_session
+from server.auth.session import UserSession
 from server.core.config import (
     SSE_BATTERY_INTERVAL_MS,
     SSE_CPU_INTERVAL_MS,
@@ -21,7 +23,6 @@ from server.core.config import (
     SSE_THERMAL_INTERVAL_MS,
 )
 from server.services.live import get_live_monitor
-
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +106,6 @@ async def sse_generator(metrics: list[str] | None):
         raise
     finally:
         await monitor.remove_client()
-
-
-from server.auth.deps import get_current_session
-from server.auth.session import UserSession
-from fastapi import HTTPException, Depends
 
 
 @router.get("/device/live")

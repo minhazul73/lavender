@@ -2,10 +2,9 @@
 Command resolution and presence checks.
 """
 import shutil
-from typing import Optional
 
 
-def which(name: str) -> Optional[str]:
+def which(name: str) -> str | None:
     """Find program in PATH, return full path or None."""
     return shutil.which(name)
 

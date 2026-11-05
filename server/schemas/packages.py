@@ -1,14 +1,15 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel
 
 
 class PackageItem(BaseModel):
     name: str
-    version: Optional[str] = None
-    description: Optional[str] = None
-    installed: Optional[bool] = None
-    upgradable: Optional[bool] = None
-    new_version: Optional[str] = None
+    version: str | None = None
+    description: str | None = None
+    installed: bool | None = None
+    upgradable: bool | None = None
+    new_version: str | None = None
 
 
 class PackagesOverviewResponse(BaseModel):
@@ -17,12 +18,12 @@ class PackagesOverviewResponse(BaseModel):
     backend_short: str
     installed_count: int
     upgradable_count: int
-    upgradable: List[Dict[str, Any]]
-    installed: List[Dict[str, Any]]
+    upgradable: list[dict[str, Any]]
+    installed: list[dict[str, Any]]
 
 
 class PackageActionResponse(BaseModel):
     action: str
-    package: Optional[str] = None
+    package: str | None = None
     success: bool
-    output: Optional[str] = None
+    output: str | None = None

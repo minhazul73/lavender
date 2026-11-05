@@ -2,23 +2,21 @@
 FastAPI application for Lavender.
 Provides REST APIs, SSE telemetry, and serves the production React SPA bundle.
 """
-import os
 import asyncio
-from pathlib import Path
-from urllib.parse import urlsplit
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
-from server.core.config import APP_VERSION, REQUIRE_AUTH_FOR_HOMEPAGE, DEBUG, CORS_ORIGINS
-from server.auth.session import UserSession, session_store
 from server.auth.deps import get_current_session
+from server.auth.session import UserSession, session_store
+from server.core.config import APP_VERSION, CORS_ORIGINS, DEBUG, REQUIRE_AUTH_FOR_HOMEPAGE
 
 
 async def _periodic_session_cleanup():
@@ -40,7 +38,9 @@ async def lifespan(app: FastAPI):
     # Pre-seed active session for current local user — DEVELOPMENT ONLY
     if DEBUG:
         try:
-            import getpass, pwd
+            import getpass
+            import pwd
+
             from server.auth.bridge import get_local_user_info
             cur_user = getpass.getuser()
             pw = pwd.getpwnam(cur_user)
@@ -92,6 +92,7 @@ app.add_middleware(
 
 # Attach rate limiter to app state
 from server.api.auth import limiter as auth_limiter  # noqa: E402
+
 app.state.limiter = auth_limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

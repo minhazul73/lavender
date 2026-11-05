@@ -27,6 +27,7 @@ vi.mock('./hooks/useSSE', () => ({
 
 describe('App Routing and Homepage Public Access', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.clearAllMocks();
     window.history.pushState({}, 'Test', '/');
   });

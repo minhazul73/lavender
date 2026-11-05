@@ -2,8 +2,14 @@
 Characterization tests for server/services/live.py.
 These tests lock in the existing behaviour before the file is split (T-035).
 """
+import os
 import pytest
-from server.services.live import RingBuffer, RAMCollector
+from server.services.live_buffer import RingBuffer
+from server.services.collectors.ram import RAMCollector
+from server.services.collectors.cpu import CPUFreqCollector
+from server.services.collectors.thermal import ThermalCollector
+from server.services.collectors.battery import BatteryCollector
+from server.services.collectors.network import NetworkRateCollector
 
 
 class TestRingBuffer:
@@ -54,3 +60,145 @@ async def test_ram_collector_collects_metrics(mock_sysfs):
     assert "available" in data
     assert "used_pct" in data
     assert data["total"] > 0
+
+
+@pytest.mark.asyncio
+async def test_cpu_collector_collects_metrics(mock_sysfs, monkeypatch):
+    """Test CPU collector with mocked sysfs directory listings."""
+    # Mock os.path.isdir for CPU sysfs paths
+    def mock_isdir(path):
+        return path in (
+            "/sys/devices/system/cpu",
+            "/sys/devices/system/cpu/cpu0/cpufreq",
+        )
+
+    # Mock os.listdir for CPU sysfs paths
+    def mock_listdir(path):
+        if path == "/sys/devices/system/cpu":
+            return ["cpu0", "cpu1", "cpu2", "cpu3", "cpufreq", "cpuidle"]
+        return []
+
+    monkeypatch.setattr(os.path, "isdir", mock_isdir)
+    monkeypatch.setattr(os, "listdir", mock_listdir)
+
+    collector = CPUFreqCollector()
+    data = await collector.collect()
+    assert "cpus" in data
+    assert "count" in data
+    assert "primary_frequency_mhz" in data
+    assert "cpufreq_available" in data
+    assert "load1" in data
+    assert "load5" in data
+    assert "load15" in data
+    assert "per_core_usage" in data
+    assert data["count"] > 0
+    assert data["primary_frequency_mhz"] > 0
+    assert data["cpufreq_available"] is True
+    assert data["load1"] >= 0
+    assert data["load5"] >= 0
+    assert data["load15"] >= 0
+    assert len(data["per_core_usage"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_thermal_collector_collects_metrics(mock_sysfs, monkeypatch):
+    """Test thermal collector with mocked sysfs directory listings."""
+    # Mock os.path.isdir for thermal paths
+    def mock_isdir(path):
+        return path in (
+            "/sys/class/hwmon",
+            "/sys/bus/platform/devices",
+            "/sys/class/thermal",
+        )
+
+    # Mock os.listdir for thermal paths
+    def mock_listdir(path):
+        if path == "/sys/class/hwmon":
+            return ["hwmon0"]
+        elif path == "/sys/bus/platform/devices":
+            return []
+        elif path == "/sys/class/thermal":
+            return []
+        return []
+
+    monkeypatch.setattr(os.path, "isdir", mock_isdir)
+    monkeypatch.setattr(os, "listdir", mock_listdir)
+
+    collector = ThermalCollector()
+    data = await collector.collect()
+    assert isinstance(data, list)
+    # With empty hwmon (no temp files), data should be empty
+    # But hwmon0 might have temp1_input if we set it in mock_sysfs
+    # For now, just verify the structure
+    if data:
+        assert "name" in data[0]
+        assert "display_name" in data[0]
+        assert "type" in data[0]
+        assert "temp_millicelsius" in data[0]
+        assert "temp_celsius" in data[0]
+        assert "warning" in data[0]
+        assert "crit" in data[0]
+        assert data[0]["temp_celsius"] > 0
+
+
+@pytest.mark.asyncio
+async def test_battery_collector_collects_metrics(mock_sysfs, monkeypatch):
+    """Test battery collector with mocked sysfs directory listings."""
+    # Mock os.path.isdir for power_supply paths
+    def mock_isdir(path):
+        return path == "/sys/class/power_supply"
+
+    # Mock os.listdir for power_supply paths
+    def mock_listdir(path):
+        if path == "/sys/class/power_supply":
+            return ["bat0"]
+        return []
+
+    monkeypatch.setattr(os.path, "isdir", mock_isdir)
+    monkeypatch.setattr(os, "listdir", mock_listdir)
+
+    collector = BatteryCollector()
+    data = await collector.collect()
+    assert "percentage" in data
+    assert "state" in data
+    assert "temperature" in data
+    assert "voltage" in data
+    assert "energy_rate" in data
+    assert "time_to_full" in data
+    assert "time_to_empty" in data
+    assert "energy" in data
+    assert "energy_full" in data
+    assert "capacity" in data
+    assert "charging" in data
+    assert "discharging" in data
+    assert "online" in data
+    assert "serial" in data
+    assert "vendor" in data
+    assert "model" in data
+    assert "icon_name" in data
+    assert "has_history" in data
+    assert "battery_state" in data
+    assert "battery_level" in data
+    assert "battery_capacity_str" in data
+
+
+@pytest.mark.asyncio
+async def test_network_collector_collects_metrics(mock_sysfs, monkeypatch):
+    """Test network collector with mocked sysfs and procfs."""
+    # Mock os.path.exists for wireless/phy80211 checks
+    def mock_exists(path):
+        return False
+
+    monkeypatch.setattr(os.path, "exists", mock_exists)
+
+    collector = NetworkRateCollector()
+    data = await collector.collect()
+    assert "iface" in data
+    assert "rx_bytes" in data
+    assert "tx_bytes" in data
+    assert "rx_rate_bps" in data
+    assert "tx_rate_bps" in data
+    assert data["rx_bytes"] >= 0
+    assert data["tx_bytes"] >= 0
+    assert data["rx_rate_bps"] >= 0
+    assert data["tx_rate_bps"] >= 0

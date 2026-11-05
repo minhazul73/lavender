@@ -7,13 +7,12 @@ from __future__ import annotations
 import os
 import time
 from dataclasses import dataclass
-from typing import List, Optional
 
 from server.core.config import SSE_CPU_INTERVAL_MS
 from server.services.live_buffer import MetricCollector
 
 
-def _read_file(path: str) -> Optional[str]:
+def _read_file(path: str) -> str | None:
     import server.services.live as live
     return live._read_file(path)
 
@@ -37,7 +36,7 @@ def _get_loadavg(index: int) -> float:
     return 0.0
 
 
-def _parse_proc_stat() -> List[Optional[dict]]:
+def _parse_proc_stat() -> list[dict | None]:
     """Parse /proc/stat and return per-core CPU time dicts.
 
     Each dict contains: user, nice, system, idle, iowait, irq, softirq,
@@ -62,7 +61,7 @@ def _parse_proc_stat() -> List[Optional[dict]]:
     if max_core < 0:
         return []
 
-    cpus: List[Optional[dict]] = [None] * (max_core + 1)
+    cpus: list[dict | None] = [None] * (max_core + 1)
 
     for line in text.splitlines():
         if line.startswith("cpu") and not line.startswith("cpu "):
@@ -101,7 +100,7 @@ def _parse_proc_stat() -> List[Optional[dict]]:
     return cpus
 
 
-def _calc_cpu_usage(prev: Optional[dict], curr: Optional[dict]) -> Optional[float]:
+def _calc_cpu_usage(prev: dict | None, curr: dict | None) -> float | None:
     """Calculate CPU usage percentage between two samples.
 
     Returns None if either sample is missing.
@@ -118,9 +117,9 @@ def _calc_cpu_usage(prev: Optional[dict], curr: Optional[dict]) -> Optional[floa
 @dataclass
 class CPUCoreInfo:
     core: int
-    frequency_mhz: Optional[float] = None   # None if cpufreq not exposed
-    governor: Optional[str] = None
-    capacity: Optional[int] = None          # scheduler capacity (big vs little)
+    frequency_mhz: float | None = None   # None if cpufreq not exposed
+    governor: str | None = None
+    capacity: int | None = None          # scheduler capacity (big vs little)
 
 
 class CPUFreqCollector(MetricCollector):
@@ -138,11 +137,11 @@ class CPUFreqCollector(MetricCollector):
                  history_size: int = 20) -> None:
         super().__init__(interval_ms, history_size, "cpu")
         self._cpu_dir = "/sys/devices/system/cpu"
-        self._cpus: List[CPUCoreInfo] = []
+        self._cpus: list[CPUCoreInfo] = []
         self._cpus_last_update = 0.0
         self._has_cpufreq = False
-        self._prev_stat: List[Optional[dict]] = []
-        self._curr_stat: List[Optional[dict]] = []
+        self._prev_stat: list[dict | None] = []
+        self._curr_stat: list[dict | None] = []
 
     async def collect(self) -> dict:
         """Return CPU info: count, per-core list (as plain dicts for JSON),
@@ -213,7 +212,12 @@ class CPUFreqCollector(MetricCollector):
                 online_path = f"{self._cpu_dir}/{entry}/online"
                 online = _read_int(online_path, 1)
                 if online:
-                    if os.path.isdir(f"{self._cpu_dir}/{entry}/cpufreq"):
+                    # Probe via file read (routes through the sysfs reader, so
+                    # it works in tests) instead of os.path.isdir, which bypasses
+                    # mocks and is unavailable on some ARM SoCs.
+                    if _read_int(
+                        f"{self._cpu_dir}/{entry}/cpufreq/scaling_cur_freq", 0
+                    ) > 0:
                         has_cpufreq = True
                     capacity = _read_int(
                         f"{self._cpu_dir}/{entry}/cpu_capacity", 0

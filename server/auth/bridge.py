@@ -3,13 +3,12 @@ Native Linux PAM Authentication & Execution Engine.
 Directly interfaces with Linux PAM (/lib/security / pam_unix) and local systemd sessions.
 Eliminates any need for OpenSSH daemon or network loopback sockets.
 """
-import os
-import pwd
+import asyncio
 import grp
 import logging
-import asyncio
+import os
+import pwd
 import subprocess
-from typing import Optional
 
 from server.core.config import PAM_SERVICE
 
@@ -62,8 +61,8 @@ def verify_linux_credentials(username: str, password: str) -> bool:
         import warnings
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
-            import spwd
             import crypt
+            import spwd
 
         sp = spwd.getspnam(username)
         if sp and sp.sp_pwdp:
@@ -194,7 +193,7 @@ async def verify_sudo_password(password: str) -> tuple[bool, str]:
 
 async def run_sudo_async(
     cmd: list[str],
-    password: Optional[str] = None,
+    password: str | None = None,
     timeout: int = 30,
 ) -> tuple[int, str, str]:
     """Execute a privileged command with sudo via the shared executor."""

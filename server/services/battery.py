@@ -1,8 +1,9 @@
 """
 Battery, thermal, and CPU frequency management.
 """
-import subprocess
 import os
+import re
+import subprocess
 
 from server.core.executor import get_executor
 
@@ -220,7 +221,7 @@ def get_thermal_zones() -> list[dict]:
             type_path = os.path.join(zone_path, "type")
             if os.path.isfile(type_path):
                 try:
-                    with open(type_path, "r") as f:
+                    with open(type_path) as f:
                         zone["type"] = f.read().strip()
                 except Exception:
                     pass
@@ -232,7 +233,7 @@ def get_thermal_zones() -> list[dict]:
             temp_path = os.path.join(zone_path, "temp")
             if os.path.isfile(temp_path):
                 try:
-                    with open(temp_path, "r") as f:
+                    with open(temp_path) as f:
                         temp_raw = int(f.read().strip())
                         zone["temp_millicelsius"] = temp_raw
                         zone["temp_celsius"] = round(temp_raw / 1000, 1)
@@ -271,7 +272,7 @@ def get_cpu_frequencies() -> list[dict]:
             freq_path = os.path.join(cpu_path, "cpufreq", "scaling_cur_freq")
             if os.path.isfile(freq_path):
                 try:
-                    with open(freq_path, "r") as f:
+                    with open(freq_path) as f:
                         freq = int(f.read().strip())
                         cpu_info["frequency_khz"] = freq
                         cpu_info["frequency_mhz"] = round(freq / 1000, 1)
@@ -282,7 +283,7 @@ def get_cpu_frequencies() -> list[dict]:
             gov_path = os.path.join(cpu_path, "cpufreq", "scaling_governor")
             if os.path.isfile(gov_path):
                 try:
-                    with open(gov_path, "r") as f:
+                    with open(gov_path) as f:
                         cpu_info["governor"] = f.read().strip()
                 except Exception:
                     pass
@@ -301,16 +302,16 @@ def get_cpu_scaling_available() -> dict:
         try:
             avail_path = os.path.join(cpu0_path, "scaling_available_governors")
             if os.path.isfile(avail_path):
-                with open(avail_path, "r") as f:
+                with open(avail_path) as f:
                     result["governors"] = f.read().strip().split()
 
             min_path = os.path.join(cpu0_path, "scaling_min_freq")
             max_path = os.path.join(cpu0_path, "scaling_max_freq")
             if os.path.isfile(min_path):
-                with open(min_path, "r") as f:
+                with open(min_path) as f:
                     result["min_freq"] = int(f.read().strip())
             if os.path.isfile(max_path):
-                with open(max_path, "r") as f:
+                with open(max_path) as f:
                     result["max_freq"] = int(f.read().strip())
         except Exception:
             pass
@@ -323,7 +324,7 @@ def get_uptime() -> dict:
     uptime_sec = 0.0
     uptime_str = "Unknown"
     try:
-        with open("/proc/uptime", "r") as f:
+        with open("/proc/uptime") as f:
             uptime_sec = float(f.read().strip().split()[0])
             days = int(uptime_sec // 86400)
             hours = int((uptime_sec % 86400) // 3600)
@@ -399,4 +400,3 @@ def set_cpu_governor(governor: str) -> dict:
         "success": False,
         "error": "; ".join(errors) or err or "Failed to set CPU governor",
     }
-
