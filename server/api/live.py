@@ -10,9 +10,11 @@ import json
 import logging
 import time
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 
+from server.auth.deps import get_current_session
+from server.auth.session import UserSession
 from server.core.config import (
     SSE_BATTERY_INTERVAL_MS,
     SSE_CPU_INTERVAL_MS,
@@ -104,12 +106,6 @@ async def sse_generator(metrics: list[str] | None):
         raise
     finally:
         await monitor.remove_client()
-
-
-from fastapi import Depends
-
-from server.auth.deps import get_current_session
-from server.auth.session import UserSession
 
 
 @router.get("/device/live")

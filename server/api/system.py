@@ -6,6 +6,7 @@ import asyncio
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
 from server.auth.bridge import (
     run_sudo_async,
@@ -30,7 +31,6 @@ from server.services.systemd import (
 router = APIRouter()
 
 SERVICE_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
-
 
 def validate_service_name(name: str) -> str:
     """Validate systemd service/unit name to prevent argument injection."""
@@ -126,9 +126,6 @@ async def api_service_action(
         "user": user,
         "output": out,
     }
-
-
-from pydantic import BaseModel
 
 
 class ServiceActionPayload(BaseModel):

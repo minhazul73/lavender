@@ -116,7 +116,7 @@ class ApkManager(BasePackageManager):
     def get_installed_count(self) -> int:
         code, out, err = run_command(["apk", "info"], timeout=15)
         if code == 0:
-            lines = [l for l in out.splitlines() if l.strip()]
+            lines = [line for line in out.splitlines() if line.strip()]
             return len(lines)
         return 0
 
@@ -233,7 +233,7 @@ class AptManager(BasePackageManager):
     def get_installed_count(self) -> int:
         code, out, err = run_command(["dpkg-query", "-W", "-f=${Package}\n"], timeout=15)
         if code == 0:
-            lines = [l for l in out.splitlines() if l.strip()]
+            lines = [line for line in out.splitlines() if line.strip()]
             return len(lines)
         return 0
 
@@ -385,7 +385,7 @@ class PacmanManager(BasePackageManager):
     def get_installed_count(self) -> int:
         code, out, err = run_command(["pacman", "-Q"], timeout=15)
         if code == 0:
-            return len([l for l in out.splitlines() if l.strip()])
+            return len([line for line in out.splitlines() if line.strip()])
         return 0
 
     def get_upgradable_packages(self) -> list[dict[str, Any]]:
@@ -494,7 +494,7 @@ class DnfManager(BasePackageManager):
     def get_installed_count(self) -> int:
         code, out, err = run_command(["rpm", "-qa"], timeout=15)
         if code == 0:
-            return len([l for l in out.splitlines() if l.strip()])
+            return len([line for line in out.splitlines() if line.strip()])
         return 0
 
     def get_upgradable_packages(self) -> list[dict[str, Any]]:
