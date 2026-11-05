@@ -36,7 +36,7 @@ class TestNetworkServicesTailscaleDeprioritization:
             },
         ])
 
-        with patch("server.services.network.get_gateways", return_value=[{"interface": "wlan0", "gateway": "192.168.1.1"}]):
+        with patch("server.services.network.interfaces.get_gateways", return_value=[{"interface": "wlan0", "gateway": "192.168.1.1"}]):
             with patch("server.services.network.interfaces.run_command", return_value=(0, raw_ip_json, "")):
                 result = get_ip_addresses()
                 names = [i["name"] for i in result]

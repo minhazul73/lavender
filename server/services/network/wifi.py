@@ -162,7 +162,7 @@ def _try_iwconfig(primary_iface: str, wifi_data: WiFiInfo) -> None:
                 wifi_data.signal_dbm = sig_m.group(1)
 
             mode_m = re.search(r"Mode:(\S+)", out)
-            if mode_m and not wifi_data.get("mode"):
+            if mode_m and not wifi_data.mode:
                 wifi_data.mode = mode_m.group(1)
 
             if not wifi_data.source:

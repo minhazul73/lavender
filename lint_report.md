@@ -1,49 +1,15 @@
-# Postfix Lint Report
+# Post-fix Lint Report
 
-After running `uv run ruff check server/ --fix`, 16 errors remain across 4 rules:
+All previously identified Ruff lint errors in `server/` have been resolved.
 
-## E402: Module Import Not at Top of File
+## Status
 
-**Count:** 10
+`uv run ruff check server/` passes with **0 errors**.
 
-**Examples:**
-- `server/api/live.py:109`
-- `server/api/live.py:111`
-- `server/api/live.py:112`
-- `server/api/system.py:131`
-- `server/services/live.py:31`
-- `server/services/live.py:32`
-- `server/services/live.py:40`
-- `server/services/live.py:41`
-- `server/services/live.py:42`
-- `server/services/live.py:47`
+### Resolved Issues
+- **E402 (Module Import Not at Top of File)**: Resolved across `server/api/live.py`, `server/api/system.py`, and `server/services/live.py`.
+- **E741 (Ambiguous Variable Name)**: Resolved in `server/services/packages.py` (renamed `l` to `line`).
+- **F821 (Undefined Name)**: Resolved in `server/services/battery.py` (added missing `re` import).
+- **F841 (Unused Variable)**: Resolved in `server/services/systemd.py` (renamed unused `code` to `_code`).
 
-## E741: Ambiguous Variable Name
-
-**Count:** 4
-
-**Examples:**
-- `server/services/packages.py:119`
-- `server/services/packages.py:236`
-- `server/services/packages.py:388`
-- `server/services/packages.py:497`
-
-## F821: Undefined Name
-
-**Count:** 1
-
-**Example:**
-- `server/services/battery.py:351`
-
-## F841: Unused Variable
-
-**Count:** 1
-
-**Example:**
-- `server/services/systemd.py:89`
-
-## Summary
-
-Total remaining errors: 16
-
-These issues require manual attention to resolve.
+All checks passed!
