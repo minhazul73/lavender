@@ -2,8 +2,9 @@
 Characterization tests for HTTP error codes in server/api/storage.py.
 These tests lock in existing error-handling behaviour before D-002 extraction (T-028).
 """
-import pytest
 from unittest.mock import patch
+
+import pytest
 
 
 class TestListFilesErrors:
@@ -43,4 +44,3 @@ class TestViewFileErrors:
                    side_effect=PermissionError("no read")):
             r = await auth_client.get("/api/storage/file/view?path=/root/secret")
         assert r.status_code == 403
-

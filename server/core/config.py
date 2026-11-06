@@ -62,6 +62,8 @@ SSE_NETWORK_BUFFER = 30
 SESSION_COOKIE_NAME = "lavender_session"
 SESSION_MAX_IDLE_MINUTES = 60
 ADMIN_ELEVATION_TIMEOUT_MINUTES = 15
+
+
 def _get_or_create_secret_key() -> str:
     """Autonomously manage secret key lifecycle with zero user configuration.
 
@@ -110,4 +112,3 @@ REQUIRE_AUTH_FOR_HOMEPAGE = os.environ.get(
 
 # Rate Limiting
 LOGIN_RATE_LIMIT = "10/minute"
-

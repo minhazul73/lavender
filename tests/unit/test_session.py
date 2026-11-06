@@ -1,6 +1,8 @@
 import time
+
 import pytest
-from server.auth.session import SessionStore, UserSession
+
+from server.auth.session import SessionStore
 
 
 @pytest.mark.asyncio

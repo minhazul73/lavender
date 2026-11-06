@@ -83,4 +83,3 @@ def cancel_scheduled_action() -> dict:
         "output": out,
         "error": err,
     }
-

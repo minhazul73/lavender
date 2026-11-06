@@ -1,6 +1,7 @@
-import pytest
 import os
 import tempfile
+
+import pytest
 
 
 @pytest.mark.asyncio
@@ -52,7 +53,7 @@ async def test_list_files_and_crud(auth_client):
         )
         assert save_res.status_code == 200
 
-        with open(test_file, "r") as f:
+        with open(test_file) as f:
             assert f.read() == "Updated content"
 
         # Create folder
@@ -115,7 +116,7 @@ async def test_text_file_preview_various_extensions(auth_client):
                 json={"path": fpath, "content": content + "\n# modified"}
             )
             assert save_res.status_code == 200
-            with open(fpath, "r") as f:
+            with open(fpath) as f:
                 assert f.read() == content + "\n# modified"
 
 
@@ -135,4 +136,3 @@ async def test_root_path_permissions_and_is_writable(auth_client):
         vdata = view_res.json()
         assert vdata["is_text"] is True
         assert vdata["content"] is not None
-

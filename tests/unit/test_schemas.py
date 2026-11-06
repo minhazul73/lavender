@@ -1,8 +1,9 @@
 import pytest
 from pydantic import ValidationError
-from server.schemas.auth import LoginRequest, ElevateRequest, LoginResponse
+
+from server.schemas.auth import LoginRequest
 from server.schemas.power import SchedulePowerRequest
-from server.schemas.users import TerminateSessionRequest, AddSshKeyRequest
+from server.schemas.users import AddSshKeyRequest
 
 
 def test_login_request_validation():

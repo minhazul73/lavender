@@ -1,10 +1,9 @@
-from typing import Optional
 
 
 class MockSysfsReader:
     """In-memory sysfs and procfs reader for testing."""
 
-    def __init__(self, initial_files: Optional[dict[str, str]] = None):
+    def __init__(self, initial_files: dict[str, str] | None = None):
         self.files: dict[str, str] = dict(initial_files or {})
         self.directories: dict[str, list[str]] = {}
 
@@ -14,7 +13,7 @@ class MockSysfsReader:
     def set_dir(self, path: str, entries: list[str]) -> None:
         self.directories[path] = sorted(entries)
 
-    def read_file(self, path: str) -> Optional[str]:
+    def read_file(self, path: str) -> str | None:
         return self.files.get(path)
 
     def read_int(self, path: str, default: int = 0) -> int:

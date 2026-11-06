@@ -46,4 +46,3 @@ class RenameRequest(BaseModel):
 
 class DeleteFilesRequest(BaseModel):
     paths: list[str]
-

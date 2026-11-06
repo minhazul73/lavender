@@ -26,6 +26,7 @@ def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     res = get_executor().run_sync(cmd, timeout=float(timeout))
     return res.returncode, res.stdout, res.stderr
 
+
 # Known Linux groups and human-intelligible categorization
 GROUP_METADATA = {
     # Privileged

@@ -1,5 +1,6 @@
 import json
 from unittest.mock import patch
+
 from server.services.systemd import get_recent_logs
 
 

@@ -1,6 +1,6 @@
-import pytest
 from unittest.mock import patch
-from server.core.config import SESSION_COOKIE_NAME
+
+import pytest
 
 
 @pytest.mark.asyncio

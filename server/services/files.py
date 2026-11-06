@@ -20,6 +20,7 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     res = get_executor().run_sync(full_cmd, timeout=float(timeout))
     return res.returncode, res.stdout, res.stderr
 
+
 PROTECTED_PATHS = frozenset([
     "/", "/bin", "/boot", "/dev", "/etc", "/lib", "/lib32", "/lib64",
     "/proc", "/root", "/run", "/sbin", "/sys", "/usr", "/var",
@@ -100,7 +101,6 @@ def get_category(ext: str, mime: str | None = None) -> str:
     if ext_lower in (".txt", ".log", ""):
         return "text"
     return "binary"
-
 
 
 def is_text_file(path: str, max_check: int = 8192) -> bool:
