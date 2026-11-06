@@ -32,6 +32,7 @@ router = APIRouter()
 
 SERVICE_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
 
+
 def validate_service_name(name: str) -> str:
     """Validate systemd service/unit name to prevent argument injection."""
     if not name or len(name) > 256 or not SERVICE_NAME_REGEX.match(name):

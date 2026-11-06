@@ -1,4 +1,3 @@
-from typing import Callable, Optional, Union
 from server.core.executor import CommandResult
 
 
@@ -36,7 +35,7 @@ class MockCommandExecutor:
         self,
         cmd: list[str],
         timeout: float = 15.0,
-        env_overrides: Optional[dict[str, str]] = None,
+        env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
         self.calls.append({"type": "run", "cmd": cmd, "timeout": timeout, "env": env_overrides})
         return self._resolve(cmd)
@@ -63,7 +62,7 @@ class MockCommandExecutor:
         self,
         cmd: list[str],
         timeout: float = 15.0,
-        env_overrides: Optional[dict[str, str]] = None,
+        env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
         self.calls.append({"type": "run_sync", "cmd": cmd, "timeout": timeout, "env": env_overrides})
         return self._resolve(cmd)

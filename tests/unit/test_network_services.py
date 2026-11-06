@@ -1,6 +1,6 @@
 import json
-import pytest
 from unittest.mock import patch
+
 from server.services.network import get_ip_addresses
 
 

@@ -1,4 +1,3 @@
-import os
 import stat
 from pathlib import Path
 from unittest.mock import patch

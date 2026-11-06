@@ -20,6 +20,7 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     full_cmd = ["sudo"] + cmd if cmd and cmd[0] == "-n" else ["sudo", "-n"] + cmd
     return run_command(full_cmd, timeout)
 
+
 # In-memory cache for installed packages list (reduces CPU/disk load on host)
 _PACKAGES_CACHE: dict = {
     "installed": None,

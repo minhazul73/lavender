@@ -27,6 +27,7 @@ async def test_get_device_battery(client, mock_sysfs):
 @pytest.mark.asyncio
 async def test_sse_generator_initial_burst(mock_sysfs):
     import json
+
     from server.api.live import sse_generator
 
     gen = sse_generator(["cpu", "ram", "network"])

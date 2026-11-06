@@ -86,7 +86,7 @@ def get_service_status(service_name: str, user: bool = False) -> dict:
     if not out.strip() and not user:
         sudo_code, sudo_out, sudo_err = run_sudo_command(cmd, timeout=15)
         if sudo_out.strip():
-            _code, out, err = sudo_code, sudo_out, sudo_err
+            out, err = sudo_out, sudo_err
 
     # Parse key info
     info = {

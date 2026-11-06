@@ -3,13 +3,15 @@ Characterization tests for server/services/live.py.
 These tests lock in the existing behaviour before the file is split (T-035).
 """
 import os
+
 import pytest
-from server.services.live_buffer import RingBuffer
-from server.services.collectors.ram import RAMCollector
-from server.services.collectors.cpu import CPUFreqCollector
-from server.services.collectors.thermal import ThermalCollector
+
 from server.services.collectors.battery import BatteryCollector
+from server.services.collectors.cpu import CPUFreqCollector
 from server.services.collectors.network import NetworkRateCollector
+from server.services.collectors.ram import RAMCollector
+from server.services.collectors.thermal import ThermalCollector
+from server.services.live_buffer import RingBuffer
 
 
 class TestRingBuffer:

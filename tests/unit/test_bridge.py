@@ -1,5 +1,6 @@
 import asyncio
 from unittest.mock import patch
+
 import pytest
 
 from server.auth.bridge import run_command_async, run_sudo_async, run_user_service_async
@@ -39,6 +40,7 @@ def test_auth_bridge_handles_missing_spwd(monkeypatch):
     import subprocess
     import sys
     from unittest.mock import MagicMock
+
     from server.auth.bridge import verify_linux_credentials
 
     monkeypatch.setitem(sys.modules, "spwd", None)
@@ -63,5 +65,3 @@ def test_auth_bridge_handles_missing_spwd(monkeypatch):
     with patch("subprocess.run") as mock_subproc:
         mock_subproc.return_value = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="error")
         assert verify_linux_credentials("testuser", "wrongpassword") is False
-
-

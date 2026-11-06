@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from server.core.executor import CommandResult
 
 
@@ -87,6 +89,7 @@ async def test_service_logs_rejects_invalid_service_name(auth_client):
 
 def test_validate_service_name_unit():
     from fastapi import HTTPException
+
     from server.api.system import validate_service_name
 
     # Valid service names
@@ -102,5 +105,3 @@ def test_validate_service_name_unit():
             validate_service_name(bad)
         assert exc_info.value.status_code == 400
         assert "Invalid service name" in exc_info.value.detail
-
-

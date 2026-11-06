@@ -1,25 +1,21 @@
-import asyncio
 import os
-import pytest
-from httpx import AsyncClient, ASGITransport
 
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from server.auth.session import UserSession, session_store
 from server.core.config import SESSION_COOKIE_NAME
 from server.core.executor import (
-    CommandResult,
     SystemCommandExecutor,
-    get_executor,
     set_executor,
 )
 from server.core.sysfs import (
     SystemSysfsReader,
-    get_sysfs_reader,
     set_sysfs_reader,
 )
-from server.auth.session import UserSession, session_store
 from server.main import app
 from tests.mocks.executor import MockCommandExecutor
 from tests.mocks.sysfs import MockSysfsReader
-
 
 FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "mocks", "fixtures")
 
@@ -42,10 +38,10 @@ def mock_sysfs():
     proc_meminfo_path = os.path.join(FIXTURES_DIR, "proc_meminfo.txt")
 
     if os.path.isfile(proc_stat_path):
-        with open(proc_stat_path, "r") as f:
+        with open(proc_stat_path) as f:
             proc_stat = f.read()
     if os.path.isfile(proc_meminfo_path):
-        with open(proc_meminfo_path, "r") as f:
+        with open(proc_meminfo_path) as f:
             proc_meminfo = f.read()
 
     reader = MockSysfsReader({
