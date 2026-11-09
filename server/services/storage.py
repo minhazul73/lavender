@@ -171,7 +171,14 @@ def _decode_mount_path(path: str) -> str:
 
 
 def unmount(mount_point: str) -> dict[str, Any]:
-    """Unmount a filesystem (requires sudo)."""
+    """Verify mount point in /proc/mounts and unmount filesystem.
+
+    Args:
+        mount_point: Path to the mounted filesystem or device.
+
+    Returns:
+        Dict with success status and either command output or error message.
+    """
     target = os.path.normpath(mount_point) if mount_point and mount_point.strip() else ""
     real_target = os.path.realpath(target) if target else ""
     if (

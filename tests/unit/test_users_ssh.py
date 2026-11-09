@@ -10,6 +10,7 @@ from server.services.users import (
 
 
 def test_parse_ssh_key_type_and_data():
+    """Verify parsing key type and public key data from standard and option-prefixed keys."""
     # Standard key
     t, d = _parse_ssh_key_type_and_data("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5 user@host")
     assert t == "ssh-ed25519"
@@ -32,6 +33,7 @@ def test_parse_ssh_key_type_and_data():
 
 
 def test_delete_duplicate_keys_by_integer_index():
+    """Verify deleting duplicate SSH keys targets the exact selected line index."""
     # Two identical keys on lines 0 and 2
     key_line = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG mock@test"
     content = f"{key_line}\n# middle comment\n{key_line}\n"
@@ -62,6 +64,7 @@ def test_delete_duplicate_keys_by_integer_index():
 
 
 def test_delete_option_prefixed_key_by_index_and_string():
+    """Verify option-prefixed SSH keys can be matched by parsed key data and deleted."""
     opt_key = 'command="/usr/bin/backup",no-port-forwarding ssh-ed25519 AAAAC3backupKey backup@server'
     std_key = "ssh-rsa AAAAB3NzaC1yc2E standard@server"
     content = f"{opt_key}\n{std_key}\n"
@@ -85,6 +88,7 @@ def test_delete_option_prefixed_key_by_index_and_string():
 
 
 def test_delete_bare_token_rejected():
+    """Verify passing a bare key-type token without key data does not delete anything."""
     content = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG mock@test\n"
 
     with tempfile.NamedTemporaryFile("w+", delete=False) as tf:
@@ -105,6 +109,7 @@ def test_delete_bare_token_rejected():
 
 
 def test_delete_exact_trimmed_string_match():
+    """Verify exact trimmed-line matching removes the intended SSH key."""
     key1 = "ssh-ed25519 AAAAC3Key1 mock1@test"
     key2 = "ssh-ed25519 AAAAC3Key2 mock2@test"
     content = f"  {key1}  \n{key2}\n"
@@ -127,6 +132,7 @@ def test_delete_exact_trimmed_string_match():
 
 
 def test_delete_comment_or_non_key_exact_match_rejected():
+    """Verify comments and non-key lines are not deleted even on exact text match."""
     comment_line = "# Just an administrative comment"
     key1 = "ssh-ed25519 AAAAC3Key1 mock1@test"
     content = f"{comment_line}\n{key1}\n"
@@ -143,6 +149,31 @@ def test_delete_comment_or_non_key_exact_match_rejected():
             with open(temp_path) as f:
                 remaining = f.readlines()
             assert len(remaining) == 2
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+def test_delete_surrogateescape_and_atomic_replace():
+    """Verify undecodable surrogate bytes on unchanged lines are preserved during key deletion."""
+    raw_content = (
+        b"# comment with invalid \xe9 byte\n"
+        b"ssh-ed25519 AAAAC3Key1 mock1@test\n"
+        b"ssh-ed25519 AAAAC3Key2 mock2@test\n"
+    )
+    with tempfile.NamedTemporaryFile("wb", delete=False) as tf:
+        tf.write(raw_content)
+        temp_path = tf.name
+
+    try:
+        with patch("server.services.users.get_user_ssh_path", return_value=temp_path):
+            assert delete_user_ssh_key("testuser", "ssh-ed25519 AAAAC3Key1 mock1@test") is True
+
+            with open(temp_path, "rb") as f:
+                remaining_bytes = f.read()
+            assert b"\xe9" in remaining_bytes
+            assert b"AAAAC3Key1" not in remaining_bytes
+            assert b"AAAAC3Key2" in remaining_bytes
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
