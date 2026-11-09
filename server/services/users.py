@@ -143,8 +143,8 @@ def add_user_ssh_key(username: str, key_content: str) -> bool:
         return False
 
 
-def delete_user_ssh_key(username: str, key_index: int) -> bool:
-    """Delete a key at key_index in authorized_keys."""
+def delete_user_ssh_key(username: str, key_target: str | int) -> bool:
+    """Delete an SSH key by matching its content (or index mapped to content)."""
     path = get_user_ssh_path(username)
     if not os.path.exists(path):
         return False
@@ -153,14 +153,41 @@ def delete_user_ssh_key(username: str, key_index: int) -> bool:
         with open(path, encoding="utf-8") as f:
             lines = f.readlines()
 
-        if 0 <= key_index < len(lines):
-            lines.pop(key_index)
-            with open(path, "w", encoding="utf-8") as f:
-                f.writelines(lines)
-            return True
+        target_content: str | None = None
+        if isinstance(key_target, int):
+            keys = get_user_ssh_keys(username)
+            for k in keys:
+                if k.get("index") == key_target:
+                    target_content = k.get("raw")
+                    break
+            if target_content is None and 0 <= key_target < len(lines):
+                target_content = lines[key_target].strip()
+        elif isinstance(key_target, str):
+            target_content = key_target.strip()
+
+        if not target_content:
+            return False
+
+        target_tokens = target_content.split()
+        key_data = target_tokens[1] if len(target_tokens) > 1 else target_tokens[0]
+
+        matched = False
+        new_lines = []
+        for line in lines:
+            line_str = line.strip()
+            if not matched and (line_str == target_content or (key_data and key_data in line_str.split())):
+                matched = True
+                continue
+            new_lines.append(line)
+
+        if not matched:
+            return False
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+        return True
     except Exception:
-        pass
-    return False
+        return False
 
 
 def get_home_storage_info(home_path: str) -> dict | None:
