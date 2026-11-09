@@ -109,6 +109,7 @@ async def api_login(
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
+    # Offload PAM credential verification to thread pool via authenticate_user
     try:
         user_info = await authenticate_user(username, password)
     except AuthError as exc:

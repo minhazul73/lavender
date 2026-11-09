@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import os
 import re
 from typing import NamedTuple, Protocol
@@ -191,6 +192,16 @@ class SystemCommandExecutor:
         timeout: float = 15.0,
         env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
+        """Run a command synchronously, reusing the module thread pool when an event loop is running.
+
+        Args:
+            cmd: Command arguments to execute.
+            timeout: Subprocess timeout in seconds.
+            env_overrides: Optional environment variable overrides.
+
+        Returns:
+            CommandResult containing returncode, stdout, and stderr.
+        """
         if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
             return CommandResult(-1, "", "Invalid command specification")
         validation_error = self._validate_command(list(cmd))
@@ -202,13 +213,25 @@ class SystemCommandExecutor:
             loop = None
 
         if loop and loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                return pool.submit(
-                    asyncio.run,
-                    self.run(cmd, timeout=timeout, env_overrides=env_overrides),
-                ).result()
+            return _get_sync_pool().submit(
+                asyncio.run,
+                self.run(cmd, timeout=timeout, env_overrides=env_overrides),
+            ).result()
         return asyncio.run(self.run(cmd, timeout=timeout, env_overrides=env_overrides))
+
+
+_sync_pool: concurrent.futures.ThreadPoolExecutor | None = None
+
+
+def _get_sync_pool() -> concurrent.futures.ThreadPoolExecutor:
+    """Return or lazily initialize the shared persistent thread pool executor for synchronous runs."""
+    global _sync_pool
+    if _sync_pool is None:
+        _sync_pool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=4,
+            thread_name_prefix="sync_executor",
+        )
+    return _sync_pool
 
 
 # Dependency-injection point (swappable in tests)

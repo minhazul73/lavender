@@ -1,8 +1,12 @@
 """
 Storage utilities: disk usage via df -h, mount info, and directory usage.
 """
+import os
+import re
 import subprocess
 from typing import Any
+
+SYSTEM_ROOTS = frozenset(["/", "/proc", "/sys", "/dev"])
 
 PSEUDO_FS = frozenset([
     "tmpfs", "devtmpfs", "devpts", "proc", "sysfs", "cgroup",
@@ -161,11 +165,50 @@ def get_dir_usage() -> list[dict[str, Any]]:
     return result
 
 
+def _decode_mount_path(path: str) -> str:
+    """Decode octal escape sequences used by the Linux kernel in /proc/mounts."""
+    return re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), path)
+
+
 def unmount(mount_point: str) -> dict[str, Any]:
-    """Unmount a filesystem (requires sudo)."""
+    """Verify mount point in /proc/mounts and unmount filesystem.
+
+    Args:
+        mount_point: Path to the mounted filesystem or device.
+
+    Returns:
+        Dict with success status and either command output or error message.
+    """
+    target = os.path.normpath(mount_point) if mount_point and mount_point.strip() else ""
+    real_target = os.path.realpath(target) if target else ""
+    if (
+        not target
+        or target in SYSTEM_ROOTS
+        or target.startswith(("/proc/", "/sys/", "/dev/"))
+        or real_target in SYSTEM_ROOTS
+        or real_target.startswith(("/proc/", "/sys/", "/dev/"))
+    ):
+        return {"success": False, "error": f"Refusing to unmount system root: {mount_point}"}
+
+    is_mounted = False
+    try:
+        with open("/proc/mounts", encoding="utf-8", errors="surrogateescape") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    mp = _decode_mount_path(parts[1])
+                    if mp == target or mp == real_target:
+                        is_mounted = True
+                        break
+    except Exception as e:
+        return {"success": False, "error": f"Cannot verify mount point: {e}"}
+
+    if not is_mounted:
+        return {"success": False, "error": f"Mount point '{target}' is not mounted"}
+
     try:
         result = subprocess.run(
-            ["sudo", "umount", mount_point],
+            ["sudo", "umount", target],
             capture_output=True,
             text=True,
             timeout=30,

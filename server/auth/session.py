@@ -1,6 +1,7 @@
 """
 In-memory session management for authenticated Linux users (Native Linux PAM).
 """
+import asyncio
 import logging
 import secrets
 import time
@@ -95,6 +96,7 @@ class SessionStore:
     def __init__(self):
         self._sessions: dict[str, UserSession] = {}
         self._serializer = URLSafeSerializer(SESSION_SECRET_KEY, salt="dashboard-session-salt")
+        self._lock = asyncio.Lock()
 
     def sign_session_id(self, session_id: str) -> str:
         """Sign session ID into a cryptographically secured token for cookie storage."""
@@ -126,7 +128,8 @@ class SessionStore:
             groups=user_info.get("groups", []),
             is_admin=is_root,
         )
-        self._sessions[sid] = session
+        async with self._lock:
+            self._sessions[sid] = session
         logger.info(
             "Created session %s for user %s (uid=%d)",
             sid[:8], username, session.uid
@@ -135,6 +138,8 @@ class SessionStore:
 
     async def get(self, session_id: str) -> UserSession | None:
         """Retrieve active session, verifying idle timeout."""
+        # Unlocked session read and touch contain no await, so they cannot
+        # interleave with cleanup_idle in the single event loop.
         session = self._sessions.get(session_id)
         if not session:
             return None
@@ -151,7 +156,8 @@ class SessionStore:
 
     async def delete(self, session_id: str) -> None:
         """Delete session from memory."""
-        session = self._sessions.pop(session_id, None)
+        async with self._lock:
+            session = self._sessions.pop(session_id, None)
         if session:
             logger.info("Terminated session %s for user %s", session_id[:8], session.username)
 
@@ -159,12 +165,19 @@ class SessionStore:
         """Periodic cleaner for expired idle sessions."""
         now = time.time()
         max_idle_seconds = SESSION_MAX_IDLE_MINUTES * 60
-        expired_ids = [
-            sid for sid, s in list(self._sessions.items())
-            if (now - s.last_used > max_idle_seconds)
-        ]
-        for sid in expired_ids:
-            await self.delete(sid)
+        removed: list[tuple[str, str]] = []
+        async with self._lock:
+            expired_ids = [
+                sid for sid, s in list(self._sessions.items())
+                if (now - s.last_used > max_idle_seconds)
+            ]
+            for sid in expired_ids:
+                session = self._sessions.pop(sid, None)
+                if session:
+                    removed.append((sid, session.username))
+
+        for sid, username in removed:
+            logger.info("Terminated session %s for user %s", sid[:8], username)
 
 
 # Global session repository instance

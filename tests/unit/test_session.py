@@ -57,3 +57,16 @@ async def test_session_idle_cleanup():
     # Getting aged session should trigger expiration
     fetched = await store.get(session.session_id)
     assert fetched is None
+
+
+@pytest.mark.asyncio
+async def test_session_cleanup_idle_removes_expired_and_releases_lock():
+    """Verify cleanup_idle removes expired sessions and releases lock before logging."""
+    store = SessionStore()
+    user_info = {"uid": 1002, "gid": 1002, "home": "/home/charlie", "shell": "/bin/sh", "groups": []}
+    session = await store.create("charlie", user_info)
+    session.last_used = time.time() - 4000
+
+    await store.cleanup_idle()
+    assert session.session_id not in store._sessions
+    assert not store._lock.locked()

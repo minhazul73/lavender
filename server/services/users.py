@@ -3,6 +3,7 @@ User, session, and permission management service for Lavender.
 """
 import os
 import shutil
+import tempfile
 
 from server.core.executor import get_executor
 from server.utils.cmd import which
@@ -143,24 +144,102 @@ def add_user_ssh_key(username: str, key_content: str) -> bool:
         return False
 
 
-def delete_user_ssh_key(username: str, key_index: int) -> bool:
-    """Delete a key at key_index in authorized_keys."""
+def _parse_ssh_key_type_and_data(line: str) -> tuple[str, str]:
+    """Extract key_type and key_data matching get_user_ssh_keys parsing.
+
+    Args:
+        line: Raw line from authorized_keys.
+
+    Returns:
+        Tuple of (key_type, key_data) or empty strings if line is not a valid key.
+    """
+    parts = line.strip().split()
+    for i, p in enumerate(parts):
+        if p.startswith(("ssh-", "ecdsa-", "sk-ssh-", "sk-ecdsa-")):
+            key_type = p
+            key_data = parts[i + 1] if i + 1 < len(parts) else ""
+            return key_type, key_data
+    return "", ""
+
+
+def delete_user_ssh_key(username: str, key_target: str | int) -> bool:
+    """Delete an SSH key by matching its reported line index or content.
+
+    Args:
+        username: Target Linux username whose authorized_keys to edit.
+        key_target: 0-based integer line index or public key string to remove.
+
+    Returns:
+        True if key was found and atomically removed, False otherwise.
+    """
     path = get_user_ssh_path(username)
     if not os.path.exists(path):
         return False
 
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8", errors="surrogateescape") as f:
             lines = f.readlines()
 
-        if 0 <= key_index < len(lines):
-            lines.pop(key_index)
-            with open(path, "w", encoding="utf-8") as f:
-                f.writelines(lines)
-            return True
+        target_idx: int | None = None
+
+        if isinstance(key_target, int) and not isinstance(key_target, bool):
+            keys = get_user_ssh_keys(username)
+            matching_key = next((k for k in keys if k.get("index") == key_target), None)
+            if matching_key is None:
+                return False
+            if 0 <= key_target < len(lines):
+                if lines[key_target].strip() == matching_key.get("raw"):
+                    target_idx = key_target
+        elif isinstance(key_target, str):
+            target_str = key_target.strip()
+            if not target_str:
+                return False
+
+            # 1. Prefer exact trimmed-line match for valid SSH key lines
+            for idx, line in enumerate(lines):
+                if line.strip() == target_str:
+                    line_type, _ = _parse_ssh_key_type_and_data(line)
+                    if line_type:
+                        target_idx = idx
+                        break
+
+            # 2. If no exact match, parse key_data after key_type using get_user_ssh_keys logic
+            if target_idx is None:
+                target_type, target_data = _parse_ssh_key_type_and_data(target_str)
+                # Never match a bare token: key_data must be non-empty
+                if target_type and target_data:
+                    for idx, line in enumerate(lines):
+                        line_type, line_data = _parse_ssh_key_type_and_data(line)
+                        if line_type == target_type and line_data == target_data:
+                            target_idx = idx
+                            break
+
+        if target_idx is None or target_idx < 0 or target_idx >= len(lines):
+            return False
+
+        lines.pop(target_idx)
+        dir_name = os.path.dirname(path)
+        with tempfile.NamedTemporaryFile(
+            "w",
+            dir=dir_name,
+            encoding="utf-8",
+            errors="surrogateescape",
+            delete=False,
+        ) as tmp:
+            tmp.writelines(lines)
+            tmp_path = tmp.name
+
+        try:
+            os.chmod(tmp_path, 0o600)
+            os.replace(tmp_path, path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            raise
+
+        return True
     except Exception:
-        pass
-    return False
+        return False
 
 
 def get_home_storage_info(home_path: str) -> dict | None:
