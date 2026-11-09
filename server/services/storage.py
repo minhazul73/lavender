@@ -173,17 +173,24 @@ def _decode_mount_path(path: str) -> str:
 def unmount(mount_point: str) -> dict[str, Any]:
     """Unmount a filesystem (requires sudo)."""
     target = os.path.normpath(mount_point) if mount_point and mount_point.strip() else ""
-    if not target or target in SYSTEM_ROOTS or target.startswith(("/proc/", "/sys/", "/dev/")):
+    real_target = os.path.realpath(target) if target else ""
+    if (
+        not target
+        or target in SYSTEM_ROOTS
+        or target.startswith(("/proc/", "/sys/", "/dev/"))
+        or real_target in SYSTEM_ROOTS
+        or real_target.startswith(("/proc/", "/sys/", "/dev/"))
+    ):
         return {"success": False, "error": f"Refusing to unmount system root: {mount_point}"}
 
     is_mounted = False
     try:
-        with open("/proc/mounts") as f:
+        with open("/proc/mounts", encoding="utf-8", errors="surrogateescape") as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 2:
                     mp = _decode_mount_path(parts[1])
-                    if mp == target:
+                    if mp == target or mp == real_target:
                         is_mounted = True
                         break
     except Exception as e:

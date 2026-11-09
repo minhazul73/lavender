@@ -77,3 +77,25 @@ def test_unmount_escaped_path_decoded_and_compared():
                 text=True,
                 timeout=30,
             )
+
+
+def test_unmount_symlink_to_system_root_rejected():
+    with patch("os.path.realpath", return_value="/proc/sys"):
+        res = unmount("/mnt/fake_proc")
+        assert res["success"] is False
+        assert "Refusing to unmount system root" in res["error"]
+
+
+def test_unmount_surrogateescape_handling():
+    # Simulate a mount line with raw surrogate-escaped bytes (e.g. \udce9)
+    proc_mounts_content = "/dev/sdd1 /media/caf\udce9 ext4 rw 0 0\n"
+    with patch("builtins.open", mock_open(read_data=proc_mounts_content)):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=["sudo", "umount", "/media/caf\udce9"],
+                returncode=0,
+                stdout="unmounted",
+                stderr="",
+            )
+            res = unmount("/media/caf\udce9")
+            assert res["success"] is True
