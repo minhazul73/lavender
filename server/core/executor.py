@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import os
 import re
 from typing import NamedTuple, Protocol
@@ -202,13 +203,24 @@ class SystemCommandExecutor:
             loop = None
 
         if loop and loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                return pool.submit(
-                    asyncio.run,
-                    self.run(cmd, timeout=timeout, env_overrides=env_overrides),
-                ).result()
+            return _get_sync_pool().submit(
+                asyncio.run,
+                self.run(cmd, timeout=timeout, env_overrides=env_overrides),
+            ).result()
         return asyncio.run(self.run(cmd, timeout=timeout, env_overrides=env_overrides))
+
+
+_sync_pool: concurrent.futures.ThreadPoolExecutor | None = None
+
+
+def _get_sync_pool() -> concurrent.futures.ThreadPoolExecutor:
+    global _sync_pool
+    if _sync_pool is None:
+        _sync_pool = concurrent.futures.ThreadPoolExecutor(
+            max_workers=4,
+            thread_name_prefix="sync_executor",
+        )
+    return _sync_pool
 
 
 # Dependency-injection point (swappable in tests)
