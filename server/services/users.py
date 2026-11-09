@@ -143,8 +143,19 @@ def add_user_ssh_key(username: str, key_content: str) -> bool:
         return False
 
 
+def _parse_ssh_key_type_and_data(line: str) -> tuple[str, str]:
+    """Extract key_type and key_data matching get_user_ssh_keys parsing."""
+    parts = line.strip().split()
+    for i, p in enumerate(parts):
+        if p.startswith(("ssh-", "ecdsa-", "sk-ssh-", "sk-ecdsa-")):
+            key_type = p
+            key_data = parts[i + 1] if i + 1 < len(parts) else ""
+            return key_type, key_data
+    return "", ""
+
+
 def delete_user_ssh_key(username: str, key_target: str | int) -> bool:
-    """Delete an SSH key by matching its content (or index mapped to content)."""
+    """Delete an SSH key by matching its reported line index or content."""
     path = get_user_ssh_path(username)
     if not os.path.exists(path):
         return False
@@ -153,38 +164,44 @@ def delete_user_ssh_key(username: str, key_target: str | int) -> bool:
         with open(path, encoding="utf-8") as f:
             lines = f.readlines()
 
-        target_content: str | None = None
-        if isinstance(key_target, int):
+        target_idx: int | None = None
+
+        if isinstance(key_target, int) and not isinstance(key_target, bool):
             keys = get_user_ssh_keys(username)
-            for k in keys:
-                if k.get("index") == key_target:
-                    target_content = k.get("raw")
-                    break
-            if target_content is None and 0 <= key_target < len(lines):
-                target_content = lines[key_target].strip()
+            matching_key = next((k for k in keys if k.get("index") == key_target), None)
+            if matching_key is None:
+                return False
+            if 0 <= key_target < len(lines):
+                if lines[key_target].strip() == matching_key.get("raw"):
+                    target_idx = key_target
         elif isinstance(key_target, str):
-            target_content = key_target.strip()
+            target_str = key_target.strip()
+            if not target_str:
+                return False
 
-        if not target_content:
+            # 1. Prefer exact trimmed-line match
+            for idx, line in enumerate(lines):
+                if line.strip() == target_str:
+                    target_idx = idx
+                    break
+
+            # 2. If no exact match, parse key_data after key_type using get_user_ssh_keys logic
+            if target_idx is None:
+                target_type, target_data = _parse_ssh_key_type_and_data(target_str)
+                # Never match a bare token: key_data must be non-empty
+                if target_type and target_data:
+                    for idx, line in enumerate(lines):
+                        line_type, line_data = _parse_ssh_key_type_and_data(line)
+                        if line_type == target_type and line_data == target_data:
+                            target_idx = idx
+                            break
+
+        if target_idx is None or target_idx < 0 or target_idx >= len(lines):
             return False
 
-        target_tokens = target_content.split()
-        key_data = target_tokens[1] if len(target_tokens) > 1 else target_tokens[0]
-
-        matched = False
-        new_lines = []
-        for line in lines:
-            line_str = line.strip()
-            if not matched and (line_str == target_content or (key_data and key_data in line_str.split())):
-                matched = True
-                continue
-            new_lines.append(line)
-
-        if not matched:
-            return False
-
+        lines.pop(target_idx)
         with open(path, "w", encoding="utf-8") as f:
-            f.writelines(new_lines)
+            f.writelines(lines)
         return True
     except Exception:
         return False
