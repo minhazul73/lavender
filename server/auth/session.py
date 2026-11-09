@@ -163,6 +163,7 @@ class SessionStore:
         """Periodic cleaner for expired idle sessions."""
         now = time.time()
         max_idle_seconds = SESSION_MAX_IDLE_MINUTES * 60
+        removed: list[tuple[str, str]] = []
         async with self._lock:
             expired_ids = [
                 sid for sid, s in list(self._sessions.items())
@@ -171,7 +172,10 @@ class SessionStore:
             for sid in expired_ids:
                 session = self._sessions.pop(sid, None)
                 if session:
-                    logger.info("Terminated session %s for user %s", sid[:8], session.username)
+                    removed.append((sid, session.username))
+
+        for sid, username in removed:
+            logger.info("Terminated session %s for user %s", sid[:8], username)
 
 
 # Global session repository instance
