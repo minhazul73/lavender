@@ -2,6 +2,7 @@
 Storage utilities: disk usage via df -h, mount info, and directory usage.
 """
 import os
+import re
 import subprocess
 from typing import Any
 
@@ -164,9 +165,14 @@ def get_dir_usage() -> list[dict[str, Any]]:
     return result
 
 
+def _decode_mount_path(path: str) -> str:
+    """Decode octal escape sequences used by the Linux kernel in /proc/mounts."""
+    return re.sub(r"\\([0-7]{3})", lambda m: chr(int(m.group(1), 8)), path)
+
+
 def unmount(mount_point: str) -> dict[str, Any]:
     """Unmount a filesystem (requires sudo)."""
-    target = os.path.normpath(mount_point.strip()) if mount_point else ""
+    target = os.path.normpath(mount_point) if mount_point and mount_point.strip() else ""
     if not target or target in SYSTEM_ROOTS or target.startswith(("/proc/", "/sys/", "/dev/")):
         return {"success": False, "error": f"Refusing to unmount system root: {mount_point}"}
 
@@ -176,7 +182,7 @@ def unmount(mount_point: str) -> dict[str, Any]:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 2:
-                    mp = parts[1].replace(r"\040", " ")
+                    mp = _decode_mount_path(parts[1])
                     if mp == target:
                         is_mounted = True
                         break
