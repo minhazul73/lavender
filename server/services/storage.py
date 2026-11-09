@@ -1,8 +1,11 @@
 """
 Storage utilities: disk usage via df -h, mount info, and directory usage.
 """
+import os
 import subprocess
 from typing import Any
+
+SYSTEM_ROOTS = frozenset(["/", "/proc", "/sys", "/dev"])
 
 PSEUDO_FS = frozenset([
     "tmpfs", "devtmpfs", "devpts", "proc", "sysfs", "cgroup",
@@ -163,9 +166,29 @@ def get_dir_usage() -> list[dict[str, Any]]:
 
 def unmount(mount_point: str) -> dict[str, Any]:
     """Unmount a filesystem (requires sudo)."""
+    target = os.path.normpath(mount_point.strip()) if mount_point else ""
+    if not target or target in SYSTEM_ROOTS or target.startswith(("/proc/", "/sys/", "/dev/")):
+        return {"success": False, "error": f"Refusing to unmount system root: {mount_point}"}
+
+    is_mounted = False
+    try:
+        with open("/proc/mounts") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    mp = parts[1].replace(r"\040", " ")
+                    if mp == target:
+                        is_mounted = True
+                        break
+    except Exception as e:
+        return {"success": False, "error": f"Cannot verify mount point: {e}"}
+
+    if not is_mounted:
+        return {"success": False, "error": f"Mount point '{target}' is not mounted"}
+
     try:
         result = subprocess.run(
-            ["sudo", "umount", mount_point],
+            ["sudo", "umount", target],
             capture_output=True,
             text=True,
             timeout=30,
