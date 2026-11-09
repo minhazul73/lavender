@@ -1,4 +1,7 @@
+import builtins
+import os
 import subprocess
+import tempfile
 from unittest.mock import mock_open, patch
 
 from server.services.storage import _decode_mount_path, unmount
@@ -87,15 +90,38 @@ def test_unmount_symlink_to_system_root_rejected():
 
 
 def test_unmount_surrogateescape_handling():
-    # Simulate a mount line with raw surrogate-escaped bytes (e.g. \udce9)
-    proc_mounts_content = "/dev/sdd1 /media/caf\udce9 ext4 rw 0 0\n"
-    with patch("builtins.open", mock_open(read_data=proc_mounts_content)):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(
-                args=["sudo", "umount", "/media/caf\udce9"],
-                returncode=0,
-                stdout="unmounted",
-                stderr="",
-            )
-            res = unmount("/media/caf\udce9")
-            assert res["success"] is True
+    # Provide raw mount-entry bytes containing non-UTF-8 byte (\xe9)
+    raw_mount_bytes = b"/dev/sdd1 /media/caf\xe9 ext4 rw 0 0\n"
+    with tempfile.NamedTemporaryFile("wb", delete=False) as tf:
+        tf.write(raw_mount_bytes)
+        temp_path = tf.name
+
+    orig_open = builtins.open
+
+    def custom_open(file, *args, **kwargs):
+        if file == "/proc/mounts":
+            return orig_open(temp_path, *args, **kwargs)
+        return orig_open(file, *args, **kwargs)
+
+    decoded_target = "/media/caf\udce9"
+
+    try:
+        with patch("builtins.open", side_effect=custom_open):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = subprocess.CompletedProcess(
+                    args=["sudo", "umount", decoded_target],
+                    returncode=0,
+                    stdout="unmounted",
+                    stderr="",
+                )
+                res = unmount(decoded_target)
+                assert res["success"] is True
+                mock_run.assert_called_once_with(
+                    ["sudo", "umount", decoded_target],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
