@@ -182,8 +182,10 @@ def delete_user_ssh_key(username: str, key_target: str | int) -> bool:
             # 1. Prefer exact trimmed-line match
             for idx, line in enumerate(lines):
                 if line.strip() == target_str:
-                    target_idx = idx
-                    break
+                    line_type, _ = _parse_ssh_key_type_and_data(line)
+                    if line_type:
+                        target_idx = idx
+                        break
 
             # 2. If no exact match, parse key_data after key_type using get_user_ssh_keys logic
             if target_idx is None:

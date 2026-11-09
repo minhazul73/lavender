@@ -124,3 +124,25 @@ def test_delete_exact_trimmed_string_match():
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+def test_delete_comment_or_non_key_exact_match_rejected():
+    comment_line = "# Just an administrative comment"
+    key1 = "ssh-ed25519 AAAAC3Key1 mock1@test"
+    content = f"{comment_line}\n{key1}\n"
+
+    with tempfile.NamedTemporaryFile("w+", delete=False) as tf:
+        tf.write(content)
+        temp_path = tf.name
+
+    try:
+        with patch("server.services.users.get_user_ssh_path", return_value=temp_path):
+            # Attempting to delete a comment line must be rejected
+            assert delete_user_ssh_key("testuser", comment_line) is False
+
+            with open(temp_path) as f:
+                remaining = f.readlines()
+            assert len(remaining) == 2
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
