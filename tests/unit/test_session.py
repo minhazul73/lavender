@@ -60,7 +60,7 @@ async def test_session_idle_cleanup():
 
 
 @pytest.mark.asyncio
-async def test_session_cleanup_idle_releases_lock_before_logging():
+async def test_session_cleanup_idle_removes_expired_and_releases_lock():
     store = SessionStore()
     user_info = {"uid": 1002, "gid": 1002, "home": "/home/charlie", "shell": "/bin/sh", "groups": []}
     session = await store.create("charlie", user_info)

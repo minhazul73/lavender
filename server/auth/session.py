@@ -138,6 +138,8 @@ class SessionStore:
 
     async def get(self, session_id: str) -> UserSession | None:
         """Retrieve active session, verifying idle timeout."""
+        # Unlocked session read and touch contain no await, so they cannot
+        # interleave with cleanup_idle in the single event loop.
         session = self._sessions.get(session_id)
         if not session:
             return None
