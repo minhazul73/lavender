@@ -122,7 +122,7 @@ async def _app_middleware(request: Request, call_next):
 from server.api import auth, device, live, network, packages, power, storage, system, users  # noqa: E402
 
 # Register domain API routers
-app.include_router(auth.router)
+app.include_router(auth.router, prefix="/api", tags=["Auth"])
 app.include_router(device.router, prefix="/api/device", tags=["Device"])
 app.include_router(system.router, prefix="/api/system", tags=["System"])
 app.include_router(network.router, prefix="/api/network", tags=["Network"])
@@ -133,6 +133,7 @@ app.include_router(storage.router, prefix="/api/storage", tags=["Storage"])
 app.include_router(live.router, prefix="/api", tags=["Live"])
 
 # Backward-compatibility aliases for legacy scripts and tools
+app.include_router(auth.router, include_in_schema=False)
 app.include_router(network.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
 app.include_router(packages.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
 app.include_router(power.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
