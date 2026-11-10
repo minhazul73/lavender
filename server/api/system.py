@@ -4,14 +4,12 @@ Protected with session authentication and privilege verification.
 """
 import asyncio
 import re
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from server.auth.bridge import (
-    run_sudo_async,
-    run_user_service_async,
-)
+from server.auth.bridge import run_sudo_async, run_user_service_async
 from server.auth.deps import get_current_session, require_admin, require_session
 from server.auth.session import UserSession
 from server.services.processes import (
@@ -99,37 +97,24 @@ async def api_service_action(
     System services require administrative elevation.
     """
     validate_service_name(service_name)
-    valid_actions = ["start", "stop", "restart", "enable", "disable"]
-    if action not in valid_actions:
+    if action not in ("start", "stop", "restart", "enable", "disable"):
         raise HTTPException(status_code=400, detail=f"Invalid action: {action}")
 
     # System services require admin elevation
     if not user and not session.is_elevated():
-        raise HTTPException(
-            status_code=403,
-            detail="Administrative privileges required to modify system services.",
-        )
+        raise HTTPException(status_code=403, detail="Administrative privileges required to modify system services.")
 
     if user:
-        code, out, err = await run_user_service_async(
-            session.uid, ["systemctl", "--user", action, service_name]
-        )
+        code, out, err = await run_user_service_async(session.uid, ["systemctl", "--user", action, service_name])
     else:
-        code, out, err = await run_sudo_async(
-            ["systemctl", action, service_name], password=None
-        )
+        code, out, err = await run_sudo_async(["systemctl", action, service_name], password=None)
     if code != 0:
         raise HTTPException(status_code=500, detail=err or out or f"Failed to {action} {service_name}")
-    return {
-        "success": True,
-        "action": action,
-        "service": service_name,
-        "user": user,
-        "output": out,
-    }
+    return {"success": True, "action": action, "service": service_name, "user": user, "output": out}
 
 
 class ServiceActionPayload(BaseModel):
+    """Payload for executing a lifecycle action on a systemd service."""
     service: str
     action: str
     user: bool = False
@@ -141,6 +126,7 @@ async def api_service_action_body(
     payload: ServiceActionPayload,
     session: UserSession = Depends(require_session),
 ):
+    """Execute lifecycle action on systemd service using request body parameters."""
     return await api_service_action(
         service_name=payload.service,
         action=payload.action,
@@ -190,17 +176,38 @@ async def api_processes(
     }
 
 
+class KillProcessRequest(BaseModel):
+    """Request payload for terminating a process by PID."""
+    pid: int = Field(..., ge=1, description="PID to kill")
+
+
 @router.post("/processes/kill", summary="Kill process by PID")
 @router.post("/system/processes/kill", include_in_schema=False)
 async def api_kill_process(
-    pid: int = Query(..., ge=1, description="PID to kill"),
+    payload: KillProcessRequest | None = None,
+    # Typed as Any to bypass eager FastAPI 422 validation and preserve 400 contract for invalid query PIDs
+    pid: Any = Query(None, description="PID to kill (deprecated, use request body)"),
     session: UserSession = Depends(require_admin),
 ):
-    """Kill a process by PID (requires administrative elevation)."""
-    code, out, err = await run_sudo_async(["kill", "-9", str(pid)], password=None)
+    """Kill a process by PID (requires administrative elevation).
+
+    Accepts target PID in JSON request body (KillProcessRequest) or deprecated query parameter.
+    If both are supplied, the body PID takes precedence.
+    """
+    if payload is not None:
+        target_pid = payload.pid
+    else:
+        try:
+            target_pid = int(pid) if pid is not None else None
+            if target_pid is None or target_pid < 1:
+                raise ValueError
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="PID must be a positive integer")
+
+    code, out, err = await run_sudo_async(["kill", "-9", str(target_pid)], password=None)
     if code != 0:
-        raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {pid}")
-    return {"action": "kill", "pid": pid, "success": True, "output": out}
+        raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {target_pid}")
+    return {"action": "kill", "pid": target_pid, "success": True, "output": out}
 
 
 @router.get("/memory", summary="Get system memory info")

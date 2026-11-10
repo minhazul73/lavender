@@ -3,13 +3,14 @@ Power Management API routes for Lavender.
 Provides system reboot, poweroff, suspend, CPU governor tuning, and timed power scheduling.
 """
 import asyncio
-import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from server.auth.bridge import run_sudo_async
 from server.auth.deps import get_current_session, require_admin
 from server.auth.session import UserSession
+from server.core.sysfs import get_sysfs_reader
 from server.services.battery import get_cpu_scaling_available, set_cpu_governor
 from server.services.power import (
     cancel_scheduled_action,
@@ -68,13 +69,7 @@ async def api_set_governor(
 async def api_power_state(session: UserSession | None = Depends(get_current_session)):
     """Get active CPU power profile and pending scheduled power actions."""
     gov_file = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-    current_gov = "unknown"
-    if os.path.isfile(gov_file):
-        try:
-            with open(gov_file) as f:
-                current_gov = f.read().strip()
-        except Exception:
-            pass
+    current_gov = get_sysfs_reader().read_file(gov_file) or "unknown"
 
     scaling = get_cpu_scaling_available()
     scheduled = get_scheduled_shutdown()
@@ -86,26 +81,29 @@ async def api_power_state(session: UserSession | None = Depends(get_current_sess
     }
 
 
+class PowerScheduleRequest(BaseModel):
+    """Request payload for scheduling a timed reboot or shutdown."""
+    action: str = Field(..., description="Action to schedule: 'reboot' or 'poweroff'")
+    minutes: int = Field(..., description="Minutes until action executes (1 to 1440)")
+    message: str | None = Field(default="Scheduled from Lavender dashboard", description="Broadcast warning message")
+
+
 @router.post("/schedule", summary="Schedule a reboot or poweroff")
 @router.post("/power/schedule", include_in_schema=False)
 async def api_schedule_power(
-    payload: dict,
+    payload: PowerScheduleRequest,
     session: UserSession = Depends(require_admin),
 ):
     """Schedule a timed reboot or shutdown (Admin gated)."""
-    action = payload.get("action", "").lower().strip()
+    action = payload.action.lower().strip()
     if action not in ("reboot", "poweroff"):
         raise HTTPException(status_code=400, detail="Action must be 'reboot' or 'poweroff'")
 
-    try:
-        minutes = int(payload.get("minutes", 0))
-        if minutes < 1 or minutes > 1440:
-            raise ValueError()
-    except (ValueError, TypeError):
+    if payload.minutes < 1 or payload.minutes > 1440:
         raise HTTPException(status_code=400, detail="Minutes must be an integer between 1 and 1440")
 
-    message = payload.get("message", "Scheduled from Lavender dashboard")
-    res = await asyncio.to_thread(schedule_power_action, action, minutes, message)
+    message = payload.message or "Scheduled from Lavender dashboard"
+    res = await asyncio.to_thread(schedule_power_action, action, payload.minutes, message)
     if not res.get("success"):
         raise HTTPException(status_code=500, detail=res.get("error", "Failed to schedule action"))
     return res

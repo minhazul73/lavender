@@ -10,7 +10,7 @@ import json
 import logging
 import time
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from server.auth.deps import get_current_session
@@ -22,7 +22,7 @@ from server.core.config import (
     SSE_RAM_INTERVAL_MS,
     SSE_THERMAL_INTERVAL_MS,
 )
-from server.services.live import get_live_monitor
+from server.services.live import LiveCapacityError, get_live_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ METRIC_INTERVALS = {
 }
 
 
-async def sse_generator(metrics: list[str] | None):
+async def sse_generator(metrics: list[str] | None, reserve_client: bool = True):
     """Generate SSE events pulling from the live monitor buffers.
 
     Each metric is streamed on its own individually configured interval
@@ -62,6 +62,7 @@ async def sse_generator(metrics: list[str] | None):
     }
 
     async def _emit_metric(metric: str) -> str:
+        """Fetch and format latest reading for a metric into an SSE event string."""
         try:
             data = await getters[metric]()
         except Exception:
@@ -78,8 +79,9 @@ async def sse_generator(metrics: list[str] | None):
             )
         return f"data: {payload}\n\n"
 
-    # Start background collectors on first SSE client
-    await monitor.add_client()
+    # Start background collectors on first SSE client if not already reserved
+    if reserve_client:
+        await monitor.add_client()
     try:
         # Initial burst: emit current state for all requested metrics immediately
         for metric in requested:
@@ -105,11 +107,34 @@ async def sse_generator(metrics: list[str] | None):
     except asyncio.CancelledError:
         raise
     finally:
-        await monitor.remove_client()
+        if reserve_client:
+            await monitor.remove_client()
 
 
-@router.get("/device/live")
-@router.get("/live")
+class SSEStreamingResponse(StreamingResponse):
+    """StreamingResponse that releases reserved monitor capacity on disconnect or completion."""
+
+    def __init__(self, *args, monitor, **kwargs):
+        """Initialize streaming response with live monitor instance for capacity tracking."""
+        super().__init__(*args, **kwargs)
+        self._monitor = monitor
+        self._released = False
+
+    async def __call__(self, scope, receive, send) -> None:
+        """Execute streaming response and release monitor capacity reservation on completion."""
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            if not self._released:
+                self._released = True
+                try:
+                    await asyncio.shield(self._monitor.remove_client())
+                except Exception:
+                    logger.exception("Failed to release SSE client capacity")
+
+
+@router.get("/device/live", include_in_schema=False)
+@router.get("/live", summary="Stream live telemetry via SSE")
 async def live_sse(
     metrics: list[str] | None = Query(None, description="Comma-separated metric names"),
     session: UserSession | None = Depends(get_current_session),
@@ -118,18 +143,28 @@ async def live_sse(
 
     Open with:  EventSource('/api/device/live?metrics=cpu,ram,thermal,battery,network')
     """
+    monitor = get_live_monitor()
+    try:
+        await monitor.add_client()
+    except LiveCapacityError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
-    if metrics is not None:
-        flat_metrics = [m.strip() for metric in metrics for m in str(metric).split(",")]
-    else:
-        flat_metrics = None
+    try:
+        if metrics is not None:
+            flat_metrics = [m.strip() for metric in metrics for m in str(metric).split(",")]
+        else:
+            flat_metrics = None
 
-    return StreamingResponse(
-        sse_generator(flat_metrics),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+        return SSEStreamingResponse(
+            sse_generator(flat_metrics, reserve_client=False),
+            monitor=monitor,
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+    except Exception:
+        await monitor.remove_client()
+        raise

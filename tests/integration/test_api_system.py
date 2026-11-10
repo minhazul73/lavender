@@ -105,3 +105,32 @@ def test_validate_service_name_unit():
             validate_service_name(bad)
         assert exc_info.value.status_code == 400
         assert "Invalid service name" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_kill_process_body_precedence_over_query(admin_client):
+    with patch("server.api.system.run_sudo_async", return_value=(0, "Killed", "")) as mock_sudo:
+        res = await admin_client.post("/api/processes/kill?pid=invalid", json={"pid": 1234})
+        assert res.status_code == 200
+        assert res.json()["pid"] == 1234
+        mock_sudo.assert_called_once_with(["kill", "-9", "1234"], password=None)
+
+
+@pytest.mark.asyncio
+async def test_kill_process_query_pid_validation_when_body_absent(admin_client):
+    with patch("server.api.system.run_sudo_async", return_value=(0, "Killed", "")) as mock_sudo:
+        res = await admin_client.post("/api/processes/kill?pid=5678")
+        assert res.status_code == 200
+        assert res.json()["pid"] == 5678
+        mock_sudo.assert_called_once_with(["kill", "-9", "5678"], password=None)
+
+    # Invalid query PID: non-integer string
+    res_bad = await admin_client.post("/api/processes/kill?pid=notanint")
+    assert res_bad.status_code == 400
+    assert "positive integer" in res_bad.json()["detail"]
+
+    # Invalid query PID: zero or negative
+    res_zero = await admin_client.post("/api/processes/kill?pid=0")
+    assert res_zero.status_code == 400
+    assert "positive integer" in res_zero.json()["detail"]
+

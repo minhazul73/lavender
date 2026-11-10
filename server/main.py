@@ -33,6 +33,7 @@ async def _periodic_session_cleanup():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Application lifespan context manager handling background tasks and session seeding."""
     cleanup_task = asyncio.create_task(_periodic_session_cleanup())
 
     # Pre-seed active session for current local user — DEVELOPMENT ONLY
@@ -107,6 +108,7 @@ if os.path.isdir(assets_dir):
 # Middleware: session resolution and cache control
 @app.middleware("http")
 async def _app_middleware(request: Request, call_next):
+    """HTTP middleware resolving active sessions and applying cache headers."""
     # Resolve session from cookie and attach to request.state
     await get_current_session(request)
 
@@ -122,7 +124,7 @@ async def _app_middleware(request: Request, call_next):
 from server.api import auth, device, live, network, packages, power, storage, system, users  # noqa: E402
 
 # Register domain API routers
-app.include_router(auth.router)
+app.include_router(auth.router, prefix="/api", tags=["Auth"])
 app.include_router(device.router, prefix="/api/device", tags=["Device"])
 app.include_router(system.router, prefix="/api/system", tags=["System"])
 app.include_router(network.router, prefix="/api/network", tags=["Network"])
@@ -133,6 +135,7 @@ app.include_router(storage.router, prefix="/api/storage", tags=["Storage"])
 app.include_router(live.router, prefix="/api", tags=["Live"])
 
 # Backward-compatibility aliases for legacy scripts and tools
+app.include_router(auth.router, include_in_schema=False)
 app.include_router(network.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
 app.include_router(packages.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
 app.include_router(power.router, prefix="/api/device", tags=["Legacy"], include_in_schema=False)
@@ -170,6 +173,7 @@ def _serve_spa_index() -> Response:
 # Root dashboard view
 @app.get("/", response_class=FileResponse, summary="Root dashboard view")
 async def root_view(request: Request) -> Response:
+    """Serve root dashboard view or redirect unauthenticated visitors if locked."""
     if REQUIRE_AUTH_FOR_HOMEPAGE:
         session = getattr(request.state, "session", None)
         if not session:
@@ -193,6 +197,7 @@ SAFE_SPA_REDIRECTS = {
 # Login page view (redirects to home if already authenticated)
 @app.get("/login", response_class=FileResponse, summary="Sign in view")
 async def login_view(request: Request) -> Response:
+    """Serve sign-in view or redirect to destination if already authenticated."""
     session = getattr(request.state, "session", None)
     if session:
         raw_next = request.query_params.get("next", "/")
@@ -212,6 +217,7 @@ ROOT_STATIC_FILES = {
 # Catch-all SPA fallback route for client-side React Router navigation
 @app.get("/{path:path}", response_class=FileResponse, include_in_schema=False)
 async def spa_fallback(path: str) -> Response:
+    """Catch-all SPA fallback route for client-side React Router navigation."""
     # Do not intercept API, auth, or asset routes that 404
     if path.startswith("api/") or path.startswith("auth/") or path.startswith("assets/"):
         raise HTTPException(status_code=404, detail="Endpoint not found")
