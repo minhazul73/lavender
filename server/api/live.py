@@ -39,7 +39,7 @@ METRIC_INTERVALS = {
 }
 
 
-async def sse_generator(metrics: list[str] | None):
+async def sse_generator(metrics: list[str] | None, reserve_client: bool = True):
     """Generate SSE events pulling from the live monitor buffers.
 
     Each metric is streamed on its own individually configured interval
@@ -78,8 +78,9 @@ async def sse_generator(metrics: list[str] | None):
             )
         return f"data: {payload}\n\n"
 
-    # Start background collectors on first SSE client
-    await monitor.add_client()
+    # Start background collectors on first SSE client if not already reserved
+    if reserve_client:
+        await monitor.add_client()
     try:
         # Initial burst: emit current state for all requested metrics immediately
         for metric in requested:
@@ -105,7 +106,25 @@ async def sse_generator(metrics: list[str] | None):
     except asyncio.CancelledError:
         raise
     finally:
-        await monitor.remove_client()
+        if reserve_client:
+            await monitor.remove_client()
+
+
+class SSEStreamingResponse(StreamingResponse):
+    """StreamingResponse that releases reserved monitor capacity on disconnect or completion."""
+
+    def __init__(self, *args, monitor, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._monitor = monitor
+        self._released = False
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            if not self._released:
+                self._released = True
+                await asyncio.shield(self._monitor.remove_client())
 
 
 @router.get("/device/live", include_in_schema=False)
@@ -118,18 +137,24 @@ async def live_sse(
 
     Open with:  EventSource('/api/device/live?metrics=cpu,ram,thermal,battery,network')
     """
+    monitor = get_live_monitor()
+    await monitor.add_client()
+    try:
+        if metrics is not None:
+            flat_metrics = [m.strip() for metric in metrics for m in str(metric).split(",")]
+        else:
+            flat_metrics = None
 
-    if metrics is not None:
-        flat_metrics = [m.strip() for metric in metrics for m in str(metric).split(",")]
-    else:
-        flat_metrics = None
-
-    return StreamingResponse(
-        sse_generator(flat_metrics),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+        return SSEStreamingResponse(
+            sse_generator(flat_metrics, reserve_client=False),
+            monitor=monitor,
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+    except Exception:
+        await monitor.remove_client()
+        raise

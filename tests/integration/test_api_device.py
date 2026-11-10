@@ -41,3 +41,43 @@ async def test_sse_generator_initial_burst(mock_sysfs):
     assert "cpu" in metrics
     assert "ram" in metrics
     assert "network" in metrics
+
+
+@pytest.mark.asyncio
+async def test_live_sse_returns_503_when_capacity_exceeded(client):
+    from server.services.live import get_live_monitor
+    from server.services.live_monitor import MAX_LIVE_CLIENTS
+
+    monitor = get_live_monitor()
+    initial_count = monitor._client_count
+    try:
+        monitor._client_count = MAX_LIVE_CLIENTS
+        res = await client.get("/api/device/live")
+        assert res.status_code == 503
+        assert "Maximum live SSE clients reached" in res.json()["detail"]
+    finally:
+        monitor._client_count = initial_count
+
+
+@pytest.mark.asyncio
+async def test_live_sse_streaming_response_releases_on_completion():
+    from unittest.mock import AsyncMock
+    from server.api.live import SSEStreamingResponse
+
+    mock_monitor = AsyncMock()
+
+    async def sample_gen():
+        yield b"data: test\n\n"
+
+    resp = SSEStreamingResponse(sample_gen(), monitor=mock_monitor, media_type="text/event-stream")
+    scope = {"type": "http", "asgi": {"spec_version": "2.1"}}
+
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    async def send(msg):
+        pass
+
+    await resp(scope, receive, send)
+    mock_monitor.remove_client.assert_awaited_once()
+
