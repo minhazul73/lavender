@@ -199,6 +199,7 @@ class KillProcessRequest(BaseModel):
 @router.post("/system/processes/kill", include_in_schema=False)
 async def api_kill_process(
     payload: KillProcessRequest | None = None,
+    # Typed as Any to bypass eager FastAPI 422 validation and preserve 400 contract for invalid query PIDs
     pid: Any = Query(None, description="PID to kill (deprecated, use request body)"),
     session: UserSession = Depends(require_admin),
 ):
@@ -208,9 +209,9 @@ async def api_kill_process(
     else:
         try:
             target_pid = int(pid) if pid is not None else None
+            if target_pid is None or target_pid < 1:
+                raise ValueError
         except (ValueError, TypeError):
-            raise HTTPException(status_code=400, detail="PID must be a positive integer")
-        if target_pid is None or target_pid < 1:
             raise HTTPException(status_code=400, detail="PID must be a positive integer")
 
     code, out, err = await run_sudo_async(["kill", "-9", str(target_pid)], password=None)
