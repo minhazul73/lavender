@@ -46,23 +46,10 @@ async def require_session(
 ) -> UserSession:
     """
     Ensure caller is authenticated.
-    Redirects HTML page requests to /login, raises 401 for API calls.
+    Raises 401 for unauthenticated calls.
     """
     if session is not None:
         return session
-
-    accept = request.headers.get("accept", "")
-    is_api_route = request.url.path.startswith("/api") or request.url.path.startswith("/auth")
-    is_html_request = not is_api_route and ("text/html" in accept or not accept or accept == "*/*")
-
-    if is_html_request:
-        next_path = request.url.path
-        if request.url.query:
-            next_path += f"?{request.url.query}"
-        raise HTTPException(
-            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-            headers={"Location": f"/login?next={next_path}"},
-        )
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
