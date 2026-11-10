@@ -6,6 +6,7 @@ import asyncio
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from server.auth.bridge import run_sudo_async
 from server.auth.deps import get_current_session, require_admin
@@ -86,26 +87,28 @@ async def api_power_state(session: UserSession | None = Depends(get_current_sess
     }
 
 
+class PowerScheduleRequest(BaseModel):
+    action: str = Field(..., description="Action to schedule: 'reboot' or 'poweroff'")
+    minutes: int = Field(..., description="Minutes until action executes (1 to 1440)")
+    message: str | None = Field(default="Scheduled from Lavender dashboard", description="Broadcast warning message")
+
+
 @router.post("/schedule", summary="Schedule a reboot or poweroff")
 @router.post("/power/schedule", include_in_schema=False)
 async def api_schedule_power(
-    payload: dict,
+    payload: PowerScheduleRequest,
     session: UserSession = Depends(require_admin),
 ):
     """Schedule a timed reboot or shutdown (Admin gated)."""
-    action = payload.get("action", "").lower().strip()
+    action = payload.action.lower().strip()
     if action not in ("reboot", "poweroff"):
         raise HTTPException(status_code=400, detail="Action must be 'reboot' or 'poweroff'")
 
-    try:
-        minutes = int(payload.get("minutes", 0))
-        if minutes < 1 or minutes > 1440:
-            raise ValueError()
-    except (ValueError, TypeError):
+    if payload.minutes < 1 or payload.minutes > 1440:
         raise HTTPException(status_code=400, detail="Minutes must be an integer between 1 and 1440")
 
-    message = payload.get("message", "Scheduled from Lavender dashboard")
-    res = await asyncio.to_thread(schedule_power_action, action, minutes, message)
+    message = payload.message or "Scheduled from Lavender dashboard"
+    res = await asyncio.to_thread(schedule_power_action, action, payload.minutes, message)
     if not res.get("success"):
         raise HTTPException(status_code=500, detail=res.get("error", "Failed to schedule action"))
     return res
