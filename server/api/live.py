@@ -124,7 +124,10 @@ class SSEStreamingResponse(StreamingResponse):
         finally:
             if not self._released:
                 self._released = True
-                await asyncio.shield(self._monitor.remove_client())
+                try:
+                    await asyncio.shield(self._monitor.remove_client())
+                except Exception:
+                    logger.exception("Failed to release SSE client capacity")
 
 
 @router.get("/device/live", include_in_schema=False)

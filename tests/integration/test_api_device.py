@@ -93,3 +93,32 @@ async def test_live_monitor_add_client_raises_live_capacity_error():
         await monitor.add_client()
 
 
+@pytest.mark.asyncio
+async def test_live_sse_streaming_response_cleanup_failure_logged_and_preserves_error():
+    from unittest.mock import AsyncMock, patch
+    from server.api.live import SSEStreamingResponse
+
+    mock_monitor = AsyncMock()
+    mock_monitor.remove_client.side_effect = RuntimeError("cleanup database lock failed")
+
+    async def failing_gen():
+        raise ValueError("stream processing error")
+        yield b"never"
+
+    resp = SSEStreamingResponse(failing_gen(), monitor=mock_monitor, media_type="text/event-stream")
+    scope = {"type": "http", "asgi": {"spec_version": "2.1"}}
+
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    async def send(msg):
+        pass
+
+    with patch("server.api.live.logger.exception") as mock_log:
+        with pytest.raises(ValueError, match="stream processing error"):
+            await resp(scope, receive, send)
+
+        mock_log.assert_called_once_with("Failed to release SSE client capacity")
+
+
+
