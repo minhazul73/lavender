@@ -4,6 +4,7 @@ Protected with session authentication and privilege verification.
 """
 import asyncio
 import re
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -198,13 +199,19 @@ class KillProcessRequest(BaseModel):
 @router.post("/system/processes/kill", include_in_schema=False)
 async def api_kill_process(
     payload: KillProcessRequest | None = None,
-    pid: int | None = Query(None, ge=1, description="PID to kill (deprecated, use request body)"),
+    pid: Any = Query(None, description="PID to kill (deprecated, use request body)"),
     session: UserSession = Depends(require_admin),
 ):
     """Kill a process by PID (requires administrative elevation)."""
-    target_pid = payload.pid if payload is not None else pid
-    if target_pid is None or target_pid < 1:
-        raise HTTPException(status_code=400, detail="PID must be a positive integer")
+    if payload is not None:
+        target_pid = payload.pid
+    else:
+        try:
+            target_pid = int(pid) if pid is not None else None
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=400, detail="PID must be a positive integer")
+        if target_pid is None or target_pid < 1:
+            raise HTTPException(status_code=400, detail="PID must be a positive integer")
 
     code, out, err = await run_sudo_async(["kill", "-9", str(target_pid)], password=None)
     if code != 0:
