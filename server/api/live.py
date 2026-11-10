@@ -108,8 +108,8 @@ async def sse_generator(metrics: list[str] | None):
         await monitor.remove_client()
 
 
-@router.get("/device/live")
-@router.get("/live")
+@router.get("/device/live", include_in_schema=False)
+@router.get("/live", summary="Stream live telemetry via SSE")
 async def live_sse(
     metrics: list[str] | None = Query(None, description="Comma-separated metric names"),
     session: UserSession | None = Depends(get_current_session),
