@@ -12,7 +12,11 @@ from server.services.collectors.network import NetworkCollector, NetworkRateColl
 from server.services.collectors.ram import RAMCollector, RamCollector  # noqa: F401
 
 # Import the split-out LiveMonitor implementation
-from server.services.live_monitor import LiveMonitor, get_live_monitor  # noqa: F401
+from server.services.live_monitor import (  # noqa: F401
+    LiveCapacityError,
+    LiveMonitor,
+    get_live_monitor,
+)
 
 
 # Shared sysfs helpers (kept here for backward compatibility and test patching)

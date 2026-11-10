@@ -10,7 +10,7 @@ import json
 import logging
 import time
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from server.auth.deps import get_current_session
@@ -22,7 +22,7 @@ from server.core.config import (
     SSE_RAM_INTERVAL_MS,
     SSE_THERMAL_INTERVAL_MS,
 )
-from server.services.live import get_live_monitor
+from server.services.live import LiveCapacityError, get_live_monitor
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,11 @@ async def live_sse(
     Open with:  EventSource('/api/device/live?metrics=cpu,ram,thermal,battery,network')
     """
     monitor = get_live_monitor()
-    await monitor.add_client()
+    try:
+        await monitor.add_client()
+    except LiveCapacityError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     try:
         if metrics is not None:
             flat_metrics = [m.strip() for metric in metrics for m in str(metric).split(",")]

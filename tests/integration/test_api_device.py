@@ -81,3 +81,15 @@ async def test_live_sse_streaming_response_releases_on_completion():
     await resp(scope, receive, send)
     mock_monitor.remove_client.assert_awaited_once()
 
+
+@pytest.mark.asyncio
+async def test_live_monitor_add_client_raises_live_capacity_error():
+    from server.services.live import LiveCapacityError, LiveMonitor
+    from server.services.live_monitor import MAX_LIVE_CLIENTS
+
+    monitor = LiveMonitor()
+    monitor._client_count = MAX_LIVE_CLIENTS
+    with pytest.raises(LiveCapacityError, match="Maximum live SSE clients reached"):
+        await monitor.add_client()
+
+
