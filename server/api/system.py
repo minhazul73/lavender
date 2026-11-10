@@ -6,7 +6,7 @@ import asyncio
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from server.auth.bridge import (
     run_sudo_async,
@@ -190,17 +190,26 @@ async def api_processes(
     }
 
 
+class KillProcessRequest(BaseModel):
+    pid: int = Field(..., ge=1, description="PID to kill")
+
+
 @router.post("/processes/kill", summary="Kill process by PID")
 @router.post("/system/processes/kill", include_in_schema=False)
 async def api_kill_process(
-    pid: int = Query(..., ge=1, description="PID to kill"),
+    payload: KillProcessRequest | None = None,
+    pid: int | None = Query(None, ge=1, description="PID to kill (deprecated, use request body)"),
     session: UserSession = Depends(require_admin),
 ):
     """Kill a process by PID (requires administrative elevation)."""
-    code, out, err = await run_sudo_async(["kill", "-9", str(pid)], password=None)
+    target_pid = payload.pid if payload is not None else pid
+    if target_pid is None or target_pid < 1:
+        raise HTTPException(status_code=400, detail="PID must be a positive integer")
+
+    code, out, err = await run_sudo_async(["kill", "-9", str(target_pid)], password=None)
     if code != 0:
-        raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {pid}")
-    return {"action": "kill", "pid": pid, "success": True, "output": out}
+        raise HTTPException(status_code=500, detail=err or out or f"Failed to kill PID {target_pid}")
+    return {"action": "kill", "pid": target_pid, "success": True, "output": out}
 
 
 @router.get("/memory", summary="Get system memory info")
