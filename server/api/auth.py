@@ -79,7 +79,11 @@ async def api_login(
     try:
         user_info = await authenticate_user(username, password)
     except AuthError as exc:
-        raise HTTPException(status_code=401, detail=str(exc))
+        logger.warning("Authentication failed for user %s: %s", username, exc)
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password",
+        ) from exc
     except Exception:
         logger.exception("Unexpected login error for %s", username)
         raise HTTPException(status_code=500, detail="Login system error")
@@ -88,12 +92,10 @@ async def api_login(
     session = await session_store.create(username, user_info)
     signed_token = session_store.sign_session_id(session.session_id)
 
-    redirect_dest = _sanitize_next_url(safe_next)
-
     res = JSONResponse(content={
         "success": True,
         "username": username,
-        "redirect": redirect_dest,
+        "redirect": safe_next,
         "is_admin": session.is_elevated(),
         "can_elevate": session.can_elevate(),
     })

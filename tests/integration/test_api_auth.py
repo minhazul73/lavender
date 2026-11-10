@@ -93,3 +93,28 @@ async def test_open_redirect_protection_on_logout(auth_client):
     res2 = await auth_client.get("/auth/logout?next=//evil.com/path", follow_redirects=False)
     assert res2.status_code == 303
     assert res2.headers.get("location") == "/"
+
+
+@pytest.mark.asyncio
+async def test_login_auth_error_generic_detail_and_exception_chaining(client):
+    from server.auth.bridge import AuthError
+
+    with patch("server.api.auth.authenticate_user", side_effect=AuthError("PAM verification internal secret")):
+        res = await client.post("/auth/login", json={"username": "alice", "password": "wrong"})
+        assert res.status_code == 401
+        data = res.json()
+        assert data["detail"] == "Invalid username or password"
+        assert "PAM" not in data["detail"]
+
+
+@pytest.mark.asyncio
+async def test_login_redirect_uses_safe_next(client):
+    mock_user = {"uid": 1000, "gid": 1000, "gids": [1000], "shell": "/bin/bash", "home": "/home/alice"}
+    with patch("server.api.auth.authenticate_user", return_value=mock_user):
+        res = await client.post(
+            "/auth/login",
+            json={"username": "alice", "password": "password", "next": "/overview"},
+        )
+        assert res.status_code == 200
+        assert res.json()["redirect"] == "/overview"
+
