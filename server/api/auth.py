@@ -2,6 +2,7 @@
 Authentication API endpoints: Login, Logout, Elevation, and User Profile.
 """
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from slowapi import Limiter
@@ -116,6 +117,7 @@ async def api_login(
 
 
 async def _do_logout(request: Request, session: UserSession | None):
+    """Handle user logout, invalidate session, drop sudo ticket, and delete session cookie."""
     if session:
         await drop_sudo_ticket()
         await session_store.delete(session.session_id)
@@ -140,6 +142,7 @@ async def api_logout_get(
     request: Request,
     session: UserSession | None = Depends(get_current_session),
 ):
+    """Log out active session via GET request and return redirect response."""
     return await _do_logout(request, session)
 
 
@@ -148,6 +151,7 @@ async def api_logout_post(
     request: Request,
     session: UserSession | None = Depends(get_current_session),
 ):
+    """Log out active session via POST request and return JSON or redirect response."""
     return await _do_logout(request, session)
 
 

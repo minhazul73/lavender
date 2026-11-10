@@ -62,6 +62,7 @@ async def test_live_sse_returns_503_when_capacity_exceeded(client):
 @pytest.mark.asyncio
 async def test_live_sse_streaming_response_releases_on_completion():
     from unittest.mock import AsyncMock
+
     from server.api.live import SSEStreamingResponse
 
     mock_monitor = AsyncMock()
@@ -96,6 +97,7 @@ async def test_live_monitor_add_client_raises_live_capacity_error():
 @pytest.mark.asyncio
 async def test_live_sse_streaming_response_cleanup_failure_logged_and_preserves_error():
     from unittest.mock import AsyncMock, patch
+
     from server.api.live import SSEStreamingResponse
 
     mock_monitor = AsyncMock()

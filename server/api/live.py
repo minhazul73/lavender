@@ -62,6 +62,7 @@ async def sse_generator(metrics: list[str] | None, reserve_client: bool = True):
     }
 
     async def _emit_metric(metric: str) -> str:
+        """Fetch and format latest reading for a metric into an SSE event string."""
         try:
             data = await getters[metric]()
         except Exception:
@@ -114,11 +115,13 @@ class SSEStreamingResponse(StreamingResponse):
     """StreamingResponse that releases reserved monitor capacity on disconnect or completion."""
 
     def __init__(self, *args, monitor, **kwargs):
+        """Initialize streaming response with live monitor instance for capacity tracking."""
         super().__init__(*args, **kwargs)
         self._monitor = monitor
         self._released = False
 
     async def __call__(self, scope, receive, send) -> None:
+        """Execute streaming response and release monitor capacity reservation on completion."""
         try:
             await super().__call__(scope, receive, send)
         finally:

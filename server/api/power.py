@@ -82,6 +82,7 @@ async def api_power_state(session: UserSession | None = Depends(get_current_sess
 
 
 class PowerScheduleRequest(BaseModel):
+    """Request payload for scheduling a timed reboot or shutdown."""
     action: str = Field(..., description="Action to schedule: 'reboot' or 'poweroff'")
     minutes: int = Field(..., description="Minutes until action executes (1 to 1440)")
     message: str | None = Field(default="Scheduled from Lavender dashboard", description="Broadcast warning message")
