@@ -3,7 +3,6 @@ Power Management API routes for Lavender.
 Provides system reboot, poweroff, suspend, CPU governor tuning, and timed power scheduling.
 """
 import asyncio
-import os
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -11,6 +10,7 @@ from pydantic import BaseModel, Field
 from server.auth.bridge import run_sudo_async
 from server.auth.deps import get_current_session, require_admin
 from server.auth.session import UserSession
+from server.core.sysfs import get_sysfs_reader
 from server.services.battery import get_cpu_scaling_available, set_cpu_governor
 from server.services.power import (
     cancel_scheduled_action,
@@ -69,13 +69,7 @@ async def api_set_governor(
 async def api_power_state(session: UserSession | None = Depends(get_current_session)):
     """Get active CPU power profile and pending scheduled power actions."""
     gov_file = "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
-    current_gov = "unknown"
-    if os.path.isfile(gov_file):
-        try:
-            with open(gov_file) as f:
-                current_gov = f.read().strip()
-        except Exception:
-            pass
+    current_gov = get_sysfs_reader().read_file(gov_file) or "unknown"
 
     scaling = get_cpu_scaling_available()
     scheduled = get_scheduled_shutdown()
