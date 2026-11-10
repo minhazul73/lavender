@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+from fastapi import HTTPException
+
 from server.services.collectors.battery import BatteryCollector
 from server.services.collectors.cpu import (
     CPUFreqCollector,
@@ -13,6 +15,9 @@ from server.services.collectors.ram import RAMCollector
 from server.services.collectors.thermal import (
     ThermalCollector,
 )
+
+
+MAX_LIVE_CLIENTS = 50
 
 
 class LiveMonitor:
@@ -82,6 +87,11 @@ class LiveMonitor:
 
     async def add_client(self) -> None:
         async with self._lock:
+            if self._client_count >= MAX_LIVE_CLIENTS:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Maximum live SSE clients reached",
+                )
             self._client_count += 1
             if self._client_count == 1:
                 await self._ensure_started()
