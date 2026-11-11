@@ -95,12 +95,13 @@ async def test_session_store_max_sessions_eviction(monkeypatch):
     assert u3.session_id in store._sessions
     assert u4.session_id in store._sessions
 
-    # If an idle/expired session exists, it should be evicted first
+    # If idle/expired sessions exist, all expired sessions should be evicted
     u2.last_used = time.time() - 4000  # expired
+    u3.last_used = time.time() - 4000  # expired
     u5 = await store.create("user5", {"uid": 1005, "gid": 1005})
-    assert len(store._sessions) == 3
+    assert len(store._sessions) == 2
     assert u2.session_id not in store._sessions
-    assert u3.session_id in store._sessions
+    assert u3.session_id not in store._sessions
     assert u4.session_id in store._sessions
     assert u5.session_id in store._sessions
 
