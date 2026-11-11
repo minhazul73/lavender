@@ -118,6 +118,15 @@ def test_cpu_parse_proc_stat_single_pass(monkeypatch):
     assert cpus[1]["user"] == 1123
 
 
+def test_cpu_get_loadavg_single_read(monkeypatch):
+    monkeypatch.setattr("server.services.collectors.cpu._read_file", lambda path: "1.25 0.85 0.55 2/450 12345\n" if path == "/proc/loadavg" else None)
+    from server.services.collectors.cpu import _get_loadavg
+    load1, load5, load15 = _get_loadavg()
+    assert load1 == 1.25
+    assert load5 == 0.85
+    assert load15 == 0.55
+
+
 @pytest.mark.asyncio
 async def test_thermal_collector_collects_metrics(mock_sysfs, monkeypatch):
     """Test thermal collector with mocked sysfs directory listings."""

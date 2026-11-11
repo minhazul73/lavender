@@ -22,18 +22,19 @@ def _read_int(path: str, default: int = 0) -> int:
     return live._read_int(path, default)
 
 
-def _get_loadavg(index: int) -> float:
-    """Read a specific load average from /proc/loadavg (0=1min, 1=5min, 2=15min)."""
+def _get_loadavg() -> tuple[float, float, float]:
+    """Read 1m, 5m, and 15m load averages from /proc/loadavg in a single read."""
     text = _read_file("/proc/loadavg")
     if text is None:
-        return 0.0
+        return 0.0, 0.0, 0.0
     parts = text.strip().split()
-    if len(parts) > index:
+    loads = [0.0, 0.0, 0.0]
+    for i in range(min(3, len(parts))):
         try:
-            return float(parts[index])
+            loads[i] = float(parts[i])
         except ValueError:
-            return 0.0
-    return 0.0
+            loads[i] = 0.0
+    return loads[0], loads[1], loads[2]
 
 
 def _parse_proc_stat() -> list[dict | None]:
@@ -189,6 +190,8 @@ class CPUFreqCollector(MetricCollector):
                 "usage": round(usage, 1) if usage is not None else None,
             })
 
+        load1, load5, load15 = _get_loadavg()
+
         return {
             "cpus": cores_list,
             "count": len(cores),
@@ -196,9 +199,9 @@ class CPUFreqCollector(MetricCollector):
             # Lets the UI say "not supported by this kernel" instead of
             # rendering a permanently blank frequency readout.
             "cpufreq_available": self._has_cpufreq,
-            "load1": _get_loadavg(0),
-            "load5": _get_loadavg(1),
-            "load15": _get_loadavg(2),
+            "load1": load1,
+            "load5": load5,
+            "load15": load15,
             "per_core_usage": per_core_usage,
         }
 
