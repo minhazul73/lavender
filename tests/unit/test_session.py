@@ -70,3 +70,37 @@ async def test_session_cleanup_idle_removes_expired_and_releases_lock():
     await store.cleanup_idle()
     assert session.session_id not in store._sessions
     assert not store._lock.locked()
+
+
+@pytest.mark.asyncio
+async def test_session_store_max_sessions_eviction(monkeypatch):
+    import server.auth.session as session_mod
+    monkeypatch.setattr(session_mod, "MAX_SESSIONS", 3)
+
+    store = SessionStore()
+    u1 = await store.create("user1", {"uid": 1001, "gid": 1001})
+    u1.last_used = time.time() - 100
+    u2 = await store.create("user2", {"uid": 1002, "gid": 1002})
+    u2.last_used = time.time() - 50
+    u3 = await store.create("user3", {"uid": 1003, "gid": 1003})
+    u3.last_used = time.time() - 10
+
+    assert len(store._sessions) == 3
+
+    # Adding 4th session when at max capacity should evict oldest (u1)
+    u4 = await store.create("user4", {"uid": 1004, "gid": 1004})
+    assert len(store._sessions) == 3
+    assert u1.session_id not in store._sessions
+    assert u2.session_id in store._sessions
+    assert u3.session_id in store._sessions
+    assert u4.session_id in store._sessions
+
+    # If an idle/expired session exists, it should be evicted first
+    u2.last_used = time.time() - 4000  # expired
+    u5 = await store.create("user5", {"uid": 1005, "gid": 1005})
+    assert len(store._sessions) == 3
+    assert u2.session_id not in store._sessions
+    assert u3.session_id in store._sessions
+    assert u4.session_id in store._sessions
+    assert u5.session_id in store._sessions
+
