@@ -52,6 +52,16 @@ class TestRingBuffer:
         assert len(buf.values()) == 10
         assert len(buf) == 10
 
+    def test_iter_values_yields_directly_from_deque(self):
+        buf = RingBuffer(5)
+        buf.append(10)
+        buf.append(20)
+        it = buf.iter_values()
+        assert hasattr(it, "__next__")
+        assert list(it) == [10, 20]
+        assert list(buf.values_iter()) == [10, 20]
+        assert list(buf.values(as_iter=True)) == [10, 20]
+
 
 @pytest.mark.asyncio
 async def test_ram_collector_collects_metrics(mock_sysfs):

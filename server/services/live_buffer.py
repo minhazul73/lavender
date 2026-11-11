@@ -33,7 +33,17 @@ class RingBuffer:
     def __iter__(self):
         return iter(self._buf)
 
-    def values(self) -> list[float]:
+    def iter_values(self):
+        """Yield values directly from the internal deque without allocating a list copy."""
+        yield from self._buf
+
+    def values_iter(self):
+        """Yield values directly from the internal deque without allocating a list copy."""
+        yield from self._buf
+
+    def values(self, as_iter: bool = False):
+        if as_iter:
+            return iter(self._buf)
         return list(self._buf)
 
     @property
