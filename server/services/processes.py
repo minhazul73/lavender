@@ -17,6 +17,28 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     return run_command(full_cmd, timeout)
 
 
+def _parse_time_str(time_str: str) -> int:
+    """Parse CPU time string into total seconds supporting colon and unit notation."""
+    time_str = time_str.strip()
+    if not time_str:
+        return 0
+    try:
+        if "d" in time_str:
+            d_str, rem = time_str.split("d", 1)
+            h_val = int(rem.rstrip("h")) if rem.rstrip("h") else 0
+            return int(d_str) * 86400 + h_val * 3600
+        if "h" in time_str:
+            h_str, rem = time_str.split("h", 1)
+            m_val = int(rem.rstrip("m")) if rem.rstrip("m") else 0
+            return int(h_str) * 3600 + m_val * 60
+        time_secs = 0
+        for part in time_str.split(":"):
+            time_secs = time_secs * 60 + int(part)
+        return time_secs
+    except (ValueError, IndexError):
+        return 0
+
+
 def _parse_proc_line(line: str, is_busybox: bool, total_mem_kb: float) -> dict | None:
     line = line.strip()
     if not line:
@@ -27,9 +49,7 @@ def _parse_proc_line(line: str, is_busybox: bool, total_mem_kb: float) -> dict |
             if len(parts) < 4:
                 return None
             pid, user, time_str, command = int(parts[0]), parts[1], parts[2], parts[3]
-            time_secs = 0
-            for part in time_str.split(":"):
-                time_secs = time_secs * 60 + int(part)
+            time_secs = _parse_time_str(time_str)
             state, rss_kb, vsz_kb = "S", 0, 0
             try:
                 with open(f"/proc/{pid}/stat") as f:
@@ -55,12 +75,7 @@ def _parse_proc_line(line: str, is_busybox: bool, total_mem_kb: float) -> dict |
             user, pid = parts[0], int(parts[1])
             cpu_pct, mem_pct = float(parts[2]), float(parts[3])
             vsz_kb, rss_kb, stat, time_str, command = int(parts[4]), int(parts[5]), parts[7], parts[9], parts[10]
-            time_secs = 0
-            for part in time_str.split(":"):
-                try:
-                    time_secs = time_secs * 60 + int(part)
-                except ValueError:
-                    pass
+            time_secs = _parse_time_str(time_str)
             return {
                 "pid": pid, "user": user, "cpu": cpu_pct, "cpu_time": time_secs,
                 "time": time_str, "mem": rss_kb, "mem_pct": mem_pct,
@@ -138,15 +153,9 @@ def get_system_load() -> dict:
             l5 = float(parts[1])
             l15 = float(parts[2])
             load_avg = {
-                "1min": l1,
-                "5min": l5,
-                "15min": l15,
-                "1m": l1,
-                "5m": l5,
-                "15m": l15,
-                "load1": l1,
-                "load5": l5,
-                "load15": l15,
+                "1min": l1, "5min": l5, "15min": l15,
+                "1m": l1, "5m": l5, "15m": l15,
+                "load1": l1, "load5": l5, "load15": l15,
                 "running": parts[3].split("/")[0],
                 "total": parts[3].split("/")[1],
             }

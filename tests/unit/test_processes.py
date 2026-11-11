@@ -1,6 +1,37 @@
 from unittest.mock import patch
 
-from server.services.processes import get_top_processes
+from server.services.processes import _parse_time_str, get_top_processes
+
+
+def test_parse_time_str():
+    assert _parse_time_str("0:05") == 5
+    assert _parse_time_str("12:34") == 754
+    assert _parse_time_str("1:10:05") == 4205
+    assert _parse_time_str("1h00") == 3600
+    assert _parse_time_str("2h30") == 9000
+    assert _parse_time_str("1d02") == 93600
+    assert _parse_time_str("1d") == 86400
+    assert _parse_time_str("invalid") == 0
+
+
+def test_get_top_processes_busybox_time_units():
+    mock_busybox_output = (
+        "PID USER TIME COMMAND\n"
+        "10 root 1h00 init\n"
+        "20 user 1d02 long_running_daemon\n"
+        "30 user 0:45 short_task\n"
+    )
+    with patch("server.services.processes.run_command", return_value=(0, mock_busybox_output, "")):
+        procs = get_top_processes(sort_by="pid")
+        assert len(procs) == 3
+        proc_map = {p["pid"]: p for p in procs}
+        assert proc_map[10]["cpu_time"] == 3600
+        assert proc_map[10]["time"] == "1h00"
+        assert proc_map[20]["cpu_time"] == 93600
+        assert proc_map[20]["time"] == "1d02"
+        assert proc_map[30]["cpu_time"] == 45
+        assert proc_map[30]["time"] == "0:45"
+
 
 
 def test_get_top_processes_limit_and_sort():
