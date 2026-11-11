@@ -75,6 +75,18 @@ GROUP_METADATA = {
     "redis": ("Services", "Redis in-memory caching engine"),
 }
 
+_GROUP_ORDER = {
+    "Privileged": 0,
+    "Hardware": 1,
+    "Services": 2,
+    "General": 3,
+    "System": 4,
+    "human": 0,
+    "system": 1,
+    "service": 2,
+    "other": 3,
+}
+
 
 def get_user_ssh_path(username: str) -> str:
     """Get path to authorized_keys for a given user."""
@@ -364,8 +376,7 @@ def get_categorized_groups() -> list[dict]:
         })
 
     # Sort: Privileged first, Hardware second, Services third, then System/General
-    order = {"Privileged": 0, "Hardware": 1, "Services": 2, "General": 3, "System": 4}
-    categorized.sort(key=lambda x: (order.get(x["category"], 9), x["name"]))
+    categorized.sort(key=lambda x: (_GROUP_ORDER.get(x["category"], 9), x["name"]))
     return categorized
 
 
