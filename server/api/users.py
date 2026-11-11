@@ -161,7 +161,7 @@ async def api_update_user_groups(
         raise HTTPException(status_code=400, detail="Groups must be a list of group names")
 
     # Verify user exists
-    all_users = parse_all_passwd_users()
+    all_users = await asyncio.to_thread(parse_all_passwd_users)
     if not any(u["name"] == username for u in all_users):
         raise HTTPException(status_code=404, detail=f"User '{username}' does not exist")
 

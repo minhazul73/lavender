@@ -52,3 +52,32 @@ async def test_change_password(auth_client, regular_session, mock_executor):
     )
     assert res.status_code == 200
     assert res.json()["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_user_groups(admin_client, monkeypatch):
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr(
+        "server.api.users.parse_all_passwd_users",
+        lambda: [{"name": "alice", "is_human": True}],
+    )
+    monkeypatch.setattr(
+        "server.api.users.parse_groups",
+        lambda: [{"name": "wheel", "gid": 10, "members": []}],
+    )
+    monkeypatch.setattr(
+        "server.api.users.get_user_groups",
+        lambda username: ["wheel"],
+    )
+    monkeypatch.setattr(
+        "server.api.users.run_sudo_async",
+        AsyncMock(return_value=(0, "", "")),
+    )
+
+    res = await admin_client.post(
+        "/api/users/alice/groups",
+        json={"groups": ["wheel"]},
+    )
+    assert res.status_code == 200
+    assert res.json()["success"] is True
