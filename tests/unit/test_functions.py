@@ -40,22 +40,35 @@ class TestCacheAndWrappers:
 
     @patch("server.services.packages.get_package_manager")
     def test_get_installed_packages_force_refresh(self, mock_get_mgr):
+        import gc
+        import weakref
         cache_during_call = []
+        old_ref_alive = []
+
+        class PkgItem(dict):
+            pass
+
+        old_item = PkgItem(name="old")
+        old_ref = weakref.ref(old_item)
+        _PACKAGES_CACHE["installed"] = [old_item]
+        del old_item
 
         def side_effect():
             cache_during_call.append(_PACKAGES_CACHE["installed"])
+            gc.collect()
+            old_ref_alive.append(old_ref() is not None)
             return [{"name": "htop"}]
 
         mock_mgr = MagicMock()
         mock_mgr.get_installed_packages.side_effect = side_effect
         mock_get_mgr.return_value = mock_mgr
 
-        _PACKAGES_CACHE["installed"] = [{"name": "old"}]
         _PACKAGES_CACHE["timestamp"] = time.time()
 
         res = get_installed_packages(force_refresh=True)
         mock_mgr.get_installed_packages.assert_called_once()
         assert cache_during_call == [None]  # Cleared prior to allocation
+        assert old_ref_alive == [False]  # Local cached reference was released before manager fetch
         assert res == [{"name": "htop"}]
         assert _PACKAGES_CACHE["installed"] == [{"name": "htop"}]
 

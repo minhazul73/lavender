@@ -612,7 +612,9 @@ def get_installed_packages(force_refresh: bool = False) -> list[dict[str, Any]]:
         if (now - _PACKAGES_CACHE["timestamp"]) < _PACKAGES_CACHE["ttl"]:
             return cached
 
-    # Clear previous cache entry prior to allocation to prevent transient memory doubling
+    # Clear previous cache entry and release local reference prior to allocation
+    # to prevent transient memory doubling
+    cached = None
     _PACKAGES_CACHE["installed"] = None
     mgr = get_package_manager()
     packages = mgr.get_installed_packages()
