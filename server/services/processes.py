@@ -9,17 +9,19 @@ from server.core.executor import get_executor
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    """Execute command via system executor synchronously."""
     res = get_executor().run_sync(cmd, timeout=float(timeout))
     return res.returncode, res.stdout, res.stderr
 
 
 def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
+    """Execute privileged sudo command via system executor synchronously."""
     full_cmd = ["sudo"] + cmd if cmd and cmd[0] == "-n" else ["sudo", "-n"] + cmd
     return run_command(full_cmd, timeout)
 
 
 def _parse_time_str(time_str: str) -> int:
-    """Parse CPU time string into total seconds supporting colon and unit notation."""
+    """Parse CPU time string into total seconds supporting colon, day prefix, and unit notation."""
     time_str = time_str.strip()
     if not time_str:
         return 0
@@ -32,15 +34,20 @@ def _parse_time_str(time_str: str) -> int:
             h_str, rem = time_str.split("h", 1)
             m_val = int(rem.rstrip("m")) if rem.rstrip("m") else 0
             return int(h_str) * 3600 + m_val * 60
+        days = 0
+        if "-" in time_str:
+            day_part, time_str = time_str.split("-", 1)
+            days = int(day_part)
         time_secs = 0
         for part in time_str.split(":"):
             time_secs = time_secs * 60 + int(part)
-        return time_secs
+        return days * 86400 + time_secs
     except (ValueError, IndexError):
         return 0
 
 
 def _read_proc_stat(pid: int) -> tuple[str, int, int, int, str]:
+    """Read process execution metrics from /proc/<pid>/stat."""
     state, vsz_kb, rss_kb, time_secs, time_str = "S", 0, 0, 0, "0:00"
     try:
         with open(f"/proc/{pid}/stat") as f:
@@ -50,16 +57,20 @@ def _read_proc_stat(pid: int) -> tuple[str, int, int, int, str]:
             rest = content[rparen + 2:].split()
             state = rest[0]
             vsz_kb = int(rest[20]) // 1024
-            rss_kb = int(rest[21]) * 4
-            clk = os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100
+            page_kb = (os.sysconf("SC_PAGE_SIZE") // 1024) if hasattr(os, "sysconf") else 4
+            rss_kb = int(rest[21]) * (page_kb or 4)
+            clk = (os.sysconf("SC_CLK_TCK") if hasattr(os, "sysconf") else 100) or 100
             time_secs = (int(rest[11]) + int(rest[12])) // clk
-            time_str = f"{time_secs // 60}:{time_secs % 60:02d}"
+            m, s = divmod(time_secs, 60)
+            h, m = divmod(m, 60)
+            time_str = f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
     except Exception:
         pass
     return state, vsz_kb, rss_kb, time_secs, time_str
 
 
 def _select_row_parser(header: list[str], total_mem_kb: float):
+    """Select specialized row parser based on ps table header."""
     cols = [h.upper() for h in header]
     if cols and cols[0] != "PID":
         def parse_procps(line: str) -> dict | None:
@@ -99,7 +110,7 @@ def _select_row_parser(header: list[str], total_mem_kb: float):
         if len(parts) < cmd_idx + 1:
             return None
         pid, user, cmd = int(parts[0]), parts[1], parts[cmd_idx]
-        st = parts[stat_idx] if stat_idx is not None and len(parts) > stat_idx else "S"
+        st = parts[stat_idx] if stat_idx is not None and len(parts) > stat_idx else None
         vsz = int(parts[vsz_idx]) if vsz_idx is not None and len(parts) > vsz_idx and parts[vsz_idx].isdigit() else 0
         p_st, p_vsz, rss, time_secs, time_str = _read_proc_stat(pid)
         pct = round((rss / total_mem_kb) * 100, 1) if total_mem_kb > 0 else 0.0
@@ -112,21 +123,18 @@ def _select_row_parser(header: list[str], total_mem_kb: float):
 
 
 def _parse_proc_line(line: str, is_busybox: bool, total_mem_kb: float) -> dict | None:
-    header = ["PID", "USER", "TIME", "COMMAND"] if is_busybox else [
+    """Parse single ps line with fallback header configuration."""
+    hdr = ["PID", "USER", "TIME", "COMMAND"] if is_busybox else [
         "USER", "PID", "%CPU", "%MEM", "VSZ", "RSS", "TTY", "STAT", "START", "TIME", "COMMAND"
     ]
     try:
-        return _select_row_parser(header, total_mem_kb)(line)
+        return _select_row_parser(hdr, total_mem_kb)(line)
     except (ValueError, IndexError):
         return None
 
 
 def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
-    """
-    Get processes by CPU or memory usage.
-    Supports both standard procps ps aux (11 columns) and BusyBox ps aux (4 columns).
-    If limit <= 0, returns all processes.
-    """
+    """Get processes by CPU or memory usage with streaming/heap bounding."""
     code, out, err = run_command(["ps", "aux"], timeout=10)
     if code != 0:
         return [{"error": err}]
@@ -167,10 +175,8 @@ def get_top_processes(sort_by: str = "mem", limit: int = 0) -> list[dict]:
         "mem": (lambda p: p.get("mem", 0), True),
     }
     key, reverse = sort_keys.get(sort_by, sort_keys["mem"])
-
     if limit > 0:
         return (heapq.nlargest if reverse else heapq.nsmallest)(limit, proc_iter, key=key)
-
     processes = list(proc_iter)
     processes.sort(key=key, reverse=reverse)
     return processes
@@ -180,13 +186,12 @@ def get_system_load() -> dict:
     """Get system load averages and uptime."""
     try:
         with open("/proc/loadavg") as f:
-            parts = f.read().strip().split()
-            l1, l5, l15 = float(parts[0]), float(parts[1]), float(parts[2])
+            p = f.read().strip().split()
+            l1, l5, l15 = float(p[0]), float(p[1]), float(p[2])
             load_avg = {
-                "1min": l1, "5min": l5, "15min": l15,
-                "1m": l1, "5m": l5, "15m": l15,
+                "1min": l1, "5min": l5, "15min": l15, "1m": l1, "5m": l5, "15m": l15,
                 "load1": l1, "load5": l5, "load15": l15,
-                "running": parts[3].split("/")[0], "total": parts[3].split("/")[1],
+                "running": p[3].split("/")[0], "total": p[3].split("/")[1],
             }
     except Exception:
         load_avg = {"error": "Cannot read /proc/loadavg"}
@@ -198,7 +203,6 @@ def get_system_load() -> dict:
             load_avg.update({"uptime_seconds": up, "uptime_formatted": f"{d}d {h}h {m}m"})
     except Exception:
         load_avg["uptime_formatted"] = "Unknown"
-
     return load_avg
 
 
@@ -213,8 +217,8 @@ def get_memory_info() -> dict:
     try:
         with open("/proc/meminfo") as f:
             return {
-                parts[0].strip(): parts[1].strip()[:-3] if parts[1].strip().endswith(" kB") else parts[1].strip()
-                for line in f if len(parts := line.strip().split(": ")) == 2
+                p[0].strip(): p[1].strip()[:-3] if p[1].strip().endswith(" kB") else p[1].strip()
+                for line in f if len(p := line.strip().split(": ")) == 2
             }
     except Exception:
         return {"error": "Cannot read /proc/meminfo"}
@@ -228,22 +232,17 @@ def get_memory_human() -> dict:
         lines = out.split("\n")
         if len(lines) >= 2 and len(mem := lines[1].split()) >= 4:
             result["parsed"] = {
-                "total": mem[1], "used": mem[2], "free": mem[3],
-                "shared": mem[4] if len(mem) > 4 else "0",
+                "total": mem[1], "used": mem[2], "free": mem[3], "shared": mem[4] if len(mem) > 4 else "0",
             }
         if len(lines) >= 3 and len(swap := lines[2].split()) >= 4:
-            result["parsed"].update({
-                "swap_total": swap[1], "swap_used": swap[2], "swap_free": swap[3],
-            })
+            result["parsed"].update({"swap_total": swap[1], "swap_used": swap[2], "swap_free": swap[3]})
 
     try:
         with open("/proc/meminfo") as f:
             meminfo = {p[0].strip(): float(p[1].split()[0]) for line in f if len(p := line.split(":")) == 2}
-        total = meminfo.get("MemTotal", 0)
-        avail = meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
+        total, avail = meminfo.get("MemTotal", 0), meminfo.get("MemAvailable", meminfo.get("MemFree", 0))
         if total > 0:
             result["parsed"]["percent"] = round(((total - avail) / total) * 100, 1)
     except Exception:
         pass
-
     return result

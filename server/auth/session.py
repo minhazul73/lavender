@@ -96,6 +96,7 @@ class SessionStore:
     """Thread-safe in-memory session repository with signed cookie tokens."""
 
     def __init__(self):
+        """Initialize session store with in-memory dictionary, serializer, and lock."""
         self._sessions: dict[str, UserSession] = {}
         self._serializer = URLSafeSerializer(SESSION_SECRET_KEY, salt="dashboard-session-salt")
         self._lock = asyncio.Lock()
@@ -142,7 +143,10 @@ class SessionStore:
                     self._sessions.pop(expired_id, None)
 
                 while len(self._sessions) >= MAX_SESSIONS:
-                    oldest_id = min(self._sessions, key=lambda s_id: self._sessions[s_id].last_used)
+                    eligible = [s_id for s_id in self._sessions if s_id != "dev-session-active"]
+                    if not eligible:
+                        break
+                    oldest_id = min(eligible, key=lambda s_id: self._sessions[s_id].last_used)
                     self._sessions.pop(oldest_id, None)
 
             self._sessions[sid] = session

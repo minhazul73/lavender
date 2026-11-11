@@ -13,6 +13,7 @@ from server.auth.session import UserSession
 from server.core.executor import get_executor
 from server.services.users import (
     add_user_ssh_key,
+    build_user_to_groups_map,
     delete_user_ssh_key,
     get_active_sessions,
     get_categorized_groups,
@@ -36,6 +37,7 @@ router = APIRouter()
 async def api_users(session: UserSession = Depends(require_session)):
     """Get user, session, group, and access control information."""
     username = session.username if session else None
+    user_to_groups = await asyncio.to_thread(build_user_to_groups_map)
     (
         human_users,
         system_users,
@@ -46,8 +48,8 @@ async def api_users(session: UserSession = Depends(require_session)):
         current_user_info,
         sudoers_info,
     ) = await asyncio.gather(
-        asyncio.to_thread(get_human_users, username),
-        asyncio.to_thread(get_system_users),
+        asyncio.to_thread(get_human_users, username, user_to_groups),
+        asyncio.to_thread(get_system_users, user_to_groups),
         asyncio.to_thread(get_categorized_groups),
         asyncio.to_thread(get_active_sessions),
         asyncio.to_thread(get_login_history, 10),

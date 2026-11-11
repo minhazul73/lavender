@@ -11,6 +11,9 @@ def test_parse_time_str():
     assert _parse_time_str("2h30") == 9000
     assert _parse_time_str("1d02") == 93600
     assert _parse_time_str("1d") == 86400
+    # Test procps DD-hh:mm:ss format
+    assert _parse_time_str("01-02:03:04") == 86400 + 2 * 3600 + 3 * 60 + 4
+    assert _parse_time_str("2-10:00:00") == 2 * 86400 + 10 * 3600
     assert _parse_time_str("invalid") == 0
 
 
@@ -49,9 +52,16 @@ def test_get_top_processes_busybox_no_time_reads_proc_stat():
             return mock_open(read_data="MemTotal:        1000000 kB\n").return_value
         raise FileNotFoundError(f"No such file: {filename}")
 
+    def mock_sysconf(name):
+        if name == "SC_CLK_TCK":
+            return 100
+        if name == "SC_PAGE_SIZE":
+            return 16384  # 16 KiB pages
+        return 4096
+
     with patch("server.services.processes.run_command", return_value=(0, mock_busybox_output, "")), \
          patch("builtins.open", side_effect=mock_open_impl), \
-         patch("os.sysconf", return_value=100):
+         patch("os.sysconf", side_effect=mock_sysconf):
         procs = get_top_processes(sort_by="pid")
         assert len(procs) == 2
         p1001, p1002 = procs[0], procs[1]
@@ -65,6 +75,8 @@ def test_get_top_processes_busybox_no_time_reads_proc_stat():
         # 1500 utime + 500 stime = 2000 ticks // 100 = 20 seconds
         assert p1001["cpu_time"] == 20
         assert p1001["time"] == "0:20"
+        # 300 pages * 16 KiB = 4800 KiB RSS
+        assert p1001["rss"] == 4800
 
         # 1002: no /proc stat, row preserved, cpu_time=0
         assert p1002["pid"] == 1002
@@ -74,6 +86,32 @@ def test_get_top_processes_busybox_no_time_reads_proc_stat():
         assert p1002["vsz"] == 2400
         assert p1002["cpu_time"] == 0
         assert p1002["time"] == "0:00"
+
+
+def test_get_top_processes_busybox_no_stat_column_falls_back_to_proc_stat():
+    # PS header without STAT column
+    mock_busybox_output = (
+        "  PID  Uid        VSZ Command\n"
+        " 1001 root       1200 /bin/sh -c 'sleep 5'\n"
+    )
+    stat_data_1001 = "1001 (sh) D 1 1001 1001 0 -1 0 0 0 0 0 100 100 0 0 20 0 1 0 0 1228800 200\n"
+
+    def mock_open_impl(filename, *args, **kwargs):
+        if filename == "/proc/1001/stat":
+            return mock_open(read_data=stat_data_1001).return_value
+        elif filename == "/proc/meminfo":
+            return mock_open(read_data="MemTotal:        1000000 kB\n").return_value
+        raise FileNotFoundError(f"No such file: {filename}")
+
+    with patch("server.services.processes.run_command", return_value=(0, mock_busybox_output, "")), \
+         patch("builtins.open", side_effect=mock_open_impl):
+        procs = get_top_processes(sort_by="pid")
+        assert len(procs) == 1
+        p = procs[0]
+        assert p["pid"] == 1001
+        # When STAT column is absent in ps, st is None, so stat falls back to p_st ('D')
+        assert p["stat"] == "D"
+        assert p["command"] == "/bin/sh -c 'sleep 5'"
 
 
 def test_get_top_processes_limit_and_sort():
