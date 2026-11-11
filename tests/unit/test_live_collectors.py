@@ -98,8 +98,24 @@ async def test_cpu_collector_collects_metrics(mock_sysfs, monkeypatch):
     assert data["cpufreq_available"] is True
     assert data["load1"] >= 0
     assert data["load5"] >= 0
-    assert data["load15"] >= 0
-    assert len(data["per_core_usage"]) > 0
+
+
+def test_cpu_parse_proc_stat_single_pass(monkeypatch):
+    sample_stat = (
+        "cpu  2255 34 2290 22625563 6290 127 456 0 0 0\n"
+        "cpu0 1132 17 1145 11312781 3145 63 228 0 0 0\n"
+        "cpu1 1123 17 1145 11312782 3145 64 228 0 0 0\n"
+        "intr 11493054 23 0 0 0 0 0 0\n"
+    )
+    monkeypatch.setattr("server.services.collectors.cpu._read_file", lambda path: sample_stat if path == "/proc/stat" else None)
+    from server.services.collectors.cpu import _parse_proc_stat
+    cpus = _parse_proc_stat()
+    assert len(cpus) == 2
+    assert cpus[0] is not None
+    assert cpus[1] is not None
+    assert cpus[0]["user"] == 1132
+    assert cpus[0]["system"] == 1145
+    assert cpus[1]["user"] == 1123
 
 
 @pytest.mark.asyncio

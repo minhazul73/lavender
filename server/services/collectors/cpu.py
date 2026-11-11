@@ -48,54 +48,55 @@ def _parse_proc_stat() -> list[dict | None]:
     if text is None:
         return []
 
-    # Find max core number to size the list
+    core_data: dict[int, dict] = {}
     max_core = -1
+
     for line in text.splitlines():
-        if line.startswith("cpu") and not line.startswith("cpu "):
+        if not line.startswith("cpu") or line.startswith("cpu "):
+            continue
+
+        parts = line.split()
+        try:
+            core_num = int(parts[0][3:])
+        except (ValueError, IndexError):
+            continue
+
+        values = []
+        for p in parts[1:]:
             try:
-                num = int(line.split()[0][3:])
-                max_core = max(max_core, num)
-            except (ValueError, IndexError):
-                pass
+                values.append(int(p))
+            except ValueError:
+                values.append(0)
+
+        # Pad to 10 fields (user, nice, system, idle, iowait, irq,
+        # softirq, steal, guest, guestnice)
+        while len(values) < 10:
+            values.append(0)
+
+        user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = values[:10]
+        # Guest time is already in usertime, subtract to avoid double-counting
+        user -= guest
+        nice -= guestnice
+
+        total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guestnice
+        idle_total = idle + iowait
+
+        core_data[core_num] = {
+            "user": user, "nice": nice, "system": system,
+            "idle": idle, "iowait": iowait, "irq": irq,
+            "softirq": softirq, "steal": steal, "guest": guest,
+            "guestnice": guestnice, "total": total,
+            "idle_total": idle_total,
+        }
+        if core_num > max_core:
+            max_core = core_num
 
     if max_core < 0:
         return []
 
     cpus: list[dict | None] = [None] * (max_core + 1)
-
-    for line in text.splitlines():
-        if line.startswith("cpu") and not line.startswith("cpu "):
-            parts = line.split()
-            try:
-                core_num = int(parts[0][3:])
-            except (ValueError, IndexError):
-                continue
-            values = []
-            for p in parts[1:]:
-                try:
-                    values.append(int(p))
-                except ValueError:
-                    values.append(0)
-            # Pad to 10 fields (user, nice, system, idle, iowait, irq,
-            # softirq, steal, guest, guestnice)
-            while len(values) < 10:
-                values.append(0)
-
-            user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = values[:10]
-            # Guest time is already in usertime, subtract to avoid double-counting
-            user -= guest
-            nice -= guestnice
-
-            total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guestnice
-            idle_total = idle + iowait
-
-            cpus[core_num] = {
-                "user": user, "nice": nice, "system": system,
-                "idle": idle, "iowait": iowait, "irq": irq,
-                "softirq": softirq, "steal": steal, "guest": guest,
-                "guestnice": guestnice, "total": total,
-                "idle_total": idle_total,
-            }
+    for core_num, data in core_data.items():
+        cpus[core_num] = data
 
     return cpus
 
