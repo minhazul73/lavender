@@ -36,14 +36,25 @@ router = APIRouter()
 async def api_users(session: UserSession = Depends(require_session)):
     """Get user, session, group, and access control information."""
     username = session.username if session else None
-    human_users = await asyncio.to_thread(get_human_users, username)
-    system_users = await asyncio.to_thread(get_system_users)
-    categorized_groups = await asyncio.to_thread(get_categorized_groups)
-    active_sessions = await asyncio.to_thread(get_active_sessions)
-    login_history = await asyncio.to_thread(get_login_history, 10)
-    security_posture = await asyncio.to_thread(get_security_posture)
-    current_user_info = await asyncio.to_thread(get_current_user)
-    sudoers_info = await asyncio.to_thread(get_sudoers_info)
+    (
+        human_users,
+        system_users,
+        categorized_groups,
+        active_sessions,
+        login_history,
+        security_posture,
+        current_user_info,
+        sudoers_info,
+    ) = await asyncio.gather(
+        asyncio.to_thread(get_human_users, username),
+        asyncio.to_thread(get_system_users),
+        asyncio.to_thread(get_categorized_groups),
+        asyncio.to_thread(get_active_sessions),
+        asyncio.to_thread(get_login_history, 10),
+        asyncio.to_thread(get_security_posture),
+        asyncio.to_thread(get_current_user),
+        asyncio.to_thread(get_sudoers_info),
+    )
 
     active_sessions_count = len(active_sessions)
     human_users_count = len(human_users)
