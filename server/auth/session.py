@@ -17,6 +17,8 @@ from server.core.config import (
 
 logger = logging.getLogger(__name__)
 
+MAX_SESSIONS: int = 500
+
 
 @dataclass
 class UserSession:
@@ -94,6 +96,7 @@ class SessionStore:
     """Thread-safe in-memory session repository with signed cookie tokens."""
 
     def __init__(self):
+        """Initialize session store with in-memory dictionary, serializer, and lock."""
         self._sessions: dict[str, UserSession] = {}
         self._serializer = URLSafeSerializer(SESSION_SECRET_KEY, salt="dashboard-session-salt")
         self._lock = asyncio.Lock()
@@ -129,6 +132,23 @@ class SessionStore:
             is_admin=is_root,
         )
         async with self._lock:
+            if len(self._sessions) >= MAX_SESSIONS:
+                now = time.time()
+                max_idle_seconds = SESSION_MAX_IDLE_MINUTES * 60
+                expired_ids = [
+                    s_id for s_id, s in self._sessions.items()
+                    if (now - s.last_used > max_idle_seconds)
+                ]
+                for expired_id in expired_ids:
+                    self._sessions.pop(expired_id, None)
+
+                while len(self._sessions) >= MAX_SESSIONS:
+                    eligible = [s_id for s_id in self._sessions if s_id != "dev-session-active"]
+                    if not eligible:
+                        break
+                    oldest_id = min(eligible, key=lambda s_id: self._sessions[s_id].last_used)
+                    self._sessions.pop(oldest_id, None)
+
             self._sessions[sid] = session
         logger.info(
             "Created session %s for user %s (uid=%d)",

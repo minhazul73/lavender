@@ -22,18 +22,19 @@ def _read_int(path: str, default: int = 0) -> int:
     return live._read_int(path, default)
 
 
-def _get_loadavg(index: int) -> float:
-    """Read a specific load average from /proc/loadavg (0=1min, 1=5min, 2=15min)."""
+def _get_loadavg() -> tuple[float, float, float]:
+    """Read 1m, 5m, and 15m load averages from /proc/loadavg in a single read."""
     text = _read_file("/proc/loadavg")
     if text is None:
-        return 0.0
+        return 0.0, 0.0, 0.0
     parts = text.strip().split()
-    if len(parts) > index:
+    loads = [0.0, 0.0, 0.0]
+    for i in range(min(3, len(parts))):
         try:
-            return float(parts[index])
+            loads[i] = float(parts[i])
         except ValueError:
-            return 0.0
-    return 0.0
+            loads[i] = 0.0
+    return loads[0], loads[1], loads[2]
 
 
 def _parse_proc_stat() -> list[dict | None]:
@@ -48,54 +49,55 @@ def _parse_proc_stat() -> list[dict | None]:
     if text is None:
         return []
 
-    # Find max core number to size the list
+    core_data: dict[int, dict] = {}
     max_core = -1
+
     for line in text.splitlines():
-        if line.startswith("cpu") and not line.startswith("cpu "):
+        if not line.startswith("cpu") or line.startswith("cpu "):
+            continue
+
+        parts = line.split()
+        try:
+            core_num = int(parts[0][3:])
+        except (ValueError, IndexError):
+            continue
+
+        values = []
+        for p in parts[1:]:
             try:
-                num = int(line.split()[0][3:])
-                max_core = max(max_core, num)
-            except (ValueError, IndexError):
-                pass
+                values.append(int(p))
+            except ValueError:
+                values.append(0)
+
+        # Pad to 10 fields (user, nice, system, idle, iowait, irq,
+        # softirq, steal, guest, guestnice)
+        while len(values) < 10:
+            values.append(0)
+
+        user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = values[:10]
+        # Guest time is already in usertime, subtract to avoid double-counting
+        user -= guest
+        nice -= guestnice
+
+        total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guestnice
+        idle_total = idle + iowait
+
+        core_data[core_num] = {
+            "user": user, "nice": nice, "system": system,
+            "idle": idle, "iowait": iowait, "irq": irq,
+            "softirq": softirq, "steal": steal, "guest": guest,
+            "guestnice": guestnice, "total": total,
+            "idle_total": idle_total,
+        }
+        if core_num > max_core:
+            max_core = core_num
 
     if max_core < 0:
         return []
 
     cpus: list[dict | None] = [None] * (max_core + 1)
-
-    for line in text.splitlines():
-        if line.startswith("cpu") and not line.startswith("cpu "):
-            parts = line.split()
-            try:
-                core_num = int(parts[0][3:])
-            except (ValueError, IndexError):
-                continue
-            values = []
-            for p in parts[1:]:
-                try:
-                    values.append(int(p))
-                except ValueError:
-                    values.append(0)
-            # Pad to 10 fields (user, nice, system, idle, iowait, irq,
-            # softirq, steal, guest, guestnice)
-            while len(values) < 10:
-                values.append(0)
-
-            user, nice, system, idle, iowait, irq, softirq, steal, guest, guestnice = values[:10]
-            # Guest time is already in usertime, subtract to avoid double-counting
-            user -= guest
-            nice -= guestnice
-
-            total = user + nice + system + idle + iowait + irq + softirq + steal + guest + guestnice
-            idle_total = idle + iowait
-
-            cpus[core_num] = {
-                "user": user, "nice": nice, "system": system,
-                "idle": idle, "iowait": iowait, "irq": irq,
-                "softirq": softirq, "steal": steal, "guest": guest,
-                "guestnice": guestnice, "total": total,
-                "idle_total": idle_total,
-            }
+    for core_num, data in core_data.items():
+        cpus[core_num] = data
 
     return cpus
 
@@ -188,6 +190,8 @@ class CPUFreqCollector(MetricCollector):
                 "usage": round(usage, 1) if usage is not None else None,
             })
 
+        load1, load5, load15 = _get_loadavg()
+
         return {
             "cpus": cores_list,
             "count": len(cores),
@@ -195,9 +199,9 @@ class CPUFreqCollector(MetricCollector):
             # Lets the UI say "not supported by this kernel" instead of
             # rendering a permanently blank frequency readout.
             "cpufreq_available": self._has_cpufreq,
-            "load1": _get_loadavg(0),
-            "load5": _get_loadavg(1),
-            "load15": _get_loadavg(2),
+            "load1": load1,
+            "load5": load5,
+            "load15": load15,
             "per_core_usage": per_core_usage,
         }
 

@@ -13,6 +13,7 @@ from server.auth.session import UserSession
 from server.core.executor import get_executor
 from server.services.users import (
     add_user_ssh_key,
+    build_user_to_groups_map,
     delete_user_ssh_key,
     get_active_sessions,
     get_categorized_groups,
@@ -36,14 +37,26 @@ router = APIRouter()
 async def api_users(session: UserSession = Depends(require_session)):
     """Get user, session, group, and access control information."""
     username = session.username if session else None
-    human_users = await asyncio.to_thread(get_human_users, username)
-    system_users = await asyncio.to_thread(get_system_users)
-    categorized_groups = await asyncio.to_thread(get_categorized_groups)
-    active_sessions = await asyncio.to_thread(get_active_sessions)
-    login_history = await asyncio.to_thread(get_login_history, 10)
-    security_posture = await asyncio.to_thread(get_security_posture)
-    current_user_info = await asyncio.to_thread(get_current_user)
-    sudoers_info = await asyncio.to_thread(get_sudoers_info)
+    user_to_groups = await asyncio.to_thread(build_user_to_groups_map)
+    (
+        human_users,
+        system_users,
+        categorized_groups,
+        active_sessions,
+        login_history,
+        security_posture,
+        current_user_info,
+        sudoers_info,
+    ) = await asyncio.gather(
+        asyncio.to_thread(get_human_users, username, user_to_groups),
+        asyncio.to_thread(get_system_users, user_to_groups),
+        asyncio.to_thread(get_categorized_groups),
+        asyncio.to_thread(get_active_sessions),
+        asyncio.to_thread(get_login_history, 10),
+        asyncio.to_thread(get_security_posture),
+        asyncio.to_thread(get_current_user),
+        asyncio.to_thread(get_sudoers_info),
+    )
 
     active_sessions_count = len(active_sessions)
     human_users_count = len(human_users)
@@ -150,7 +163,7 @@ async def api_update_user_groups(
         raise HTTPException(status_code=400, detail="Groups must be a list of group names")
 
     # Verify user exists
-    all_users = parse_all_passwd_users()
+    all_users = await asyncio.to_thread(parse_all_passwd_users)
     if not any(u["name"] == username for u in all_users):
         raise HTTPException(status_code=404, detail=f"User '{username}' does not exist")
 

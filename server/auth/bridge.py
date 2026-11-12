@@ -11,6 +11,7 @@ import pwd
 import subprocess
 
 from server.core.config import PAM_SERVICE
+from server.utils.passwd import get_user_groups
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +28,7 @@ def get_local_user_info(username: str) -> dict:
     except KeyError:
         raise AuthError(f"User '{username}' does not exist on this system.")
 
-    groups = [g.gr_name for g in grp.getgrall() if username in g.gr_mem]
-    try:
-        primary_group = grp.getgrgid(pw.pw_gid).gr_name
-        if primary_group not in groups:
-            groups.insert(0, primary_group)
-    except Exception:
-        pass
+    groups = get_user_groups(username, pw.pw_gid)
 
     return {
         "uid": pw.pw_uid,

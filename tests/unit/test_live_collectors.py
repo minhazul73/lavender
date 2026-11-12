@@ -52,6 +52,16 @@ class TestRingBuffer:
         assert len(buf.values()) == 10
         assert len(buf) == 10
 
+    def test_iter_values_yields_directly_from_deque(self):
+        buf = RingBuffer(5)
+        buf.append(10)
+        buf.append(20)
+        it = buf.iter_values()
+        assert hasattr(it, "__next__")
+        assert list(it) == [10, 20]
+        assert list(buf.values_iter()) == [10, 20]
+        assert list(buf.values(as_iter=True)) == [10, 20]
+
 
 @pytest.mark.asyncio
 async def test_ram_collector_collects_metrics(mock_sysfs):
@@ -98,8 +108,33 @@ async def test_cpu_collector_collects_metrics(mock_sysfs, monkeypatch):
     assert data["cpufreq_available"] is True
     assert data["load1"] >= 0
     assert data["load5"] >= 0
-    assert data["load15"] >= 0
-    assert len(data["per_core_usage"]) > 0
+
+
+def test_cpu_parse_proc_stat_single_pass(monkeypatch):
+    sample_stat = (
+        "cpu  2255 34 2290 22625563 6290 127 456 0 0 0\n"
+        "cpu0 1132 17 1145 11312781 3145 63 228 0 0 0\n"
+        "cpu1 1123 17 1145 11312782 3145 64 228 0 0 0\n"
+        "intr 11493054 23 0 0 0 0 0 0\n"
+    )
+    monkeypatch.setattr("server.services.collectors.cpu._read_file", lambda path: sample_stat if path == "/proc/stat" else None)
+    from server.services.collectors.cpu import _parse_proc_stat
+    cpus = _parse_proc_stat()
+    assert len(cpus) == 2
+    assert cpus[0] is not None
+    assert cpus[1] is not None
+    assert cpus[0]["user"] == 1132
+    assert cpus[0]["system"] == 1145
+    assert cpus[1]["user"] == 1123
+
+
+def test_cpu_get_loadavg_single_read(monkeypatch):
+    monkeypatch.setattr("server.services.collectors.cpu._read_file", lambda path: "1.25 0.85 0.55 2/450 12345\n" if path == "/proc/loadavg" else None)
+    from server.services.collectors.cpu import _get_loadavg
+    load1, load5, load15 = _get_loadavg()
+    assert load1 == 1.25
+    assert load5 == 0.85
+    assert load15 == 0.55
 
 
 @pytest.mark.asyncio

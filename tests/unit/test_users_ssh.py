@@ -4,7 +4,10 @@ from unittest.mock import patch
 
 from server.services.users import (
     _parse_ssh_key_type_and_data,
+    build_user_to_groups_map,
     delete_user_ssh_key,
+    get_human_users,
+    get_system_users,
     get_user_ssh_keys,
 )
 
@@ -177,3 +180,41 @@ def test_delete_surrogateescape_and_atomic_replace():
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+def test_build_user_to_groups_map_and_precomputed_group_map():
+    mock_groups = [
+        {"name": "sudo", "gid": 27, "members": ["alice", "bob"]},
+        {"name": "docker", "gid": 999, "members": ["alice"]},
+    ]
+    group_map = build_user_to_groups_map(mock_groups)
+    assert group_map == {
+        "alice": ["sudo", "docker"],
+        "bob": ["sudo"],
+    }
+
+    mock_human_passwd = [
+        {"name": "alice", "uid": 1000, "gid": 1000, "home": "/home/alice", "shell": "/bin/bash", "comment": ""},
+    ]
+    with patch("server.services.users.parse_passwd_users", return_value=mock_human_passwd), \
+         patch("server.services.users.parse_groups") as mock_parse_groups, \
+         patch("server.services.users.parse_active_sessions", return_value=[]), \
+         patch("server.services.users.get_user_ssh_keys", return_value=[]):
+        users = get_human_users(group_map=group_map)
+        assert len(users) == 1
+        assert users[0]["name"] == "alice"
+        assert users[0]["groups"] == ["sudo", "docker"]
+        assert users[0]["is_admin"] is True
+        mock_parse_groups.assert_not_called()
+
+    mock_all_passwd = [
+        {"name": "daemon", "uid": 1, "gid": 1, "home": "/usr/sbin", "shell": "/usr/sbin/nologin", "comment": "", "is_human": False},
+    ]
+    with patch("server.services.users.parse_all_passwd_users", return_value=mock_all_passwd), \
+         patch("server.services.users.parse_groups") as mock_parse_groups:
+        sys_users = get_system_users(group_map={"daemon": ["daemon_group"]})
+        assert len(sys_users) == 1
+        assert sys_users[0]["name"] == "daemon"
+        assert sys_users[0]["groups"] == ["daemon_group"]
+        mock_parse_groups.assert_not_called()
+

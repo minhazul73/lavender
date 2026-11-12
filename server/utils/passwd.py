@@ -1,6 +1,8 @@
 """
 Parser for /etc/passwd and /etc/group files.
 """
+import grp
+
 NON_LOGIN_SHELLS = {
     "/sbin/nologin",
     "/usr/sbin/nologin",
@@ -96,3 +98,29 @@ def parse_groups(path: str = "/etc/group") -> list[dict]:
     except Exception:
         pass
     return groups
+
+
+def get_user_groups(username: str, primary_gid: int | None = None) -> list[str]:
+    """Single-pass lookup for primary and secondary groups of a user."""
+    groups: list[str] = []
+    primary_group: str | None = None
+    try:
+        for g in grp.getgrall():
+            if primary_gid is not None and g.gr_gid == primary_gid:
+                primary_group = g.gr_name
+            if username in g.gr_mem:
+                groups.append(g.gr_name)
+    except Exception:
+        pass
+
+    if primary_gid is not None and primary_group is None:
+        try:
+            primary_group = grp.getgrgid(primary_gid).gr_name
+        except Exception:
+            pass
+
+    if primary_group and primary_group not in groups:
+        groups.insert(0, primary_group)
+
+    return groups
+

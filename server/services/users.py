@@ -75,6 +75,18 @@ GROUP_METADATA = {
     "redis": ("Services", "Redis in-memory caching engine"),
 }
 
+_GROUP_ORDER = {
+    "Privileged": 0,
+    "Hardware": 1,
+    "Services": 2,
+    "General": 3,
+    "System": 4,
+    "human": 0,
+    "system": 1,
+    "service": 2,
+    "other": 3,
+}
+
 
 def get_user_ssh_path(username: str) -> str:
     """Get path to authorized_keys for a given user."""
@@ -259,18 +271,26 @@ def get_home_storage_info(home_path: str) -> dict | None:
         return None
 
 
-def get_human_users(current_username: str | None = None) -> list[dict]:
-    """Get list of enriched human interactive users."""
-    raw_users = parse_passwd_users(min_uid=1000, exclude_nologin=True)
-    all_groups = parse_groups()
-    active_sessions = parse_active_sessions()
-    active_user_names = {s["user"] for s in active_sessions}
-
-    # Map username to groups
-    user_to_groups = {}
+def build_user_to_groups_map(all_groups: list[dict] | None = None) -> dict[str, list[str]]:
+    """Build a mapping of username -> list of group names."""
+    if all_groups is None:
+        all_groups = parse_groups()
+    user_to_groups: dict[str, list[str]] = {}
     for g in all_groups:
         for m in g.get("members", []):
             user_to_groups.setdefault(m, []).append(g["name"])
+    return user_to_groups
+
+
+def get_human_users(
+    current_username: str | None = None,
+    group_map: dict[str, list[str]] | None = None,
+) -> list[dict]:
+    """Get list of enriched human interactive users."""
+    raw_users = parse_passwd_users(min_uid=1000, exclude_nologin=True)
+    user_to_groups = group_map if group_map is not None else build_user_to_groups_map()
+    active_sessions = parse_active_sessions()
+    active_user_names = {s["user"] for s in active_sessions}
 
     human_users = []
     for u in raw_users:
@@ -303,15 +323,10 @@ def get_human_users(current_username: str | None = None) -> list[dict]:
     return human_users
 
 
-def get_system_users() -> list[dict]:
+def get_system_users(group_map: dict[str, list[str]] | None = None) -> list[dict]:
     """Get list of system / daemon users."""
     all_users = parse_all_passwd_users()
-    all_groups = parse_groups()
-
-    user_to_groups = {}
-    for g in all_groups:
-        for m in g.get("members", []):
-            user_to_groups.setdefault(m, []).append(g["name"])
+    user_to_groups = group_map if group_map is not None else build_user_to_groups_map()
 
     system_users = []
     for u in all_users:
@@ -361,8 +376,7 @@ def get_categorized_groups() -> list[dict]:
         })
 
     # Sort: Privileged first, Hardware second, Services third, then System/General
-    order = {"Privileged": 0, "Hardware": 1, "Services": 2, "General": 3, "System": 4}
-    categorized.sort(key=lambda x: (order.get(x["category"], 9), x["name"]))
+    categorized.sort(key=lambda x: (_GROUP_ORDER.get(x["category"], 9), x["name"]))
     return categorized
 
 

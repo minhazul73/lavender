@@ -607,10 +607,15 @@ def get_package_manager() -> BasePackageManager:
 def get_installed_packages(force_refresh: bool = False) -> list[dict[str, Any]]:
     """Get full list of installed packages (cached for 60s)."""
     now = time.time()
-    if not force_refresh and _PACKAGES_CACHE["installed"] is not None:
+    cached = _PACKAGES_CACHE.get("installed")
+    if not force_refresh and cached is not None:
         if (now - _PACKAGES_CACHE["timestamp"]) < _PACKAGES_CACHE["ttl"]:
-            return _PACKAGES_CACHE["installed"]
+            return cached
 
+    # Clear previous cache entry and release local reference prior to allocation
+    # to prevent transient memory doubling
+    cached = None
+    _PACKAGES_CACHE["installed"] = None
     mgr = get_package_manager()
     packages = mgr.get_installed_packages()
     _PACKAGES_CACHE["installed"] = packages
@@ -620,8 +625,9 @@ def get_installed_packages(force_refresh: bool = False) -> list[dict[str, Any]]:
 
 def get_installed_count() -> int:
     """Get count of installed packages."""
-    if _PACKAGES_CACHE["installed"] is not None:
-        return len(_PACKAGES_CACHE["installed"])
+    cached = _PACKAGES_CACHE.get("installed")
+    if cached is not None:
+        return len(cached)
     return get_package_manager().get_installed_count()
 
 

@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from server.auth.session import SessionStore
+from server.auth.session import SessionStore, UserSession
 
 
 @pytest.mark.asyncio
@@ -70,3 +70,72 @@ async def test_session_cleanup_idle_removes_expired_and_releases_lock():
     await store.cleanup_idle()
     assert session.session_id not in store._sessions
     assert not store._lock.locked()
+
+
+@pytest.mark.asyncio
+async def test_session_store_max_sessions_eviction(monkeypatch):
+    import server.auth.session as session_mod
+    monkeypatch.setattr(session_mod, "MAX_SESSIONS", 3)
+
+    store = SessionStore()
+    u1 = await store.create("user1", {"uid": 1001, "gid": 1001})
+    u1.last_used = time.time() - 100
+    u2 = await store.create("user2", {"uid": 1002, "gid": 1002})
+    u2.last_used = time.time() - 50
+    u3 = await store.create("user3", {"uid": 1003, "gid": 1003})
+    u3.last_used = time.time() - 10
+
+    assert len(store._sessions) == 3
+
+    # Adding 4th session when at max capacity should evict oldest (u1)
+    u4 = await store.create("user4", {"uid": 1004, "gid": 1004})
+    assert len(store._sessions) == 3
+    assert u1.session_id not in store._sessions
+    assert u2.session_id in store._sessions
+    assert u3.session_id in store._sessions
+    assert u4.session_id in store._sessions
+
+    # If idle/expired sessions exist, all expired sessions should be evicted
+    u2.last_used = time.time() - 4000  # expired
+    u3.last_used = time.time() - 4000  # expired
+    u5 = await store.create("user5", {"uid": 1005, "gid": 1005})
+    assert len(store._sessions) == 2
+    assert u2.session_id not in store._sessions
+    assert u3.session_id not in store._sessions
+    assert u4.session_id in store._sessions
+    assert u5.session_id in store._sessions
+
+
+
+@pytest.mark.asyncio
+async def test_session_store_preserves_dev_session_active(monkeypatch):
+    import server.auth.session as session_mod
+    monkeypatch.setattr(session_mod, "MAX_SESSIONS", 3)
+
+    store = SessionStore()
+    dev_session = UserSession(
+        session_id="dev-session-active",
+        username="developer",
+        uid=1000,
+        gid=1000,
+        home="/home/developer",
+        shell="/bin/bash",
+    )
+    dev_session.last_used = time.time() - 500  # oldest
+    store._sessions["dev-session-active"] = dev_session
+
+    u1 = await store.create("user1", {"uid": 1001, "gid": 1001})
+    u1.last_used = time.time() - 200
+    u2 = await store.create("user2", {"uid": 1002, "gid": 1002})
+    u2.last_used = time.time() - 100
+
+    assert len(store._sessions) == 3
+
+    # Creating a 4th session at max capacity:
+    # dev-session-active is the oldest, but should be preserved; u1 (oldest eligible) should be evicted.
+    u3 = await store.create("user3", {"uid": 1003, "gid": 1003})
+    assert len(store._sessions) == 3
+    assert "dev-session-active" in store._sessions
+    assert u1.session_id not in store._sessions
+    assert u2.session_id in store._sessions
+    assert u3.session_id in store._sessions
