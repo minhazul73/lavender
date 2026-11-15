@@ -280,16 +280,61 @@ class TestLiveMonitorOrchestration:
     def test_get_live_monitor_thread_safe_singleton(self, monkeypatch):
         """get_live_monitor safely returns single instance when initialized concurrently from multiple threads."""
         import concurrent.futures
+        import threading
+        import time
         import server.services.live_monitor as lm
 
         monkeypatch.setattr(lm, "_live_monitor", None)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
-            results = list(pool.map(lambda _: lm.get_live_monitor(), range(20)))
+        orig_cls = lm.LiveMonitor
+        construct_count = 0
+        first_entered = threading.Event()
+        release_event = threading.Event()
 
+        class InstrumentedTestMonitor(orig_cls):
+            def __init__(self, *args, **kwargs):
+                nonlocal construct_count
+                construct_count += 1
+                if construct_count == 1:
+                    first_entered.set()
+                    if not release_event.wait(timeout=2.0):
+                        raise TimeoutError("Timed out waiting for release_event in constructor")
+                super().__init__(*args, **kwargs)
+
+        monkeypatch.setattr(lm, "LiveMonitor", InstrumentedTestMonitor)
+
+        workers = 10
+        entered_getter_count = 0
+        entered_lock = threading.Lock()
+        competing_entered = threading.Event()
+
+        def worker(is_first: bool):
+            if not is_first:
+                if not first_entered.wait(timeout=2.0):
+                    raise TimeoutError("Timed out waiting for first constructor entry")
+            with entered_lock:
+                nonlocal entered_getter_count
+                entered_getter_count += 1
+                if entered_getter_count == workers:
+                    competing_entered.set()
+            return lm.get_live_monitor()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            first_future = pool.submit(worker, True)
+            assert first_entered.wait(timeout=2.0), "First worker failed to enter constructor"
+            competing_futures = [pool.submit(worker, False) for _ in range(workers - 1)]
+            assert competing_entered.wait(timeout=2.0), "Competing workers failed to enter getter"
+            time.sleep(0.02)
+            release_event.set()
+
+            results = [first_future.result(timeout=2.0)] + [
+                f.result(timeout=2.0) for f in competing_futures
+            ]
+
+        assert construct_count == 1
         first = results[0]
         assert all(inst is first for inst in results)
-        assert isinstance(first, LiveMonitor)
+        assert isinstance(first, orig_cls)
 
     def test_monitor_exposes_collector_properties(self):
         """The public properties return the underlying collector instances."""
