@@ -1,4 +1,4 @@
-.PHONY: install dev-backend dev-frontend build test test-frontend clean
+.PHONY: install dev-backend dev-frontend build test test-frontend test-backend-coverage test-frontend-coverage coverage clean
 
 # Install all backend (uv) and frontend (bun) dependencies
 install:
@@ -13,7 +13,7 @@ dev-backend:
 dev-frontend:
 	cd frontend && bun run dev
 
-# Build production frontend bundle into server/dist/
+# Build production bundle into server/dist/
 build:
 	cd frontend && bun run build
 
@@ -24,6 +24,17 @@ test:
 # Run frontend tests with bun
 test-frontend:
 	cd frontend && bun run test
+
+# Run backend tests with XML coverage report for SonarQube
+test-backend-coverage:
+	uv run pytest --cov=server --cov-report=xml:coverage.xml --cov-report=term -v
+
+# Run frontend tests with LCOV coverage report for SonarQube
+test-frontend-coverage:
+	cd frontend && bun run test:coverage
+
+# Run all test coverage suites (backend + frontend)
+coverage: test-backend-coverage test-frontend-coverage
 
 clean:
 	rm -rf server/dist frontend/node_modules .venv uv.lock

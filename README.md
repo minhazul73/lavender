@@ -87,17 +87,20 @@ Detailed guides and references are organized in the [`docs/`](docs/) directory:
 
 ---
 
-## Testing
+## Testing & Test Coverage
 
 ```bash
-# Backend test suite (90 unit & integration tests)
+# Backend test suite
 make test
 
-# Frontend test suite (100 component & hook tests)
+# Frontend test suite
 make test-frontend
 
 # Frontend TypeScript check
 cd frontend && bun run typecheck
+
+# Generate test coverage reports for SonarQube (backend XML + frontend LCOV)
+make coverage
 ```
 
 ---
