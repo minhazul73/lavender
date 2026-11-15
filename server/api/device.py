@@ -3,6 +3,8 @@ Device and Hardware API routes for Lavender.
 Provides system model metadata, kernel version, battery, thermal sensors, and uptime stats.
 """
 
+import asyncio
+
 from fastapi import APIRouter, Depends
 
 from server.auth.deps import get_current_session
@@ -31,7 +33,7 @@ async def api_device_info(session: UserSession | None = Depends(get_current_sess
 async def api_battery(session: UserSession | None = Depends(get_current_session)):
     """Get battery, thermal zones, CPU frequency, and system uptime."""
     return {
-        "battery": get_battery_info(),
+        "battery": await asyncio.to_thread(get_battery_info),
         "thermal": get_thermal_zones(),
         "cpu_freq": get_cpu_frequencies(),
         "cpu_scaling": get_cpu_scaling_available(),

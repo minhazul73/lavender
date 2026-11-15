@@ -37,6 +37,7 @@ def get_battery_info() -> dict:
     """
     Get battery information using upower.
     """
+    assert_not_in_running_loop("get_battery_info")
     # Find battery device
     code, out, err = run_command(["upower", "-e"], timeout=10)
     battery_path = None
