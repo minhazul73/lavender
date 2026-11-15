@@ -1,6 +1,7 @@
 """
 Battery, thermal, and CPU frequency management.
 """
+import asyncio
 import os
 import re
 import subprocess
@@ -19,6 +20,25 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
 
 
 from server.utils.thermal import THERMAL_NAME_MAP
+
+
+def collect_upower() -> dict:
+    """Collect battery information using upower synchronously.
+
+    WARNING: This is a synchronous blocking function executing external
+    subprocesses. It must never be called directly on an active event loop;
+    always offload with `await asyncio.to_thread(...)`.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+    if loop is not None and loop.is_running():
+        raise RuntimeError(
+            "collect_upower is a blocking synchronous function and must not "
+            "be called directly on the event loop. Use asyncio.to_thread instead."
+        )
+    return get_battery_info()
 
 
 def get_battery_info() -> dict:

@@ -220,6 +220,20 @@ async def test_battery_collector_collects_metrics(mock_sysfs, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_battery_collect_upower_async_guard():
+    """Verify that synchronous upower collectors raise RuntimeError if called directly on event loop."""
+    import server.services.battery as battery_svc
+    from server.services.collectors.battery import BatteryCollector
+
+    collector = BatteryCollector()
+    with pytest.raises(RuntimeError, match="must not be called directly on the event loop"):
+        collector._collect_upower()
+
+    with pytest.raises(RuntimeError, match="must not be called directly on the event loop"):
+        battery_svc.collect_upower()
+
+
+@pytest.mark.asyncio
 async def test_network_collector_collects_metrics(mock_sysfs, monkeypatch):
     """Test network collector with mocked sysfs and procfs."""
     # Mock os.path.exists for wireless/phy80211 checks

@@ -321,7 +321,22 @@ class BatteryCollector(MetricCollector):
         return None
 
     def _collect_upower(self) -> dict:
-        """Fallback and supplement via upower."""
+        """Fallback and supplement via upower.
+
+        WARNING: This is a synchronous blocking call that executes external
+        subprocesses (`upower`). Never call this directly from an asynchronous
+        event loop context; always offload with `await asyncio.to_thread(...)`.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            raise RuntimeError(
+                "_collect_upower is a blocking synchronous function and must not "
+                "be called directly on the event loop. Use asyncio.to_thread instead."
+            )
+
         if not self._upower_checked:
             import subprocess
             try:
