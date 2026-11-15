@@ -12,4 +12,10 @@ node_modules/
 frontend/node_modules/
 .pytest_cache/
 coverage/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 *.egg-info/
+.scannerwork/
+.sonar/

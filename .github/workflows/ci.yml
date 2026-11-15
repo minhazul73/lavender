@@ -1,0 +1,144 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --python ${{ matrix.python-version }}
+
+      - name: Lint backend (Ruff)
+        run: uv run ruff check server/ tests/ || true
+        # || true: non-blocking during initial adoption. Remove in a future task.
+
+      - name: Run pytest (with coverage on Python 3.11)
+        if: matrix.python-version == '3.11'
+        run: uv run --python 3.11 pytest --cov=server --cov-report=xml:coverage.xml --cov-report=term -v
+
+      - name: Run pytest
+        if: matrix.python-version != '3.11'
+        run: uv run --python ${{ matrix.python-version }} pytest -v
+
+      - name: Upload backend coverage
+        if: matrix.python-version == '3.11'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: coverage.xml
+          retention-days: 1
+
+  frontend:
+    name: Frontend Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Type check (TypeScript)
+        working-directory: frontend
+        run: bun run typecheck
+
+      - name: Run frontend unit tests with coverage
+        working-directory: frontend
+        run: bun run test:coverage
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: bun run lint || true
+        # || true: warnings don't fail CI yet. Remove || true in a future task.
+
+      - name: Build production bundle
+        working-directory: frontend
+        run: bun run build
+
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+          retention-days: 1
+
+  sonar:
+    name: SonarQube Analysis
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+    steps:
+      - name: Check for SONAR_TOKEN
+        if: env.SONAR_TOKEN == ''
+        run: echo "SONAR_TOKEN secret is not set. Skipping SonarQube analysis."
+
+      - uses: actions/checkout@v4
+        if: env.SONAR_TOKEN != ''
+        with:
+          fetch-depth: 0 # Full git history required for Sonar analysis
+
+      - name: Download backend coverage
+        if: env.SONAR_TOKEN != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: .
+
+      - name: Download frontend coverage
+        if: env.SONAR_TOKEN != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+      - name: Cache SonarQube packages
+        if: env.SONAR_TOKEN != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: SonarQube Scan
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=minhazul73
+            -Dsonar.projectKey=minhazul73_lavender
+
