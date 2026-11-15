@@ -7,6 +7,9 @@ on:
     types: [opened, synchronize, reopened]
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Backend Tests (Python ${{ matrix.python-version }})
@@ -93,26 +96,36 @@ jobs:
     name: SonarQube Analysis
     needs: [backend, frontend]
     runs-on: ubuntu-latest
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && secrets.SONAR_TOKEN != '' }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
+      - name: Check for SONAR_TOKEN
+        if: env.SONAR_TOKEN == ''
+        run: echo "SONAR_TOKEN secret is not set. Skipping SonarQube analysis."
+
       - uses: actions/checkout@v4
+        if: env.SONAR_TOKEN != ''
         with:
           fetch-depth: 0 # Full git history required for Sonar analysis
 
       - name: Download backend coverage
+        if: env.SONAR_TOKEN != ''
         uses: actions/download-artifact@v4
         with:
           name: backend-coverage
           path: .
 
       - name: Download frontend coverage
+        if: env.SONAR_TOKEN != ''
         uses: actions/download-artifact@v4
         with:
           name: frontend-coverage
           path: frontend/coverage
 
       - name: Cache SonarQube packages
+        if: env.SONAR_TOKEN != ''
         uses: actions/cache@v4
         with:
           path: ~/.sonar/cache
@@ -120,9 +133,10 @@ jobs:
           restore-keys: ${{ runner.os }}-sonar
 
       - name: SonarQube Scan
+        if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
         with:
           args: >
             -Dsonar.organization=minhazul73

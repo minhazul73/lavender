@@ -97,7 +97,7 @@ make test
 make test-frontend
 
 # Frontend TypeScript check
-cd frontend && bun run typecheck
+(cd frontend && bun run typecheck)
 
 # Generate test coverage reports for SonarQube (backend XML + frontend LCOV)
 make coverage
