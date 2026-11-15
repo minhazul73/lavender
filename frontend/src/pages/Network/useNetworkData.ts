@@ -6,7 +6,7 @@ import type {
   WifiNetworkItem,
   PingResponse,
   DnsQueryResponse,
-} from '../../api/types';
+} from '../../api/types/network';
 import type { HealthCheckState } from './ConnectivityTab';
 
 export interface NetworkDataState {

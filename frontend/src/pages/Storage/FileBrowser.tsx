@@ -6,7 +6,7 @@ import {
   BookmarkItem,
   BookmarksResponse,
   StorageDiskItem,
-} from '../../api/types';
+} from '../../api/types/storage';
 import { useToast } from '../../context/ToastContext';
 import { useOptionalAuth } from '../../context/AuthContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';

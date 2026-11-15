@@ -1,6 +1,6 @@
 import React from 'react';
 import { RotateCw, Power, Moon } from 'lucide-react';
-import type { PowerStateResponse } from '../../api/types';
+import type { PowerStateResponse } from '../../api/types/power';
 
 export interface PowerActionsCardProps {
   onReboot: () => void;

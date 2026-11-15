@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   NetworkInterfaceItem,
   DnsServerItem,
-} from '../../api/types';
+} from '../../api/types/network';
 import { useToast } from '../../context/ToastContext';
 import { useClipboard } from '../../hooks/useClipboard';
 import {

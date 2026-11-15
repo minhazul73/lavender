@@ -1,5 +1,5 @@
 import React from 'react';
-import type { UserItem, GroupCategoryItem } from '../../api/types';
+import type { UserItem, GroupCategoryItem } from '../../api/types/users';
 import { Search, Layers } from 'lucide-react';
 
 export type GroupFilterType = 'all' | 'Privileged' | 'Hardware' | 'Services' | 'System';

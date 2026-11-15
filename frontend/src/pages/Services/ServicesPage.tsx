@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
-import { ServiceItem, ServicesListResponse } from '../../api/types';
+import { ServiceItem, ServicesListResponse } from '../../api/types/services';
 import { useToast } from '../../context/ToastContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
 import { ConfirmModal } from '../../components/common/ConfirmModal';

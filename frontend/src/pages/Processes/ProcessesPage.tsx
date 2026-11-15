@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../../api/client';
-import { ProcessItem, ProcessesOverviewResponse } from '../../api/types';
+import { ProcessItem, ProcessesOverviewResponse } from '../../api/types/processes';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { CustomSelect, SelectOption } from '../../components/common/CustomSelect';

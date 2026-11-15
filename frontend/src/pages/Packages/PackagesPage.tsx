@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../api/client';
-import { PackagesOverviewResponse, PackageItem } from '../../api/types';
+import { PackagesOverviewResponse, PackageItem } from '../../api/types/packages';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import {

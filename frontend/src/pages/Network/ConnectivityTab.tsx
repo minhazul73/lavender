@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldCheck, RefreshCw, Server, Globe, Activity } from 'lucide-react';
-import type { PingResponse, NetworkSummaryResponse } from '../../api/types';
+import type { PingResponse, NetworkSummaryResponse } from '../../api/types/network';
 
 export interface HealthCheckState {
   status: 'untested' | 'testing' | 'success' | 'error';

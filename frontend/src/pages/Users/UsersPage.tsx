@@ -7,7 +7,7 @@ import {
   GroupCategoryItem,
   LoginHistoryItem,
   SshKeyItem,
-} from '../../api/types';
+} from '../../api/types/users';
 import { useToast } from '../../context/ToastContext';
 import { useAuth } from '../../context/AuthContext';
 import { useClipboard } from '../../hooks/useClipboard';

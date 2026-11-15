@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from '../../components/common/Modal';
 import { Layers } from 'lucide-react';
-import type { UserItem } from '../../api/types';
+import type { UserItem } from '../../api/types/users';
 
 interface EditableGroup {
   name: string;
