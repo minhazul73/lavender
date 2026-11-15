@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 .env
 .env.local
+.vscode/
 .venv/
 .tracks/
 venv/
