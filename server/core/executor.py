@@ -63,7 +63,7 @@ class SystemCommandExecutor:
         "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm", "dnf", "zypper", "flatpak", "snap",
         "cpupower", "upower",
         "df", "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort", "uniq", "wc",
-        "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup", "delgroup",
+        "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup", "delgroup", "umount",
     ])
     _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
     _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
