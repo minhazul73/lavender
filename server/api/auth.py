@@ -19,6 +19,8 @@ from server.auth.session import UserSession, session_store
 from server.core.config import (
     LOGIN_RATE_LIMIT,
     REQUIRE_AUTH_FOR_HOMEPAGE,
+    SAFE_REDIRECT_ROUTES,
+    SAFE_SPA_ROUTES,
     SESSION_COOKIE_NAME,
     SESSION_MAX_IDLE_MINUTES,
 )
@@ -37,18 +39,6 @@ async def api_auth_config():
         "require_auth_for_homepage": REQUIRE_AUTH_FOR_HOMEPAGE,
     }
 
-
-SAFE_REDIRECT_ROUTES = {
-    "/": "/",
-    "/overview": "/overview",
-    "/services": "/services",
-    "/processes": "/processes",
-    "/storage": "/storage",
-    "/network": "/network",
-    "/packages": "/packages",
-    "/users": "/users",
-    "/power": "/power",
-}
 
 
 def _sanitize_next_url(target: str | None) -> str:
