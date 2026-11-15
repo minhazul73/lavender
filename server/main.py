@@ -3,6 +3,7 @@ FastAPI application for Lavender.
 Provides REST APIs, SSE telemetry, and serves the production React SPA bundle.
 """
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -18,6 +19,8 @@ from server.auth.deps import get_current_session
 from server.auth.session import UserSession, session_store
 from server.core.config import APP_VERSION, CORS_ORIGINS, DEBUG, REQUIRE_AUTH_FOR_HOMEPAGE, SAFE_SPA_ROUTES
 
+logger = logging.getLogger(__name__)
+
 
 async def _periodic_session_cleanup():
     """Background task running every 5 minutes to purge idle sessions."""
@@ -28,7 +31,7 @@ async def _periodic_session_cleanup():
         except asyncio.CancelledError:
             break
         except Exception:
-            pass
+            logger.exception("Unexpected error in periodic session cleanup background task")
 
 
 @asynccontextmanager

@@ -139,3 +139,26 @@ async def test_session_store_preserves_dev_session_active(monkeypatch):
     assert u1.session_id not in store._sessions
     assert u2.session_id in store._sessions
     assert u3.session_id in store._sessions
+
+
+@pytest.mark.asyncio
+async def test_periodic_session_cleanup_logs_exceptions():
+    import asyncio
+    from unittest.mock import AsyncMock, patch
+    from server.main import _periodic_session_cleanup
+
+    with patch("server.main.session_store.cleanup_idle", new_callable=AsyncMock) as mock_cleanup, \
+         patch("server.main.asyncio.sleep", new_callable=AsyncMock) as mock_sleep, \
+         patch("server.main.logger.exception") as mock_log_exception:
+
+        mock_cleanup.side_effect = [RuntimeError("database failure"), asyncio.CancelledError()]
+        mock_sleep.side_effect = [None, None]
+
+        try:
+            await _periodic_session_cleanup()
+        except asyncio.CancelledError:
+            pass
+
+        mock_log_exception.assert_called_once()
+        assert "periodic session cleanup" in mock_log_exception.call_args[0][0]
+
