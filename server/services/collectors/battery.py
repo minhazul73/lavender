@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from server.core.config import SSE_BATTERY_INTERVAL_MS
 from server.services.live_buffer import MetricCollector
+from server.utils.async_safety import assert_not_in_running_loop
 
 
 def _read_file(path: str) -> str | None:
@@ -327,15 +328,7 @@ class BatteryCollector(MetricCollector):
         subprocesses (`upower`). Never call this directly from an asynchronous
         event loop context; always offload with `await asyncio.to_thread(...)`.
         """
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-        if loop is not None and loop.is_running():
-            raise RuntimeError(
-                "_collect_upower is a blocking synchronous function and must not "
-                "be called directly on the event loop. Use asyncio.to_thread instead."
-            )
+        assert_not_in_running_loop("_collect_upower")
 
         if not self._upower_checked:
             import subprocess

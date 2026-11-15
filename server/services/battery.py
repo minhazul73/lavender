@@ -1,12 +1,12 @@
 """
 Battery, thermal, and CPU frequency management.
 """
-import asyncio
 import os
 import re
 import subprocess
 
 from server.core.executor import get_executor
+from server.utils.async_safety import assert_not_in_running_loop
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
@@ -29,15 +29,7 @@ def collect_upower() -> dict:
     subprocesses. It must never be called directly on an active event loop;
     always offload with `await asyncio.to_thread(...)`.
     """
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-    if loop is not None and loop.is_running():
-        raise RuntimeError(
-            "collect_upower is a blocking synchronous function and must not "
-            "be called directly on the event loop. Use asyncio.to_thread instead."
-        )
+    assert_not_in_running_loop("collect_upower")
     return get_battery_info()
 
 
