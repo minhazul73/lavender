@@ -3,8 +3,9 @@ Storage utilities: disk usage via df -h, mount info, and directory usage.
 """
 import os
 import re
-import subprocess
 from typing import Any
+
+from server.core.executor import get_executor
 
 SYSTEM_ROOTS = frozenset(["/", "/proc", "/sys", "/dev"])
 
@@ -53,12 +54,12 @@ def _run_df() -> list[dict[str, Any]]:
     mount, is_external, pct_num.
     """
     try:
-        result = subprocess.run(
+        result = get_executor().run_sync(
             ["df", "-h"],
-            capture_output=True,
-            text=True,
-            timeout=10,
+            timeout=10.0,
         )
+        if result.returncode != 0:
+            return []
         lines = result.stdout.strip().split('\n')
         if len(lines) < 2:
             return []
@@ -144,11 +145,9 @@ def get_dir_usage() -> list[dict[str, Any]]:
     result = []
     for path in paths:
         try:
-            p = subprocess.run(
+            p = get_executor().run_sync(
                 ["du", "-sh", path],
-                capture_output=True,
-                text=True,
-                timeout=30,
+                timeout=30.0,
             )
             size = p.stdout.strip().split()[0] if p.stdout.strip() else '?'
             result.append({
@@ -207,11 +206,9 @@ def unmount(mount_point: str) -> dict[str, Any]:
         return {"success": False, "error": f"Mount point '{target}' is not mounted"}
 
     try:
-        result = subprocess.run(
-            ["sudo", "umount", target],
-            capture_output=True,
-            text=True,
-            timeout=30,
+        result = get_executor().run_sync(
+            ["sudo", "-n", "umount", target],
+            timeout=30.0,
         )
         if result.returncode == 0:
             return {"success": True, "output": result.stdout}

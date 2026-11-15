@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 
 from server.services.collectors.battery import BatteryCollector
 from server.services.collectors.cpu import CPUFreqCollector
@@ -138,11 +139,14 @@ class LiveMonitor:
 
 
 _live_monitor: LiveMonitor | None = None
+_live_monitor_lock = threading.Lock()
 
 
 def get_live_monitor() -> LiveMonitor:
     """Return the singleton LiveMonitor instance."""
     global _live_monitor
     if _live_monitor is None:
-        _live_monitor = LiveMonitor()
+        with _live_monitor_lock:
+            if _live_monitor is None:
+                _live_monitor = LiveMonitor()
     return _live_monitor

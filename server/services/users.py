@@ -5,7 +5,6 @@ import os
 import shutil
 import tempfile
 
-from server.core.executor import get_executor
 from server.utils.cmd import which
 from server.utils.passwd import (
     parse_all_passwd_users,
@@ -16,16 +15,12 @@ from server.utils.sessions import (
     parse_active_sessions,
     parse_login_history,
 )
+from server.utils.subprocess import run_command, run_sudo_command
 from server.utils.system import (
     get_current_user_info,
     read_sudoers,
     visudo_check,
 )
-
-
-def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
-    res = get_executor().run_sync(cmd, timeout=float(timeout))
-    return res.returncode, res.stdout, res.stderr
 
 
 # Known Linux groups and human-intelligible categorization

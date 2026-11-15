@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { UserItem } from '../../api/types';
+import type { UserItem } from '../../api/types/users';
 import {
   Key,
   Layers,

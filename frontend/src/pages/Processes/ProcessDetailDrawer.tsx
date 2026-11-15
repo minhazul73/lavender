@@ -1,6 +1,6 @@
 import React from 'react';
 import { Terminal, Copy, Check } from 'lucide-react';
-import type { ProcessItem } from '../../api/types';
+import type { ProcessItem } from '../../api/types/processes';
 import { formatMemKb } from '../../utils/formatters';
 
 export function parseCommand(cmd: string | undefined): { binName: string; binPath: string; args: string } {

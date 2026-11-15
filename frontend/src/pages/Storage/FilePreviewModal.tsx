@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../api/client';
-import { FilePreviewResponse } from '../../api/types';
+import { FilePreviewResponse } from '../../api/types/storage';
 import { useToast } from '../../context/ToastContext';
 import { useOptionalAuth } from '../../context/AuthContext';
 import {

@@ -1,18 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSSE } from '../../hooks/useSSE';
 import { api } from '../../api/client';
-import type {
-  ServiceItem,
-  ServicesListResponse,
-  StorageDiskItem,
-  StorageOverviewResponse,
-  ProcessItem,
-  ProcessesOverviewResponse,
-  LiveTelemetryData,
-  SystemLogItem,
-  BatteryTelemetry,
-  ThermalZone,
-} from '../../api/types';
+import type { ServiceItem, ServicesListResponse } from '../../api/types/services';
+import type { StorageDiskItem, StorageOverviewResponse } from '../../api/types/storage';
+import type { ProcessItem, ProcessesOverviewResponse } from '../../api/types/processes';
+import type { LiveTelemetryData, BatteryTelemetry, ThermalZone } from '../../api/types/device';
+import type { SystemLogItem } from '../../api/types/system';
 
 export interface OverviewData {
   services: ServiceItem[];

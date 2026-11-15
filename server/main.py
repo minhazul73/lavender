@@ -3,6 +3,7 @@ FastAPI application for Lavender.
 Provides REST APIs, SSE telemetry, and serves the production React SPA bundle.
 """
 import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -16,7 +17,9 @@ from slowapi.errors import RateLimitExceeded
 
 from server.auth.deps import get_current_session
 from server.auth.session import UserSession, session_store
-from server.core.config import APP_VERSION, CORS_ORIGINS, DEBUG, REQUIRE_AUTH_FOR_HOMEPAGE
+from server.core.config import APP_VERSION, CORS_ORIGINS, DEBUG, REQUIRE_AUTH_FOR_HOMEPAGE, SAFE_SPA_ROUTES
+
+logger = logging.getLogger(__name__)
 
 
 async def _periodic_session_cleanup():
@@ -28,7 +31,7 @@ async def _periodic_session_cleanup():
         except asyncio.CancelledError:
             break
         except Exception:
-            pass
+            logger.exception("Unexpected error in periodic session cleanup background task")
 
 
 @asynccontextmanager
@@ -181,19 +184,6 @@ async def root_view(request: Request) -> Response:
     return _serve_spa_index()
 
 
-SAFE_SPA_REDIRECTS = {
-    "/": "/",
-    "/overview": "/overview",
-    "/services": "/services",
-    "/processes": "/processes",
-    "/storage": "/storage",
-    "/network": "/network",
-    "/packages": "/packages",
-    "/users": "/users",
-    "/power": "/power",
-}
-
-
 # Login page view (redirects to home if already authenticated)
 @app.get("/login", response_class=FileResponse, summary="Sign in view")
 async def login_view(request: Request) -> Response:
@@ -202,7 +192,7 @@ async def login_view(request: Request) -> Response:
     if session:
         raw_next = request.query_params.get("next", "/")
         clean_path = raw_next.strip().split("?")[0].split("#")[0] if isinstance(raw_next, str) else "/"
-        return RedirectResponse(url=SAFE_SPA_REDIRECTS.get(clean_path, "/"))
+        return RedirectResponse(url=SAFE_SPA_ROUTES.get(clean_path, "/"))
     return _serve_spa_index()
 
 

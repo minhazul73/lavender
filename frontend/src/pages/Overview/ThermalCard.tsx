@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Thermometer } from 'lucide-react';
-import type { ThermalZone } from '../../api/types';
+import type { ThermalZone } from '../../api/types/device';
 
 export interface ThermalCardProps {
   thermal?: any;

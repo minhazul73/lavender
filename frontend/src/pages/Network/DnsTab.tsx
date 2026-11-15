@@ -1,6 +1,6 @@
 import React from 'react';
 import { Globe, RefreshCw, Terminal, Copy, Check } from 'lucide-react';
-import type { DnsServerItem, DnsQueryResponse, NetworkSummaryResponse } from '../../api/types';
+import type { DnsServerItem, DnsQueryResponse, NetworkSummaryResponse } from '../../api/types/network';
 
 export interface DnsTabProps {
   dnsServers: DnsServerItem[];

@@ -3,7 +3,7 @@ import {
   CheckSquare, Square, Folder, FileCode, FileImage, FileVideo,
   FileAudio, FileArchive, FileText, Binary, Download, Edit3, Trash2
 } from 'lucide-react';
-import type { FileItem } from '../../api/types';
+import type { FileItem } from '../../api/types/storage';
 
 export interface FileListTableProps {
   loading: boolean;

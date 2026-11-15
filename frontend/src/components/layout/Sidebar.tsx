@@ -15,7 +15,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import { SystemInfo } from '../../api/types';
+import { SystemInfo } from '../../api/types/device';
 
 interface NavItemDef {
   path: string;

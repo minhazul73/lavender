@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronDown, ArrowUpDown } from 'lucide-react';
-import type { ProcessItem } from '../../api/types';
+import type { ProcessItem } from '../../api/types/processes';
 import { formatMemKb } from '../../utils/formatters';
 import { ProcessDetailDrawer, parseCommand } from './ProcessDetailDrawer';
 

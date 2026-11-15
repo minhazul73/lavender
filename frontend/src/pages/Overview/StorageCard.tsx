@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { HardDrive } from 'lucide-react';
-import type { StorageDiskItem } from '../../api/types';
+import type { StorageDiskItem } from '../../api/types/storage';
 
 export interface StorageCardProps {
   disks?: StorageDiskItem[];

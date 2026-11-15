@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../../api/client';
-import { StorageOverviewResponse, StorageDiskItem } from '../../api/types';
+import { StorageOverviewResponse, StorageDiskItem } from '../../api/types/storage';
 import { useToast } from '../../context/ToastContext';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { FileBrowser } from './FileBrowser';

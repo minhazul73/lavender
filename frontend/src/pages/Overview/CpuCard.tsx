@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Cpu } from 'lucide-react';
-import type { LiveTelemetryData } from '../../api/types';
+import type { LiveTelemetryData } from '../../api/types/device';
 import { useSmoothCoreSparkline } from '../../hooks/useSmoothSparkline';
 
 const CpuCoreMicroTile: React.FC<{

@@ -14,7 +14,7 @@ import {
   Radio,
   Server,
 } from 'lucide-react';
-import type { NetworkInterfaceItem } from '../../api/types';
+import type { NetworkInterfaceItem } from '../../api/types/network';
 
 export type InterfaceFilterType = 'all' | 'active' | 'physical' | 'bridge' | 'loopback';
 

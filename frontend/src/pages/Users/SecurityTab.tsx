@@ -1,5 +1,5 @@
 import React from 'react';
-import type { UsersOverviewResponse, UserItem, SshKeyItem } from '../../api/types';
+import type { UsersOverviewResponse, UserItem, SshKeyItem } from '../../api/types/users';
 import { Shield, Lock, Key, Plus, Check, Copy, Trash2 } from 'lucide-react';
 
 function getUsername(u: UserItem): string {

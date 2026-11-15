@@ -1,5 +1,5 @@
 import React from 'react';
-import type { UserSessionItem, LoginHistoryItem } from '../../api/types';
+import type { UserSessionItem, LoginHistoryItem } from '../../api/types/users';
 import { Terminal, XCircle, Clock } from 'lucide-react';
 
 export interface SessionsTabProps {

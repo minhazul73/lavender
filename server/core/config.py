@@ -112,3 +112,17 @@ REQUIRE_AUTH_FOR_HOMEPAGE = os.environ.get(
 
 # Rate Limiting
 LOGIN_RATE_LIMIT = "10/minute"
+
+# Whitelisted internal SPA routes for safe redirects
+SAFE_SPA_ROUTES: dict[str, str] = {
+    "/": "/",
+    "/overview": "/overview",
+    "/services": "/services",
+    "/processes": "/processes",
+    "/storage": "/storage",
+    "/network": "/network",
+    "/packages": "/packages",
+    "/users": "/users",
+    "/power": "/power",
+}
+SAFE_REDIRECT_ROUTES = SAFE_SPA_ROUTES

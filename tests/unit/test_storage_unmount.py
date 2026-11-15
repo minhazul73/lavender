@@ -1,9 +1,9 @@
 import builtins
 import os
-import subprocess
 import tempfile
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 
+from server.core.executor import CommandResult
 from server.services.storage import _decode_mount_path, unmount
 
 
@@ -46,20 +46,19 @@ def test_unmount_trailing_whitespace_preserved():
         "/dev/sdb1 /mnt/external\\040 ext4 rw,relatime 0 0\n"
     )
     with patch("builtins.open", mock_open(read_data=proc_mounts_content)):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(
-                args=["sudo", "umount", "/mnt/external "],
+        with patch("server.services.storage.get_executor") as mock_get_executor:
+            mock_executor = MagicMock()
+            mock_executor.run_sync.return_value = CommandResult(
                 returncode=0,
                 stdout="unmounted",
                 stderr="",
             )
+            mock_get_executor.return_value = mock_executor
             res = unmount("/mnt/external ")
             assert res["success"] is True
-            mock_run.assert_called_once_with(
-                ["sudo", "umount", "/mnt/external "],
-                capture_output=True,
-                text=True,
-                timeout=30,
+            mock_executor.run_sync.assert_called_once_with(
+                ["sudo", "-n", "umount", "/mnt/external "],
+                timeout=30.0,
             )
 
 
@@ -70,20 +69,19 @@ def test_unmount_escaped_path_decoded_and_compared():
         "/dev/sdc1 /media/usb\\134disk\\040drive ext4 rw 0 0\n"
     )
     with patch("builtins.open", mock_open(read_data=proc_mounts_content)):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = subprocess.CompletedProcess(
-                args=["sudo", "umount", "/media/usb\\disk drive"],
+        with patch("server.services.storage.get_executor") as mock_get_executor:
+            mock_executor = MagicMock()
+            mock_executor.run_sync.return_value = CommandResult(
                 returncode=0,
                 stdout="unmounted",
                 stderr="",
             )
+            mock_get_executor.return_value = mock_executor
             res = unmount("/media/usb\\disk drive")
             assert res["success"] is True
-            mock_run.assert_called_once_with(
-                ["sudo", "umount", "/media/usb\\disk drive"],
-                capture_output=True,
-                text=True,
-                timeout=30,
+            mock_executor.run_sync.assert_called_once_with(
+                ["sudo", "-n", "umount", "/media/usb\\disk drive"],
+                timeout=30.0,
             )
 
 
@@ -115,20 +113,19 @@ def test_unmount_surrogateescape_handling():
 
     try:
         with patch("builtins.open", side_effect=custom_open):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = subprocess.CompletedProcess(
-                    args=["sudo", "umount", decoded_target],
+            with patch("server.services.storage.get_executor") as mock_get_executor:
+                mock_executor = MagicMock()
+                mock_executor.run_sync.return_value = CommandResult(
                     returncode=0,
                     stdout="unmounted",
                     stderr="",
                 )
+                mock_get_executor.return_value = mock_executor
                 res = unmount(decoded_target)
                 assert res["success"] is True
-                mock_run.assert_called_once_with(
-                    ["sudo", "umount", decoded_target],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
+                mock_executor.run_sync.assert_called_once_with(
+                    ["sudo", "-n", "umount", decoded_target],
+                    timeout=30.0,
                 )
     finally:
         if os.path.exists(temp_path):

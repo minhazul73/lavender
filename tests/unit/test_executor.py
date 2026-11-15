@@ -64,3 +64,18 @@ async def test_mock_executor_matches():
     res3 = await mock.run(["something", "else"])
     assert res3.returncode == 1
     assert res3.stderr == "unknown command"
+
+
+def test_system_executor_validate_command_umount_and_non_allowlisted():
+    executor = SystemCommandExecutor()
+
+    # umount is allowlisted for both direct and sudo execution
+    assert executor._validate_command(["sudo", "-n", "umount", "/mnt/data"]) is None
+    assert executor._validate_command(["umount", "/mnt/data"]) is None
+
+    # non-allowlisted privileged and direct commands remain rejected
+    err_sudo = executor._validate_command(["sudo", "-n", "mkfs.ext4", "/dev/sdb1"])
+    assert err_sudo == "Executable not allowed: mkfs.ext4"
+
+    err_direct = executor._validate_command(["mkfs.ext4", "/dev/sdb1"])
+    assert err_direct == "Executable not allowed: mkfs.ext4"

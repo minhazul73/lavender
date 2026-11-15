@@ -4,7 +4,7 @@ import {
   Copy, HardDrive, Disc, Home, Monitor, FileText, Download,
   Image, Video, Music, Settings, Terminal, Zap, Folder
 } from 'lucide-react';
-import type { BookmarkItem, StorageDiskItem } from '../../api/types';
+import type { BookmarkItem, StorageDiskItem } from '../../api/types/storage';
 
 export const getBookmarkIcon = (icon: string) => {
   switch (icon) {

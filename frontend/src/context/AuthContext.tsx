@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { UserProfile, LoginResponse, ElevationResponse } from '../api/types';
+import { UserProfile, LoginResponse, ElevationResponse } from '../api/types/auth';
 import { api, registerElevationHandler, unregisterElevationHandler } from '../api/client';
 import { REQUIRE_AUTH_FOR_HOMEPAGE } from '../config';
 

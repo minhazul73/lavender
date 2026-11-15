@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from '../../components/common/Modal';
 import { Key, Trash2, Plus } from 'lucide-react';
-import type { SshKeyItem } from '../../api/types';
+import type { SshKeyItem } from '../../api/types/users';
 
 const varFontMono = "'JetBrains Mono', monospace";
 

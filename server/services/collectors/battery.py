@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from server.core.config import SSE_BATTERY_INTERVAL_MS
 from server.services.live_buffer import MetricCollector
+from server.utils.async_safety import assert_not_in_running_loop
 
 
 def _read_file(path: str) -> str | None:
@@ -321,7 +322,14 @@ class BatteryCollector(MetricCollector):
         return None
 
     def _collect_upower(self) -> dict:
-        """Fallback and supplement via upower."""
+        """Fallback and supplement via upower.
+
+        WARNING: This is a synchronous blocking call that executes external
+        subprocesses (`upower`). Never call this directly from an asynchronous
+        event loop context; always offload with `await asyncio.to_thread(...)`.
+        """
+        assert_not_in_running_loop("_collect_upower")
+
         if not self._upower_checked:
             import subprocess
             try:

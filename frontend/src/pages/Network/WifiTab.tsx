@@ -1,6 +1,6 @@
 import React from 'react';
 import { Wifi, WifiOff, Radio, Search, RefreshCw, Lock, Copy, Check } from 'lucide-react';
-import type { WifiNetworkItem, NetworkSummaryResponse } from '../../api/types';
+import type { WifiNetworkItem, NetworkSummaryResponse } from '../../api/types/network';
 
 export interface WifiTabProps {
   wifiInfo?: NetworkSummaryResponse['wifi'];

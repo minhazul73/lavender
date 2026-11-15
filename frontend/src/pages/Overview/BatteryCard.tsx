@@ -1,6 +1,6 @@
 import React from 'react';
 import { Battery } from 'lucide-react';
-import type { LiveTelemetryData } from '../../api/types';
+import type { LiveTelemetryData } from '../../api/types/device';
 import { formatBatteryTime } from '../../utils/formatters';
 
 export interface BatteryCardProps {

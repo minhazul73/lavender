@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Activity } from 'lucide-react';
-import type { LiveTelemetryData } from '../../api/types';
+import type { LiveTelemetryData } from '../../api/types/device';
 import { formatMemKb } from '../../utils/formatters';
 
 export interface RamCardProps {

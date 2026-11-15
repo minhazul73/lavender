@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LiveTelemetryData } from '../api/types';
+import { LiveTelemetryData } from '../api/types/device';
 
 export type SSEConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
