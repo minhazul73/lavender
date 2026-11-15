@@ -277,6 +277,20 @@ class TestLiveMonitorOrchestration:
         assert m1 is m2
         assert isinstance(m1, LiveMonitor)
 
+    def test_get_live_monitor_thread_safe_singleton(self, monkeypatch):
+        """get_live_monitor safely returns single instance when initialized concurrently from multiple threads."""
+        import concurrent.futures
+        import server.services.live_monitor as lm
+
+        monkeypatch.setattr(lm, "_live_monitor", None)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+            results = list(pool.map(lambda _: lm.get_live_monitor(), range(20)))
+
+        first = results[0]
+        assert all(inst is first for inst in results)
+        assert isinstance(first, LiveMonitor)
+
     def test_monitor_exposes_collector_properties(self):
         """The public properties return the underlying collector instances."""
         monitor = LiveMonitor()
