@@ -15,13 +15,12 @@ from server.utils.sessions import (
     parse_active_sessions,
     parse_login_history,
 )
-from server.utils.subprocess import run_command, run_sudo_command
+from server.utils.subprocess import run_command
 from server.utils.system import (
     get_current_user_info,
     read_sudoers,
     visudo_check,
 )
-
 
 # Known Linux groups and human-intelligible categorization
 GROUP_METADATA = {

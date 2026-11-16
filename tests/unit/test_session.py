@@ -145,6 +145,7 @@ async def test_session_store_preserves_dev_session_active(monkeypatch):
 async def test_periodic_session_cleanup_logs_exceptions():
     import asyncio
     from unittest.mock import AsyncMock, patch
+
     from server.main import _periodic_session_cleanup
 
     with patch("server.main.session_store.cleanup_idle", new_callable=AsyncMock) as mock_cleanup, \

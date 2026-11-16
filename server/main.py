@@ -17,7 +17,13 @@ from slowapi.errors import RateLimitExceeded
 
 from server.auth.deps import get_current_session
 from server.auth.session import UserSession, session_store
-from server.core.config import APP_VERSION, CORS_ORIGINS, DEBUG, REQUIRE_AUTH_FOR_HOMEPAGE, SAFE_SPA_ROUTES
+from server.core.config import (
+    APP_VERSION,
+    CORS_ORIGINS,
+    DEBUG,
+    REQUIRE_AUTH_FOR_HOMEPAGE,
+    SAFE_SPA_ROUTES,
+)
 
 logger = logging.getLogger(__name__)
 
