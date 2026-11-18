@@ -7,6 +7,7 @@ import subprocess
 
 from server.core.executor import get_executor
 from server.utils.async_safety import assert_not_in_running_loop
+from server.utils.thermal import THERMAL_NAME_MAP
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
@@ -17,9 +18,6 @@ def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
 def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     full_cmd = ["sudo"] + cmd if cmd and cmd[0] == "-n" else ["sudo", "-n"] + cmd
     return run_command(full_cmd, timeout)
-
-
-from server.utils.thermal import THERMAL_NAME_MAP
 
 
 def collect_upower() -> dict:
