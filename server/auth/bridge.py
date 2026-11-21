@@ -4,7 +4,6 @@ Directly interfaces with Linux PAM (/lib/security / pam_unix) and local systemd 
 Eliminates any need for OpenSSH daemon or network loopback sockets.
 """
 import asyncio
-import grp
 import logging
 import os
 import pwd
