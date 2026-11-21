@@ -10,7 +10,6 @@ from typing import Any
 
 from server.utils.subprocess import run_command, run_sudo_command
 
-
 # In-memory cache for installed packages list (reduces CPU/disk load on host)
 _PACKAGES_CACHE: dict = {
     "installed": None,
