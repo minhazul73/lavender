@@ -25,9 +25,18 @@ async def test_system_executor_run_with_stdin():
 @pytest.mark.asyncio
 async def test_system_executor_command_not_found():
     executor = SystemCommandExecutor()
-    res = await executor.run(["non_existent_binary_xyz_12345"])
+    # "apk" is in _SAFE_EXECUTABLES but not installed on this test host
+    res = await executor.run(["apk"])
     assert res.returncode == 127
     assert "Executable not found" in res.stderr
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_rejects_non_allowlisted():
+    executor = SystemCommandExecutor()
+    res = await executor.run(["non_existent_binary_xyz_12345"])
+    assert res.returncode == -1
+    assert "Executable not allowed" in res.stderr
 
 
 @pytest.mark.asyncio

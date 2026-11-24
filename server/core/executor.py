@@ -104,6 +104,11 @@ class SystemCommandExecutor:
         timeout: float = 15.0,
         env_overrides: dict[str, str] | None = None,
     ) -> CommandResult:
+        if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
+            return CommandResult(-1, "", "Invalid command specification")
+        validation_error = self._validate_command(list(cmd))
+        if validation_error:
+            return CommandResult(-1, "", validation_error)
         env = self._build_env(overrides=env_overrides)
         proc = None
         try:
