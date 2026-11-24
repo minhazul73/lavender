@@ -4,10 +4,20 @@ Battery, thermal, and CPU frequency management.
 import os
 import re
 import subprocess
+import time
 
 from server.core.executor import get_executor
 from server.utils.async_safety import assert_not_in_running_loop
 from server.utils.thermal import THERMAL_NAME_MAP
+
+_BATTERY_CACHE_TTL: float = 5.0
+_battery_cache: tuple[float, dict] | None = None
+
+
+def _clear_battery_cache() -> None:
+    """Clear internal battery cache (useful for testing)."""
+    global _battery_cache
+    _battery_cache = None
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
@@ -20,66 +30,103 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     return run_command(full_cmd, timeout)
 
 
-def collect_upower() -> dict:
-    """Collect battery information using upower synchronously.
+def _get_upower_device() -> str | None:
+    """Dynamically detect battery device path in upower.
 
-    WARNING: This is a synchronous blocking function executing external
-    subprocesses. It must never be called directly on an active event loop;
-    always offload with `await asyncio.to_thread(...)`.
+    Returns:
+        The battery device path string, or None if discovery fails.
     """
-    assert_not_in_running_loop("collect_upower")
-    return get_battery_info()
-
-
-def get_battery_info() -> dict:
-    """
-    Get battery information using upower.
-    """
-    assert_not_in_running_loop("get_battery_info")
-    # Find battery device
-    code, out, err = run_command(["upower", "-e"], timeout=10)
-    battery_path = None
+    code, out, _ = run_command(["upower", "-e"], timeout=10)
     if code == 0:
-        for line in out.split("\n"):
+        for line in out.splitlines():
+            line = line.strip()
             if "battery" in line.lower() and "line_power" not in line.lower():
-                battery_path = line.strip()
-                break
+                if line:
+                    return line
+    return None
 
-    if not battery_path:
-        # Try the known path
-        battery_path = "/org/freedesktop/UPower/devices/battery_qcom_battery"
 
-    # Get detailed info
-    code, out, err = run_command(["upower", "-i", battery_path], timeout=10)
-    if code != 0:
-        return {"error": err, "note": "upower not available or battery not found"}
+def _safe_float(val: str, suffix: str = "") -> float | None:
+    try:
+        return float(val.replace(suffix, "").strip())
+    except (ValueError, AttributeError):
+        return None
 
-    info = {}
+
+def _safe_int(val: str, suffix: str = "") -> int | None:
+    try:
+        return int(val.replace(suffix, "").strip())
+    except (ValueError, AttributeError):
+        return None
+
+
+def _parse_upower_kv(out: str) -> dict[str, str]:
+    info: dict[str, str] = {}
     current_key = None
-    for line in out.split("\n"):
-        line = line.strip()
+    for raw_line in out.splitlines():
+        line = raw_line.strip()
         if not line:
             continue
-
         if ":" in line:
-            parts = line.split(":", 1)
-            key = parts[0].strip()
-            value = parts[1].strip() if len(parts) > 1 else ""
-            if value:
-                info[key] = value
+            key, _, val = line.partition(":")
+            key, val = key.strip(), val.strip()
+            if val:
+                info[key] = val
                 current_key = None
             else:
                 current_key = key
                 info[current_key] = ""
         elif current_key:
-            value = line.strip()
-            if value:
-                if info[current_key]:
-                    info[current_key] += " " + value
-                else:
-                    info[current_key] = value
+            info[current_key] = f"{info[current_key]} {line}".strip()
+    return info
 
-    # Parse key fields — match upower's actual key names
+
+def _parse_numeric_fields(k: str, val: str, result: dict) -> None:
+    if "percentage" in k:
+        result["percentage"] = _safe_int(val, "%")
+    elif k == "voltage":
+        result["voltage"] = _safe_float(val, "V")
+    elif "voltage-min-design" in k:
+        result["voltage_min_design"] = _safe_float(val, "V")
+    elif "voltage-max-design" in k:
+        result["voltage_max_design"] = _safe_float(val, "V")
+    elif k == "energy":
+        result["energy"] = _safe_float(val, "Wh")
+    elif "energy-full-design" in k:
+        result["energy_full_design"] = _safe_float(val, "Wh")
+    elif "energy-full" in k:
+        result["energy_full"] = _safe_float(val, "Wh")
+    elif "energy-rate" in k:
+        result["energy_rate"] = _safe_float(val, "W")
+    elif "capacity" in k:
+        c = _safe_float(val, "%")
+        result["capacity"] = round(c, 1) if c is not None else None
+    elif "temperature" in k:
+        result["temperature"] = _safe_float(val, "degrees C")
+    elif "charge-cycles" in k:
+        result["charge_cycles"] = _safe_int(val)
+
+
+def _parse_text_fields(k: str, val: str, result: dict) -> None:
+    if "state" in k:
+        result["state"] = val
+    elif "time to empty" in k:
+        result["time_to_empty"] = val
+    elif "time to full" in k:
+        result["time_to_full"] = val
+    elif "serial" in k:
+        result["serial"] = val
+    elif "vendor" in k:
+        result["vendor"] = val
+    elif "model" in k:
+        result["model"] = val
+    elif "technology" in k:
+        result["technology"] = val
+    elif "icon-name" in k or "icon_name" in k:
+        result["icon_name"] = val
+
+
+def _format_battery_result(info: dict[str, str]) -> dict:
     result = {
         "percentage": None,
         "state": None,
@@ -92,7 +139,7 @@ def get_battery_info() -> dict:
         "energy_full": None,
         "energy_full_design": None,
         "energy_rate": None,
-        "capacity": None,  # percentage of design capacity (upower: "capacity: 100%")
+        "capacity": None,
         "temperature": None,
         "serial": None,
         "vendor": None,
@@ -102,82 +149,53 @@ def get_battery_info() -> dict:
         "icon_name": None,
         "note": "Battery info" if info else "No battery detected",
     }
-
     for key, value in info.items():
-        if "percentage" in key.lower():
-            try:
-                result["percentage"] = int(value.replace("%", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "state" in key.lower():
-            result["state"] = value
-        elif key.lower() == "voltage":
-            try:
-                result["voltage"] = float(value.replace("V", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "voltage-min-design" in key.lower():
-            try:
-                result["voltage_min_design"] = float(value.replace("V", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "voltage-max-design" in key.lower():
-            try:
-                result["voltage_max_design"] = float(value.replace("V", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "time to empty" in key.lower():
-            result["time_to_empty"] = value
-        elif "time to full" in key.lower():
-            result["time_to_full"] = value
-        elif key.lower() == "energy":
-            try:
-                result["energy"] = float(value.replace("Wh", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "energy-full" in key.lower() and "design" not in key.lower():
-            try:
-                result["energy_full"] = float(value.replace("Wh", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "energy-full-design" in key.lower():
-            try:
-                result["energy_full_design"] = float(value.replace("Wh", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "energy-rate" in key.lower():
-            try:
-                result["energy_rate"] = float(value.replace("W", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "capacity" in key.lower():
-            try:
-                result["capacity"] = round(float(value.replace("%", "").strip()), 1)
-            except (ValueError, AttributeError):
-                pass
-        elif "temperature" in key.lower():
-            try:
-                result["temperature"] = float(value.replace("degrees C", "").strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "serial" in key.lower():
-            result["serial"] = value
-        elif "vendor" in key.lower():
-            result["vendor"] = value
-        elif "model" in key.lower() or "native path" in key.lower():
-            if "model" in key.lower():
-                result["model"] = value
-        elif "technology" in key.lower():
-            result["technology"] = value
-        elif "charge-cycles" in key.lower():
-            try:
-                result["charge_cycles"] = int(value.strip())
-            except (ValueError, AttributeError):
-                pass
-        elif "icon-name" in key.lower() or "icon_name" in key.lower():
-            result["icon_name"] = value
-
+        k = key.lower()
+        _parse_numeric_fields(k, value, result)
+        _parse_text_fields(k, value, result)
     return result
+
+
+def _query_battery_info() -> dict:
+    # Find battery device
+    battery_path = _get_upower_device() or "/org/freedesktop/UPower/devices/battery_qcom_battery"
+    code, out, err = run_command(["upower", "-i", battery_path], timeout=10)
+    if code != 0:
+        return {"error": err, "note": "upower not available or battery not found"}
+    info = _parse_upower_kv(out)
+    return _format_battery_result(info)
+
+
+def _collect_upower() -> dict:
+    """Collect upower battery status with a 5-second TTL cache."""
+    assert_not_in_running_loop("_collect_upower")
+    global _battery_cache
+    cached = _battery_cache
+    if cached is not None and (time.monotonic() - cached[0]) < _BATTERY_CACHE_TTL:
+        return dict(cached[1])
+
+    data = _query_battery_info()
+    _battery_cache = (time.monotonic(), data)
+    return dict(data)
+
+
+def collect_upower() -> dict:
+    """Collect battery information using upower synchronously.
+
+    WARNING: This is a synchronous blocking function executing external
+    subprocesses. It must never be called directly on an active event loop;
+    always offload with `await asyncio.to_thread(...)`.
+    """
+    assert_not_in_running_loop("collect_upower")
+    return _collect_upower()
+
+
+def get_battery_info() -> dict:
+    """
+    Get battery information using upower.
+    """
+    assert_not_in_running_loop("get_battery_info")
+    return _collect_upower()
 
 
 def get_thermal_zones() -> list[dict]:

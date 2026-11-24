@@ -1,5 +1,7 @@
 """Tests for LiveMonitor collector orchestration and client lifecycle."""
 
+import asyncio
+
 import pytest
 
 from server.services.collectors.battery import BatteryCollector
@@ -186,3 +188,42 @@ class TestLiveMonitorOrchestration:
         assert isinstance(monitor.thermal, ThermalCollector)
         assert isinstance(monitor.battery, BatteryCollector)
         assert isinstance(monitor.network, NetworkRateCollector)
+
+
+class TestMetricCollectorLatencyCompensation:
+    """Test MetricCollector loop compensates for collect execution duration."""
+
+    @pytest.mark.asyncio
+    async def test_run_loop_compensates_for_latency(self, monkeypatch):
+        class DummyCollector(MetricCollector):
+            def __init__(self):
+                super().__init__(interval_ms=1000, history_size=10, buffer_key="dummy")
+                self.collect_count = 0
+
+            async def collect(self):
+                self.collect_count += 1
+                current_time[0] += 0.2  # Simulate collection taking 200ms
+                if self.collect_count >= 2:
+                    self.stop()
+                return {"val": 1}
+
+        current_time = [1000.0]
+        recorded_sleeps: list[float] = []
+
+        def fake_monotonic():
+            return current_time[0]
+
+        async def fake_sleep(duration):
+            recorded_sleeps.append(round(duration, 3))
+            current_time[0] += duration
+
+        monkeypatch.setattr("time.monotonic", fake_monotonic)
+        monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+
+        collector = DummyCollector()
+        await collector._run_loop()
+
+        # Interval is 1.0s. Collect took 0.2s. Sleep should be approx 0.8s.
+        assert len(recorded_sleeps) >= 1
+        assert recorded_sleeps[0] == 0.8
+

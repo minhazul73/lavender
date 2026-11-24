@@ -2,6 +2,7 @@
 Network API routes for Lavender.
 Provides network overview, interface inspection, WiFi scanning, ping, and DNS resolution.
 """
+import asyncio
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -27,14 +28,20 @@ router = APIRouter()
 @router.get("/network", include_in_schema=False)
 async def api_network(session: UserSession = Depends(require_session)):
     """Get complete network summary, interface IPs, WiFi link details, and routes."""
-    dns_info = get_dns_info()
+    dns_info, summary, interfaces, wifi, gateways = await asyncio.gather(
+        asyncio.to_thread(get_dns_info),
+        asyncio.to_thread(get_network_summary),
+        asyncio.to_thread(get_ip_addresses),
+        asyncio.to_thread(get_wifi_info),
+        asyncio.to_thread(get_gateways),
+    )
     return {
-        "summary": get_network_summary(),
-        "interfaces": get_ip_addresses(),
-        "wifi": get_wifi_info(),
+        "summary": summary,
+        "interfaces": interfaces,
+        "wifi": wifi,
         "dns": dns_info.get("upstream_ips", []),
         "dns_details": dns_info,
-        "gateways": get_gateways(),
+        "gateways": gateways,
     }
 
 
@@ -49,7 +56,7 @@ async def api_ping(
     target_clean = target.strip()
     if not re.match(r"^[a-zA-Z0-9.:_-]+$", target_clean) or target_clean.startswith("-"):
         raise HTTPException(status_code=400, detail="Invalid target format")
-    return ping_test(target_clean, count=count)
+    return await asyncio.to_thread(ping_test, target_clean, count=count)
 
 
 @router.get("/dns-query", summary="DNS resolution test")
@@ -62,7 +69,7 @@ async def api_dns_query(
     domain_clean = domain.strip().lower()
     if not re.match(r"^[a-zA-Z0-9.:_-]+$", domain_clean) or domain_clean.startswith("-"):
         raise HTTPException(status_code=400, detail="Invalid domain format")
-    return dns_lookup(domain_clean)
+    return await asyncio.to_thread(dns_lookup, domain_clean)
 
 
 @router.post("/wifi-scan", summary="Scan nearby WiFi SSIDs")
@@ -71,4 +78,5 @@ async def api_wifi_scan(
     session: UserSession = Depends(require_session),
 ):
     """Trigger WiFi scan for nearby broadcast networks."""
-    return {"networks": scan_wifi_networks()}
+    networks = await asyncio.to_thread(scan_wifi_networks)
+    return {"networks": networks}

@@ -1,8 +1,33 @@
 import asyncio
 import concurrent.futures
 import os
-import re
 from typing import NamedTuple, Protocol
+
+from server.core.command_validator import (
+    HOST_RE,
+    INVALID_CMD_SPEC,
+    SAFE_EXECUTABLES,
+    SHORT_OPTS_WITH_VAL,
+    SUDO_OPTS_WITH_ARG,
+    SUDO_STANDALONE_FLAGS,
+    SUDO_VAL_PREFIXES,
+    TRUSTED_PATH_DIRS,
+    UNIT_RE,
+    parse_sudo_command,
+    validate_command,
+    validate_executable,
+)
+
+_INVALID_CMD_SPEC = INVALID_CMD_SPEC
+
+
+async def _kill_proc(proc: asyncio.subprocess.Process | None) -> None:
+    if proc:
+        try:
+            proc.kill()
+            await proc.wait()
+        except ProcessLookupError:
+            pass
 
 
 class CommandResult(NamedTuple):
@@ -18,8 +43,9 @@ class CommandExecutor(Protocol):
     async def run(
         self,
         cmd: list[str],
-        timeout: float = 15.0,
+        timeout_sec: float = 15.0,
         env_overrides: dict[str, str] | None = None,
+        **kwargs: float,
     ) -> CommandResult:
         """Run a command and capture output."""
         ...
@@ -28,25 +54,18 @@ class CommandExecutor(Protocol):
         self,
         cmd: list[str],
         stdin_data: str,
-        timeout: float = 15.0,
+        timeout_sec: float = 15.0,
+        **kwargs: float,
     ) -> CommandResult:
         """Run a command with data piped to stdin (e.g., sudo -S, chpasswd)."""
         ...
 
-    async def run_as_user(
-        self,
-        uid: int,
-        cmd: list[str],
-        timeout: float = 15.0,
-    ) -> CommandResult:
+    async def run_as_user(self, uid: int, cmd: list[str], timeout: float = 15.0) -> CommandResult:
         """Run command with user environment for systemd --user."""
         ...
 
     def run_sync(
-        self,
-        cmd: list[str],
-        timeout: float = 15.0,
-        env_overrides: dict[str, str] | None = None,
+        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
     ) -> CommandResult:
         """Synchronous command execution helper for worker threads."""
         ...
@@ -55,36 +74,23 @@ class CommandExecutor(Protocol):
 class SystemCommandExecutor:
     """Production executor running real Linux subprocesses."""
 
-    _SAFE_EXECUTABLES = frozenset([
-        "echo", "cat", "sleep", "uname", "test", "id", "groups", "who", "last",
-        "systemctl", "journalctl", "loginctl", "hostnamectl", "kill", "pkill", "ps",
-        "sudo", "doas", "poweroff", "reboot", "shutdown",
-        "ip", "iw", "iwconfig", "nmcli", "wpa_cli", "rfkill", "ping", "resolvectl", "systemd-resolve",
-        "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm", "dnf", "zypper", "flatpak", "snap",
-        "cpupower", "upower",
-        "df", "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort", "uniq", "wc",
-        "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup", "delgroup", "umount",
-    ])
-    _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
-    _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
+    _SAFE_EXECUTABLES = SAFE_EXECUTABLES
+    _TRUSTED_PATH_DIRS = TRUSTED_PATH_DIRS
+    _SUDO_OPTS_WITH_ARG = SUDO_OPTS_WITH_ARG
+    _SHORT_OPTS_WITH_VAL = SHORT_OPTS_WITH_VAL
+    _SUDO_VAL_PREFIXES = SUDO_VAL_PREFIXES
+    _SUDO_STANDALONE_FLAGS = SUDO_STANDALONE_FLAGS
+    _HOST_RE = HOST_RE
+    _UNIT_RE = UNIT_RE
+
+    def _validate_executable(self, exe_token: str) -> str | None:
+        return validate_executable(exe_token)
+
+    def _parse_sudo_command(self, cmd: list[str]) -> tuple[str | None, str | None]:
+        return parse_sudo_command(cmd)
 
     def _validate_command(self, cmd: list[str]) -> str | None:
-        if not cmd:
-            return "Invalid command specification"
-        exe = os.path.basename(cmd[0])
-        if exe in {"sudo", "doas"}:
-            sub = [c for c in cmd[1:] if not c.startswith("-")]
-            if sub and os.path.basename(sub[0]) not in self._SAFE_EXECUTABLES:
-                return f"Executable not allowed: {sub[0]}"
-        elif exe not in self._SAFE_EXECUTABLES:
-            return f"Executable not allowed: {exe}"
-
-        if exe == "ping" or (len(cmd) > 2 and cmd[2] == "ping"):
-            target = cmd[-1]
-            if not target or target.startswith("-") or not self._HOST_RE.match(target):
-                return "Invalid ping target"
-
-        return None
+        return validate_command(cmd)
 
     def _build_env(self, uid: int | None = None, overrides: dict[str, str] | None = None) -> dict[str, str]:
         env = os.environ.copy()
@@ -101,9 +107,16 @@ class SystemCommandExecutor:
     async def run(
         self,
         cmd: list[str],
-        timeout: float = 15.0,
+        timeout_sec: float = 15.0,
         env_overrides: dict[str, str] | None = None,
+        **kwargs: float,
     ) -> CommandResult:
+        timeout_val = float(kwargs.get("timeout", timeout_sec))
+        if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
+            return CommandResult(-1, "", _INVALID_CMD_SPEC)
+        validation_error = self._validate_command(list(cmd))
+        if validation_error:
+            return CommandResult(-1, "", validation_error)
         env = self._build_env(overrides=env_overrides)
         proc = None
         try:
@@ -113,7 +126,7 @@ class SystemCommandExecutor:
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_val)
             return CommandResult(
                 returncode=proc.returncode if proc.returncode is not None else 0,
                 stdout=stdout.decode("utf-8", errors="replace").strip(),
@@ -121,12 +134,7 @@ class SystemCommandExecutor:
                 timed_out=False,
             )
         except TimeoutError:
-            if proc:
-                try:
-                    proc.kill()
-                    await proc.wait()
-                except ProcessLookupError:
-                    pass
+            await _kill_proc(proc)
             return CommandResult(-1, "", "Command timed out", timed_out=True)
         except FileNotFoundError:
             return CommandResult(127, "", f"Executable not found: {cmd[0] if cmd else ''}")
@@ -137,8 +145,10 @@ class SystemCommandExecutor:
         self,
         cmd: list[str],
         stdin_data: str,
-        timeout: float = 15.0,
+        timeout_sec: float = 15.0,
+        **kwargs: float,
     ) -> CommandResult:
+        timeout_val = float(kwargs.get("timeout", timeout_sec))
         validation_error = self._validate_command(cmd)
         if validation_error:
             return CommandResult(-1, "", validation_error)
@@ -153,7 +163,7 @@ class SystemCommandExecutor:
                 env=env,
             )
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(input=stdin_data.encode()), timeout=timeout
+                proc.communicate(input=stdin_data.encode()), timeout=timeout_val
             )
             return CommandResult(
                 returncode=proc.returncode if proc.returncode is not None else 0,
@@ -162,12 +172,7 @@ class SystemCommandExecutor:
                 timed_out=False,
             )
         except TimeoutError:
-            if proc:
-                try:
-                    proc.kill()
-                    await proc.wait()
-                except ProcessLookupError:
-                    pass
+            await _kill_proc(proc)
             return CommandResult(-1, "", "Command timed out", timed_out=True)
         except FileNotFoundError:
             return CommandResult(127, "", f"Executable not found: {cmd[0] if cmd else ''}")
@@ -187,10 +192,7 @@ class SystemCommandExecutor:
         return await self.run(cmd, timeout=timeout, env_overrides=env_overrides)
 
     def run_sync(
-        self,
-        cmd: list[str],
-        timeout: float = 15.0,
-        env_overrides: dict[str, str] | None = None,
+        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
     ) -> CommandResult:
         """Run a command synchronously, reusing the module thread pool when an event loop is running.
 
@@ -203,7 +205,7 @@ class SystemCommandExecutor:
             CommandResult containing returncode, stdout, and stderr.
         """
         if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
-            return CommandResult(-1, "", "Invalid command specification")
+            return CommandResult(-1, "", _INVALID_CMD_SPEC)
         validation_error = self._validate_command(list(cmd))
         if validation_error:
             return CommandResult(-1, "", validation_error)

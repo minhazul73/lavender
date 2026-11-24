@@ -34,9 +34,11 @@ class MockCommandExecutor:
     async def run(
         self,
         cmd: list[str],
-        timeout: float = 15.0,
+        timeout_sec: float = 15.0,
         env_overrides: dict[str, str] | None = None,
+        **kwargs,
     ) -> CommandResult:
+        timeout = kwargs.get("timeout", timeout_sec)
         self.calls.append({"type": "run", "cmd": cmd, "timeout": timeout, "env": env_overrides})
         return self._resolve(cmd)
 
@@ -44,8 +46,10 @@ class MockCommandExecutor:
         self,
         cmd: list[str],
         stdin_data: str,
-        timeout: float = 15.0,
+        timeout_sec: float = 15.0,
+        **kwargs,
     ) -> CommandResult:
+        timeout = kwargs.get("timeout", timeout_sec)
         self.calls.append({"type": "run_with_stdin", "cmd": cmd, "stdin": stdin_data, "timeout": timeout})
         return self._resolve(cmd)
 

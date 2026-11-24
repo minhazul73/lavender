@@ -5,6 +5,7 @@ RingBuffer and base metric collector infrastructure for live telemetry.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import deque
 from dataclasses import dataclass
 
@@ -96,9 +97,10 @@ class MetricCollector:
         raise NotImplementedError
 
     async def _run_loop(self) -> None:
-        """Main collection loop. Sleep-based, not fixed-schedule."""
+        """Main collection loop. Compensates for collection latency to prevent drift."""
         interval_s = self._interval_ms / 1000.0
         while not self._stop_event.is_set():
+            next_tick = time.monotonic() + interval_s
             try:
                 sample = await self.collect()
                 self._on_sample(sample)
@@ -110,7 +112,9 @@ class MetricCollector:
                 # Don't crash the whole SSE engine on a single collector
                 # failure — log and continue after a brief pause.
                 await asyncio.sleep(min(interval_s, 1.0))
-            await asyncio.sleep(interval_s)
+                continue
+            sleep_sec = max(0.0, next_tick - time.monotonic())
+            await asyncio.sleep(sleep_sec)
 
     def _on_sample(self, sample: dict) -> None:
         """Called for each successful sample. Subclasses may override."""

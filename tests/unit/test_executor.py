@@ -23,11 +23,58 @@ async def test_system_executor_run_with_stdin():
 
 
 @pytest.mark.asyncio
-async def test_system_executor_command_not_found():
+async def test_system_executor_command_not_found(tmp_path):
     executor = SystemCommandExecutor()
-    res = await executor.run(["non_existent_binary_xyz_12345"])
+    # Provide empty PATH so executable lookup does not depend on host packages
+    res = await executor.run(["apk"], env_overrides={"PATH": str(tmp_path)})
     assert res.returncode == 127
     assert "Executable not found" in res.stderr
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_rejects_non_allowlisted():
+    executor = SystemCommandExecutor()
+    res = await executor.run(["non_existent_binary_xyz_12345"])
+    assert res.returncode == -1
+    assert "Executable not allowed" in res.stderr
+
+
+@pytest.mark.asyncio
+async def test_system_executor_echo_with_ping_argument():
+    executor = SystemCommandExecutor()
+    res = await executor.run(["echo", "hello", "ping", "spaces and symbols !@#"])
+    assert res.returncode == 0
+    assert "hello ping spaces and symbols !@#" in res.stdout
+
+
+def test_system_executor_validate_sudo_options_and_paths():
+    executor = SystemCommandExecutor()
+
+    # Sudo options with separate or attached values
+    assert executor._validate_command(["sudo", "-u", "alice", "cat", "/etc/hosts"]) is None
+    assert executor._validate_command(["sudo", "-nu", "alice", "cat", "/etc/hosts"]) is None
+    assert executor._validate_command(["sudo", "-nualice", "cat"]) is None
+    assert executor._validate_command(["sudo", "--", "cat", "-n"]) is None
+    assert executor._validate_command(["sudo", "-S", "-p", "", "cat"]) is None
+    assert executor._validate_command(["sudo", "--user=alice", "cat"]) is None
+    assert executor._validate_command(["sudo", "-u"]) == "Invalid command specification"
+    assert executor._validate_command(["sudo", "--"]) == "Invalid command specification"
+
+    # Sudo with disallowed command after options
+    assert executor._validate_command(["sudo", "-u", "alice", "evil_cmd"]) == "Executable not allowed: evil_cmd"
+
+    # Untrusted path outside safe system directories
+    assert executor._validate_command(["/tmp/cat"]) == "Executable path not trusted: /tmp/cat"
+    assert executor._validate_command(["./cat"]) == "Executable path not trusted: ./cat"
+    assert executor._validate_command(["sudo", "-n", "/tmp/cat"]) == "Executable path not trusted: /tmp/cat"
+
+    # Trusted path allowed
+    assert executor._validate_command(["/usr/bin/cat", "/etc/hosts"]) is None
+
+    # Ping target validation only when actual command is ping
+    assert executor._validate_command(["echo", "ping", "not-a-valid-host;rm"]) is None
+    assert executor._validate_command(["ping", "not-a-valid-host;rm"]) == "Invalid ping target"
+    assert executor._validate_command(["sudo", "-n", "ping", "not-a-valid-host;rm"]) == "Invalid ping target"
 
 
 @pytest.mark.asyncio
@@ -79,3 +126,37 @@ def test_system_executor_validate_command_umount_and_non_allowlisted():
 
     err_direct = executor._validate_command(["mkfs.ext4", "/dev/sdb1"])
     assert err_direct == "Executable not allowed: mkfs.ext4"
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_with_stdin_timeout():
+    executor = SystemCommandExecutor()
+    res = await executor.run_with_stdin(["sleep", "2"], stdin_data="test", timeout=0.1)
+    assert res.timed_out
+    assert res.returncode == -1
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_with_stdin_validation_failure():
+    executor = SystemCommandExecutor()
+    res = await executor.run_with_stdin(["mkfs.ext4"], stdin_data="test")
+    assert res.returncode == -1
+    assert "Executable not allowed" in res.stderr
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_as_user(tmp_path):
+    executor = SystemCommandExecutor()
+    res = await executor.run_as_user(1000, ["echo", "as_user"])
+    assert res.returncode == 0
+    assert res.stdout == "as_user"
+
+
+def test_command_validator_standalone_checks():
+    from server.core.command_validator import validate_command, validate_executable
+
+    assert validate_executable("") == "Invalid command specification"
+    assert validate_command([]) == "Invalid command specification"
+    assert validate_command(["sudo", "-u"]) == "Invalid command specification"
+    assert validate_command(["sudo", "-v"]) is None
+

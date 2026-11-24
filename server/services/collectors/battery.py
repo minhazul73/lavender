@@ -58,7 +58,7 @@ class BatteryCollector(MetricCollector):
 
     __slots__ = ("_interval_ms", "_buffer", "_stats", "_stop_event",
                  "_task", "_sysfs_batteries", "_upower_available",
-                 "_upower_checked", "_upower_device")
+                 "_upower_checked", "_upower_device", "_upower_device_checked")
 
     def __init__(self, interval_ms: int = SSE_BATTERY_INTERVAL_MS,
                  history_size: int = 20) -> None:
@@ -67,6 +67,7 @@ class BatteryCollector(MetricCollector):
         self._upower_available = False
         self._upower_checked = False
         self._upower_device: str | None = None
+        self._upower_device_checked = False
 
     async def collect(self) -> dict:
         """Return aggregated battery info (dict, not BatteryInfo dataclass,
@@ -306,8 +307,8 @@ class BatteryCollector(MetricCollector):
 
     def _get_upower_device(self) -> str | None:
         """Dynamically detect battery device path in upower."""
-        if self._upower_device is not None:
-            return self._upower_device or None
+        if self._upower_device_checked:
+            return self._upower_device
         import subprocess
         try:
             out = subprocess.check_output(["upower", "-e"], timeout=3).decode("utf-8")
@@ -315,10 +316,12 @@ class BatteryCollector(MetricCollector):
                 line = line.strip()
                 if "battery" in line.lower() and "line_power" not in line.lower():
                     self._upower_device = line
+                    self._upower_device_checked = True
                     return self._upower_device
         except Exception:
             pass
-        self._upower_device = ""
+        self._upower_device = None
+        self._upower_device_checked = True
         return None
 
     def _collect_upower(self) -> dict:
