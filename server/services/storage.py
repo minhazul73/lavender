@@ -180,19 +180,17 @@ def get_dir_usage() -> list[dict[str, Any]]:
 
         try:
             p = get_executor().run_sync(
-                ["du", "-h", "--max-depth=1", path],
+                ["du", "-h", "-0", "--max-depth=1", path],
                 timeout=30.0,
             )
             dirs = []
             total_size = '?'
-            if p.returncode == 0 and p.stdout.strip():
-                for line in p.stdout.strip().split('\n'):
-                    line = line.strip()
-                    if not line:
-                        continue
-                    parts = line.split(None, 1)
+            if p.returncode == 0 and p.stdout:
+                records = [r for r in p.stdout.split('\x00') if r]
+                for record in records:
+                    parts = record.split('\t', 1)
                     if len(parts) == 2:
-                        entry_size, entry_path = parts
+                        entry_size, entry_path = parts[0].strip(), parts[1]
                         dirs.append({"path": entry_path, "size": entry_size})
                         if entry_path == path:
                             total_size = entry_size

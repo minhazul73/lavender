@@ -23,10 +23,10 @@ async def test_system_executor_run_with_stdin():
 
 
 @pytest.mark.asyncio
-async def test_system_executor_command_not_found():
+async def test_system_executor_command_not_found(tmp_path):
     executor = SystemCommandExecutor()
-    # "apk" is in _SAFE_EXECUTABLES but not installed on this test host
-    res = await executor.run(["apk"])
+    # Provide empty PATH so executable lookup does not depend on host packages
+    res = await executor.run(["apk"], env_overrides={"PATH": str(tmp_path)})
     assert res.returncode == 127
     assert "Executable not found" in res.stderr
 
@@ -37,6 +37,39 @@ async def test_system_executor_run_rejects_non_allowlisted():
     res = await executor.run(["non_existent_binary_xyz_12345"])
     assert res.returncode == -1
     assert "Executable not allowed" in res.stderr
+
+
+@pytest.mark.asyncio
+async def test_system_executor_echo_with_ping_argument():
+    executor = SystemCommandExecutor()
+    res = await executor.run(["echo", "hello", "ping", "spaces and symbols !@#"])
+    assert res.returncode == 0
+    assert "hello ping spaces and symbols !@#" in res.stdout
+
+
+def test_system_executor_validate_sudo_options_and_paths():
+    executor = SystemCommandExecutor()
+
+    # Sudo options with separate or attached values
+    assert executor._validate_command(["sudo", "-u", "alice", "cat", "/etc/hosts"]) is None
+    assert executor._validate_command(["sudo", "-S", "-p", "", "cat"]) is None
+    assert executor._validate_command(["sudo", "--user=alice", "cat"]) is None
+
+    # Sudo with disallowed command after options
+    assert executor._validate_command(["sudo", "-u", "alice", "evil_cmd"]) == "Executable not allowed: evil_cmd"
+
+    # Untrusted path outside safe system directories
+    assert executor._validate_command(["/tmp/cat"]) == "Executable path not trusted: /tmp/cat"
+    assert executor._validate_command(["./cat"]) == "Executable path not trusted: ./cat"
+    assert executor._validate_command(["sudo", "-n", "/tmp/cat"]) == "Executable path not trusted: /tmp/cat"
+
+    # Trusted path allowed
+    assert executor._validate_command(["/usr/bin/cat", "/etc/hosts"]) is None
+
+    # Ping target validation only when actual command is ping
+    assert executor._validate_command(["echo", "ping", "not-a-valid-host;rm"]) is None
+    assert executor._validate_command(["ping", "not-a-valid-host;rm"]) == "Invalid ping target"
+    assert executor._validate_command(["sudo", "-n", "ping", "not-a-valid-host;rm"]) == "Invalid ping target"
 
 
 @pytest.mark.asyncio

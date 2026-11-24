@@ -58,28 +58,72 @@ class SystemCommandExecutor:
     _SAFE_EXECUTABLES = frozenset([
         "echo", "cat", "sleep", "uname", "test", "id", "groups", "who", "last",
         "systemctl", "journalctl", "loginctl", "hostnamectl", "kill", "pkill", "ps",
-        "sudo", "doas", "poweroff", "reboot", "shutdown",
+        "sudo", "doas", "poweroff", "reboot", "shutdown", "lsblk", "chpasswd", "visudo",
         "ip", "iw", "iwconfig", "nmcli", "wpa_cli", "rfkill", "ping", "resolvectl", "systemd-resolve",
-        "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm", "dnf", "zypper", "flatpak", "snap",
-        "cpupower", "upower",
-        "df", "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort", "uniq", "wc",
+        "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm", "dnf", "zypper", "flatpak", "snap", "checkupdates",
+        "cpupower", "upower", "df", "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort", "uniq", "wc",
         "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup", "delgroup", "umount",
     ])
+    _TRUSTED_PATH_DIRS = frozenset(["/bin", "/usr/bin", "/sbin", "/usr/sbin", "/usr/local/bin", "/usr/local/sbin"])
+    _SUDO_OPTS_WITH_ARG = frozenset([
+        "-u", "--user", "-g", "--group", "-p", "--prompt", "-C", "--close-from",
+        "-D", "--chdir", "-h", "--host", "-R", "--chroot", "-T", "--command-timeout", "-U", "--other-user", "-a",
+    ])
+    _SUDO_VAL_PREFIXES = ("--user=", "--group=", "--prompt=", "--chdir=", "--host=", "--chroot=")
     _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
     _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
+
+    def _validate_executable(self, exe_token: str) -> str | None:
+        if not exe_token:
+            return "Invalid command specification"
+        dir_path = os.path.dirname(exe_token)
+        if dir_path and dir_path not in self._TRUSTED_PATH_DIRS:
+            return f"Executable path not trusted: {exe_token}"
+        exe_name = os.path.basename(exe_token)
+        if exe_name not in self._SAFE_EXECUTABLES:
+            return f"Executable not allowed: {exe_name}"
+        return None
 
     def _validate_command(self, cmd: list[str]) -> str | None:
         if not cmd:
             return "Invalid command specification"
-        exe = os.path.basename(cmd[0])
-        if exe in {"sudo", "doas"}:
-            sub = [c for c in cmd[1:] if not c.startswith("-")]
-            if sub and os.path.basename(sub[0]) not in self._SAFE_EXECUTABLES:
-                return f"Executable not allowed: {sub[0]}"
-        elif exe not in self._SAFE_EXECUTABLES:
-            return f"Executable not allowed: {exe}"
+        err = self._validate_executable(cmd[0])
+        if err:
+            return err
 
-        if exe == "ping" or (len(cmd) > 2 and cmd[2] == "ping"):
+        exe = os.path.basename(cmd[0])
+        actual_exe = exe
+        if exe in {"sudo", "doas"}:
+            i = 1
+            while i < len(cmd):
+                arg = cmd[i]
+                if arg == "--":
+                    i += 1
+                    break
+                if arg in self._SUDO_OPTS_WITH_ARG:
+                    i += 2
+                    continue
+                if any(arg.startswith(p) for p in self._SUDO_VAL_PREFIXES):
+                    i += 1
+                    continue
+                if arg.startswith("-") and len(arg) > 1 and arg[1] in "ugpCDhRTUa" and not arg.startswith("--"):
+                    i += 1
+                    continue
+                if arg.startswith("-"):
+                    i += 1
+                    continue
+                break
+
+            if i < len(cmd):
+                target_token = cmd[i]
+                sub_err = self._validate_executable(target_token)
+                if sub_err:
+                    return sub_err
+                actual_exe = os.path.basename(target_token)
+            elif not any(c in {"-v", "-k", "-K", "-l", "--validate", "--kill", "--reset-timestamp", "--list"} for c in cmd[1:]):
+                return "Invalid command specification"
+
+        if actual_exe == "ping":
             target = cmd[-1]
             if not target or target.startswith("-") or not self._HOST_RE.match(target):
                 return "Invalid ping target"

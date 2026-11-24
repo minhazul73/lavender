@@ -30,21 +30,61 @@ def test_get_dir_usage_uses_executor():
     stat_mock.f_bfree = 200
     stat_mock.f_frsize = 1024 * 1024  # 800 MB used
 
+    def fake_run_sync(cmd, timeout=30.0):
+        target = cmd[-1]
+        if target == "/home":
+            stdout = "1.2G\t/home/alice\x003.0G\t/home/bob\x004.2G\t/home\x00"
+        elif target == "/var":
+            stdout = "500M\t/var/log\x001.5G\t/var/lib\x002.0G\t/var\x00"
+        elif target == "/tmp":
+            stdout = "10M\t/tmp/dir\nwith\nnewlines\x0040M\t/tmp/cache\x0050M\t/tmp\x00"
+        else:
+            stdout = ""
+        return CommandResult(0, stdout, "")
+
     with patch("os.statvfs", return_value=stat_mock), patch("server.services.storage.get_executor") as mock_get_executor:
         mock_executor = MagicMock()
-        mock_executor.run_sync.return_value = CommandResult(0, "4.2G\t/home\n", "")
+        mock_executor.run_sync.side_effect = fake_run_sync
         mock_get_executor.return_value = mock_executor
 
         usages = get_dir_usage()
         assert len(usages) == 4
+
         # Root path uses statvfs
         assert usages[0]["base_path"] == "/"
         assert usages[0]["total_size"] == "800M"
-        # Folder inspection uses du --max-depth=1
+        assert usages[0]["directories"] == [{"path": "/", "size": "800M"}]
+
+        # Folder inspection uses du -h -0 --max-depth=1
         assert usages[1]["base_path"] == "/home"
         assert usages[1]["total_size"] == "4.2G"
+        assert usages[1]["directories"] == [
+            {"path": "/home/alice", "size": "1.2G"},
+            {"path": "/home/bob", "size": "3.0G"},
+            {"path": "/home", "size": "4.2G"},
+        ]
+
+        assert usages[2]["base_path"] == "/var"
+        assert usages[2]["total_size"] == "2.0G"
+        assert usages[2]["directories"] == [
+            {"path": "/var/log", "size": "500M"},
+            {"path": "/var/lib", "size": "1.5G"},
+            {"path": "/var", "size": "2.0G"},
+        ]
+
+        # Directory with embedded newlines preserved verbatim
+        assert usages[3]["base_path"] == "/tmp"
+        assert usages[3]["total_size"] == "50M"
+        assert usages[3]["directories"] == [
+            {"path": "/tmp/dir\nwith\nnewlines", "size": "10M"},
+            {"path": "/tmp/cache", "size": "40M"},
+            {"path": "/tmp", "size": "50M"},
+        ]
+
         assert mock_executor.run_sync.call_count == 3
-        mock_executor.run_sync.assert_any_call(["du", "-h", "--max-depth=1", "/home"], timeout=30.0)
+        mock_executor.run_sync.assert_any_call(["du", "-h", "-0", "--max-depth=1", "/home"], timeout=30.0)
+        mock_executor.run_sync.assert_any_call(["du", "-h", "-0", "--max-depth=1", "/var"], timeout=30.0)
+        mock_executor.run_sync.assert_any_call(["du", "-h", "-0", "--max-depth=1", "/tmp"], timeout=30.0)
 
 
 def test_unmount_uses_executor():
