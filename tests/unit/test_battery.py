@@ -99,3 +99,67 @@ def test_collector_get_upower_device_returns_none_not_empty_string():
         # Second call returns cached None
         assert collector._get_upower_device() is None
 
+
+def test_query_battery_info_comprehensive_fields():
+    upower_raw = """
+      native-path:          BAT0
+      vendor:               SMP
+      model:                L16M4PB1
+      serial:               12345
+      technology:           lithium-ion
+      state:                discharging
+      energy:               45.5 Wh
+      energy-full:          50.0 Wh
+      energy-full-design:   52.5 Wh
+      energy-rate:          12.3 W
+      voltage:              11.4 V
+      voltage-min-design:   10.8 V
+      voltage-max-design:   12.6 V
+      time to empty:        3.7 hours
+      time to full:         0 hours
+      percentage:           91%
+      capacity:             95.2%
+      temperature:          26.5 degrees C
+      charge-cycles:        42
+      icon-name:            battery-full-symbolic
+      continuation-key:
+        line two
+    """
+    with patch("server.services.battery._get_upower_device", return_value="/dev/battery_test"):
+        with patch("server.services.battery.run_command", return_value=(0, upower_raw, "")):
+            info = battery_svc._query_battery_info()
+            assert info["percentage"] == 91
+            assert info["state"] == "discharging"
+            assert info["voltage"] == 11.4
+            assert info["voltage_min_design"] == 10.8
+            assert info["voltage_max_design"] == 12.6
+            assert info["time_to_empty"] == "3.7 hours"
+            assert info["time_to_full"] == "0 hours"
+            assert info["energy"] == 45.5
+            assert info["energy_full"] == 50.0
+            assert info["energy_full_design"] == 52.5
+            assert info["energy_rate"] == 12.3
+            assert info["capacity"] == 95.2
+            assert info["temperature"] == 26.5
+            assert info["charge_cycles"] == 42
+            assert info["serial"] == "12345"
+            assert info["vendor"] == "SMP"
+            assert info["model"] == "L16M4PB1"
+            assert info["technology"] == "lithium-ion"
+            assert info["icon_name"] == "battery-full-symbolic"
+            assert info["note"] == "Battery info"
+
+
+def test_query_battery_info_command_failure():
+    with patch("server.services.battery._get_upower_device", return_value=None):
+        with patch("server.services.battery.run_command", return_value=(1, "", "Device not found")):
+            res = battery_svc._query_battery_info()
+            assert "error" in res
+            assert res["note"] == "upower not available or battery not found"
+
+
+def test_safe_converters_invalid_inputs():
+    assert battery_svc._safe_float("invalid", "V") is None
+    assert battery_svc._safe_int("invalid", "%") is None
+
+

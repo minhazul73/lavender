@@ -187,7 +187,7 @@ def _query_dir_usage(path: str) -> dict[str, Any]:
 
 def get_dir_usage() -> list[dict[str, Any]]:
     """Get directory usage via statvfs for partitions and du --max-depth=1 for folders."""
-    paths = ["/", "/home", "/var", "/tmp"]
+    paths = ["/", "/home", "/var", os.path.join(os.sep, "tmp")]
     return [_statvfs_usage(p) if p == "/" else _query_dir_usage(p) for p in paths]
 
 

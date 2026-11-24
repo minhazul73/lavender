@@ -100,3 +100,29 @@ def test_unmount_uses_executor():
             assert res["success"] is True
             mock_executor.run_sync.assert_called_once_with(["sudo", "-n", "umount", "/mnt/data"], timeout=30.0)
 
+
+def test_get_dir_usage_error_fallbacks():
+    with patch("os.statvfs", side_effect=OSError("permission denied")), patch("server.services.storage.get_executor") as mock_get_executor:
+        mock_executor = MagicMock()
+        mock_executor.run_sync.side_effect = RuntimeError("du failed")
+        mock_get_executor.return_value = mock_executor
+
+        usages = get_dir_usage()
+        assert len(usages) == 4
+        for u in usages:
+            assert u["total_size"] == "?"
+            assert u["directories"] == []
+
+
+def test_format_size_and_du_records_fallback():
+    from server.services.storage import _format_size, _parse_du_records
+
+    assert _format_size(0) == "0B"
+    assert _format_size(500) == "500B"
+    assert _format_size(1500) == "1.5K"
+    assert _format_size(1024**5 * 2) == "2P"
+
+    dirs, total = _parse_du_records("10M\t/other/sub\x00", "/other")
+    assert total == "10M"
+
+

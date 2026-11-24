@@ -1,10 +1,24 @@
 import asyncio
 import concurrent.futures
 import os
-import re
 from typing import NamedTuple, Protocol
 
-_INVALID_CMD_SPEC = "Invalid command specification"
+from server.core.command_validator import (
+    HOST_RE,
+    INVALID_CMD_SPEC,
+    SAFE_EXECUTABLES,
+    SHORT_OPTS_WITH_VAL,
+    SUDO_OPTS_WITH_ARG,
+    SUDO_STANDALONE_FLAGS,
+    SUDO_VAL_PREFIXES,
+    TRUSTED_PATH_DIRS,
+    UNIT_RE,
+    parse_sudo_command,
+    validate_command,
+    validate_executable,
+)
+
+_INVALID_CMD_SPEC = INVALID_CMD_SPEC
 
 
 async def _kill_proc(proc: asyncio.subprocess.Process | None) -> None:
@@ -27,12 +41,22 @@ class CommandExecutor(Protocol):
     """Mockable interface for all subprocess execution."""
 
     async def run(
-        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
+        self,
+        cmd: list[str],
+        timeout_sec: float = 15.0,
+        env_overrides: dict[str, str] | None = None,
+        **kwargs: float,
     ) -> CommandResult:
         """Run a command and capture output."""
         ...
 
-    async def run_with_stdin(self, cmd: list[str], stdin_data: str, timeout: float = 15.0) -> CommandResult:
+    async def run_with_stdin(
+        self,
+        cmd: list[str],
+        stdin_data: str,
+        timeout_sec: float = 15.0,
+        **kwargs: float,
+    ) -> CommandResult:
         """Run a command with data piped to stdin (e.g., sudo -S, chpasswd)."""
         ...
 
@@ -50,98 +74,23 @@ class CommandExecutor(Protocol):
 class SystemCommandExecutor:
     """Production executor running real Linux subprocesses."""
 
-    _SAFE_EXECUTABLES = frozenset([
-        "echo", "cat", "sleep", "uname", "test", "id", "groups", "who", "last", "systemctl",
-        "journalctl", "loginctl", "hostnamectl", "kill", "pkill", "ps", "sudo", "doas",
-        "poweroff", "reboot", "shutdown", "lsblk", "chpasswd", "visudo", "ip", "iw",
-        "iwconfig", "nmcli", "wpa_cli", "rfkill", "ping", "resolvectl", "systemd-resolve",
-        "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm",
-        "dnf", "zypper", "flatpak", "snap", "checkupdates", "cpupower", "upower", "df",
-        "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort",
-        "uniq", "wc", "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup",
-        "delgroup", "umount",
-    ])
-    _TRUSTED_PATH_DIRS = frozenset(["/bin", "/usr/bin", "/sbin", "/usr/sbin", "/usr/local/bin", "/usr/local/sbin"])
-    _SUDO_OPTS_WITH_ARG = frozenset([
-        "-u", "--user", "-g", "--group", "-p", "--prompt", "-C", "--close-from", "-D",
-        "--chdir", "-h", "--host", "-R", "--chroot", "-T", "--command-timeout", "-U", "--other-user", "-a",
-    ])
-    _SHORT_OPTS_WITH_VAL = frozenset("ugpCDhRTUa")
-    _SUDO_VAL_PREFIXES = ("--user=", "--group=", "--prompt=", "--chdir=", "--host=", "--chroot=")
-    _SUDO_STANDALONE_FLAGS = frozenset({"-v", "-k", "-K", "-l", "--validate", "--kill", "--reset-timestamp", "--list"})
-    _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
-    _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
+    _SAFE_EXECUTABLES = SAFE_EXECUTABLES
+    _TRUSTED_PATH_DIRS = TRUSTED_PATH_DIRS
+    _SUDO_OPTS_WITH_ARG = SUDO_OPTS_WITH_ARG
+    _SHORT_OPTS_WITH_VAL = SHORT_OPTS_WITH_VAL
+    _SUDO_VAL_PREFIXES = SUDO_VAL_PREFIXES
+    _SUDO_STANDALONE_FLAGS = SUDO_STANDALONE_FLAGS
+    _HOST_RE = HOST_RE
+    _UNIT_RE = UNIT_RE
 
     def _validate_executable(self, exe_token: str) -> str | None:
-        if not exe_token:
-            return _INVALID_CMD_SPEC
-        dir_path = os.path.dirname(exe_token)
-        if dir_path and dir_path not in self._TRUSTED_PATH_DIRS:
-            return f"Executable path not trusted: {exe_token}"
-        exe_name = os.path.basename(exe_token)
-        if exe_name not in self._SAFE_EXECUTABLES:
-            return f"Executable not allowed: {exe_name}"
-        return None
+        return validate_executable(exe_token)
 
     def _parse_sudo_command(self, cmd: list[str]) -> tuple[str | None, str | None]:
-        i = 1
-        n = len(cmd)
-        while i < n:
-            arg = cmd[i]
-            if arg == "--":
-                i += 1
-                break
-            if arg.startswith("--"):
-                if any(arg.startswith(p) for p in self._SUDO_VAL_PREFIXES):
-                    i += 1
-                elif arg in self._SUDO_OPTS_WITH_ARG:
-                    i += 2
-                else:
-                    i += 1
-                continue
-            if arg.startswith("-") and len(arg) > 1:
-                consumed = False
-                for j, ch in enumerate(arg[1:], start=1):
-                    if ch in self._SHORT_OPTS_WITH_VAL:
-                        i += 1 if j + 1 < len(arg) else 2
-                        consumed = True
-                        break
-                if not consumed:
-                    i += 1
-                continue
-            break
-
-        if i < n:
-            return cmd[i], None
-        if any(c in self._SUDO_STANDALONE_FLAGS for c in cmd[1:]):
-            return None, None
-        return None, _INVALID_CMD_SPEC
+        return parse_sudo_command(cmd)
 
     def _validate_command(self, cmd: list[str]) -> str | None:
-        if not cmd:
-            return _INVALID_CMD_SPEC
-        err = self._validate_executable(cmd[0])
-        if err:
-            return err
-
-        exe = os.path.basename(cmd[0])
-        actual_exe = exe
-        if exe in {"sudo", "doas"}:
-            target_token, err = self._parse_sudo_command(cmd)
-            if err:
-                return err
-            if target_token:
-                sub_err = self._validate_executable(target_token)
-                if sub_err:
-                    return sub_err
-                actual_exe = os.path.basename(target_token)
-
-        if actual_exe == "ping":
-            target = cmd[-1]
-            if not target or target.startswith("-") or not self._HOST_RE.match(target):
-                return "Invalid ping target"
-
-        return None
+        return validate_command(cmd)
 
     def _build_env(self, uid: int | None = None, overrides: dict[str, str] | None = None) -> dict[str, str]:
         env = os.environ.copy()
@@ -156,8 +105,13 @@ class SystemCommandExecutor:
         return env
 
     async def run(
-        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
+        self,
+        cmd: list[str],
+        timeout_sec: float = 15.0,
+        env_overrides: dict[str, str] | None = None,
+        **kwargs: float,
     ) -> CommandResult:
+        timeout_val = float(kwargs.get("timeout", timeout_sec))
         if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
             return CommandResult(-1, "", _INVALID_CMD_SPEC)
         validation_error = self._validate_command(list(cmd))
@@ -172,7 +126,7 @@ class SystemCommandExecutor:
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_val)
             return CommandResult(
                 returncode=proc.returncode if proc.returncode is not None else 0,
                 stdout=stdout.decode("utf-8", errors="replace").strip(),
@@ -187,7 +141,14 @@ class SystemCommandExecutor:
         except Exception as e:
             return CommandResult(-1, "", str(e))
 
-    async def run_with_stdin(self, cmd: list[str], stdin_data: str, timeout: float = 15.0) -> CommandResult:
+    async def run_with_stdin(
+        self,
+        cmd: list[str],
+        stdin_data: str,
+        timeout_sec: float = 15.0,
+        **kwargs: float,
+    ) -> CommandResult:
+        timeout_val = float(kwargs.get("timeout", timeout_sec))
         validation_error = self._validate_command(cmd)
         if validation_error:
             return CommandResult(-1, "", validation_error)
@@ -202,7 +163,7 @@ class SystemCommandExecutor:
                 env=env,
             )
             stdout, stderr = await asyncio.wait_for(
-                proc.communicate(input=stdin_data.encode()), timeout=timeout
+                proc.communicate(input=stdin_data.encode()), timeout=timeout_val
             )
             return CommandResult(
                 returncode=proc.returncode if proc.returncode is not None else 0,

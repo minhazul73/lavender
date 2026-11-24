@@ -126,3 +126,37 @@ def test_system_executor_validate_command_umount_and_non_allowlisted():
 
     err_direct = executor._validate_command(["mkfs.ext4", "/dev/sdb1"])
     assert err_direct == "Executable not allowed: mkfs.ext4"
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_with_stdin_timeout():
+    executor = SystemCommandExecutor()
+    res = await executor.run_with_stdin(["sleep", "2"], stdin_data="test", timeout=0.1)
+    assert res.timed_out
+    assert res.returncode == -1
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_with_stdin_validation_failure():
+    executor = SystemCommandExecutor()
+    res = await executor.run_with_stdin(["mkfs.ext4"], stdin_data="test")
+    assert res.returncode == -1
+    assert "Executable not allowed" in res.stderr
+
+
+@pytest.mark.asyncio
+async def test_system_executor_run_as_user(tmp_path):
+    executor = SystemCommandExecutor()
+    res = await executor.run_as_user(1000, ["echo", "as_user"])
+    assert res.returncode == 0
+    assert res.stdout == "as_user"
+
+
+def test_command_validator_standalone_checks():
+    from server.core.command_validator import validate_command, validate_executable
+
+    assert validate_executable("") == "Invalid command specification"
+    assert validate_command([]) == "Invalid command specification"
+    assert validate_command(["sudo", "-u"]) == "Invalid command specification"
+    assert validate_command(["sudo", "-v"]) is None
+
