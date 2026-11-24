@@ -25,16 +25,26 @@ def test_get_disk_usage_uses_executor():
 
 
 def test_get_dir_usage_uses_executor():
-    with patch("server.services.storage.get_executor") as mock_get_executor:
+    stat_mock = MagicMock()
+    stat_mock.f_blocks = 1000
+    stat_mock.f_bfree = 200
+    stat_mock.f_frsize = 1024 * 1024  # 800 MB used
+
+    with patch("os.statvfs", return_value=stat_mock), patch("server.services.storage.get_executor") as mock_get_executor:
         mock_executor = MagicMock()
-        mock_executor.run_sync.return_value = CommandResult(0, "4.2G\t/home", "")
+        mock_executor.run_sync.return_value = CommandResult(0, "4.2G\t/home\n", "")
         mock_get_executor.return_value = mock_executor
 
         usages = get_dir_usage()
         assert len(usages) == 4
+        # Root path uses statvfs
+        assert usages[0]["base_path"] == "/"
+        assert usages[0]["total_size"] == "800M"
+        # Folder inspection uses du --max-depth=1
         assert usages[1]["base_path"] == "/home"
         assert usages[1]["total_size"] == "4.2G"
-        assert mock_executor.run_sync.call_count == 4
+        assert mock_executor.run_sync.call_count == 3
+        mock_executor.run_sync.assert_any_call(["du", "-h", "--max-depth=1", "/home"], timeout=30.0)
 
 
 def test_unmount_uses_executor():

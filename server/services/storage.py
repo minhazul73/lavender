@@ -139,21 +139,69 @@ def get_mounts() -> list[dict[str, str]]:
     return mounts
 
 
+def _format_size(num_bytes: int | float) -> str:
+    """Format byte count to human-readable string matching du/df output."""
+    if num_bytes <= 0:
+        return "0B"
+    for unit in ["B", "K", "M", "G", "T", "P"]:
+        if abs(num_bytes) < 1024.0 or unit == "P":
+            if unit == "B":
+                return f"{int(num_bytes)}B"
+            val = round(num_bytes, 1)
+            if val == int(val):
+                return f"{int(val)}{unit}"
+            return f"{val:.1f}{unit}"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f}P"
+
+
 def get_dir_usage() -> list[dict[str, Any]]:
-    """Get directory usage via du -sh on common paths."""
+    """Get directory usage via statvfs for partitions and du --max-depth=1 for folders."""
     paths = ['/', '/home', '/var', '/tmp']
     result = []
     for path in paths:
+        if path == '/':
+            try:
+                st = os.statvfs(path)
+                used_bytes = (st.f_blocks - st.f_bfree) * st.f_frsize
+                size = _format_size(used_bytes)
+                result.append({
+                    "base_path": path,
+                    "total_size": size,
+                    "directories": [{"path": path, "size": size}],
+                })
+            except Exception:
+                result.append({
+                    "base_path": path,
+                    "total_size": '?',
+                    "directories": [],
+                })
+            continue
+
         try:
             p = get_executor().run_sync(
-                ["du", "-sh", path],
+                ["du", "-h", "--max-depth=1", path],
                 timeout=30.0,
             )
-            size = p.stdout.strip().split()[0] if p.stdout.strip() else '?'
+            dirs = []
+            total_size = '?'
+            if p.returncode == 0 and p.stdout.strip():
+                for line in p.stdout.strip().split('\n'):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = line.split(None, 1)
+                    if len(parts) == 2:
+                        entry_size, entry_path = parts
+                        dirs.append({"path": entry_path, "size": entry_size})
+                        if entry_path == path:
+                            total_size = entry_size
+                if total_size == '?' and dirs:
+                    total_size = dirs[-1]["size"]
             result.append({
                 "base_path": path,
-                "total_size": size,
-                "directories": [{"path": path, "size": size}],
+                "total_size": total_size,
+                "directories": dirs or [{"path": path, "size": total_size}],
             })
         except Exception:
             result.append({
