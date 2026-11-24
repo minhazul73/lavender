@@ -4,10 +4,22 @@ Battery, thermal, and CPU frequency management.
 import os
 import re
 import subprocess
+import time
 
 from server.core.executor import get_executor
 from server.utils.async_safety import assert_not_in_running_loop
 from server.utils.thermal import THERMAL_NAME_MAP
+
+_BATTERY_CACHE_TTL: float = 5.0
+_cached_battery_info: dict | None = None
+_cached_battery_time: float = 0.0
+
+
+def _clear_battery_cache() -> None:
+    """Clear internal battery cache (useful for testing)."""
+    global _cached_battery_info, _cached_battery_time
+    _cached_battery_info = None
+    _cached_battery_time = 0.0
 
 
 def run_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
@@ -20,22 +32,7 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     return run_command(full_cmd, timeout)
 
 
-def collect_upower() -> dict:
-    """Collect battery information using upower synchronously.
-
-    WARNING: This is a synchronous blocking function executing external
-    subprocesses. It must never be called directly on an active event loop;
-    always offload with `await asyncio.to_thread(...)`.
-    """
-    assert_not_in_running_loop("collect_upower")
-    return get_battery_info()
-
-
-def get_battery_info() -> dict:
-    """
-    Get battery information using upower.
-    """
-    assert_not_in_running_loop("get_battery_info")
+def _query_battery_info() -> dict:
     # Find battery device
     code, out, err = run_command(["upower", "-e"], timeout=10)
     battery_path = None
@@ -178,6 +175,39 @@ def get_battery_info() -> dict:
             result["icon_name"] = value
 
     return result
+
+
+def _collect_upower() -> dict:
+    """Collect upower battery status with a 5-second TTL cache."""
+    assert_not_in_running_loop("_collect_upower")
+    global _cached_battery_info, _cached_battery_time
+    now = time.monotonic()
+    if _cached_battery_info is not None and (now - _cached_battery_time) < _BATTERY_CACHE_TTL:
+        return dict(_cached_battery_info)
+
+    data = _query_battery_info()
+    _cached_battery_info = data
+    _cached_battery_time = now
+    return dict(data)
+
+
+def collect_upower() -> dict:
+    """Collect battery information using upower synchronously.
+
+    WARNING: This is a synchronous blocking function executing external
+    subprocesses. It must never be called directly on an active event loop;
+    always offload with `await asyncio.to_thread(...)`.
+    """
+    assert_not_in_running_loop("collect_upower")
+    return _collect_upower()
+
+
+def get_battery_info() -> dict:
+    """
+    Get battery information using upower.
+    """
+    assert_not_in_running_loop("get_battery_info")
+    return _collect_upower()
 
 
 def get_thermal_zones() -> list[dict]:
