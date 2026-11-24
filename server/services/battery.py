@@ -32,16 +32,25 @@ def run_sudo_command(cmd: list[str], timeout: int = 30) -> tuple[int, str, str]:
     return run_command(full_cmd, timeout)
 
 
+def _get_upower_device() -> str | None:
+    """Dynamically detect battery device path in upower.
+
+    Returns:
+        The battery device path string, or None if discovery fails.
+    """
+    code, out, _ = run_command(["upower", "-e"], timeout=10)
+    if code == 0:
+        for line in out.splitlines():
+            line = line.strip()
+            if "battery" in line.lower() and "line_power" not in line.lower():
+                if line:
+                    return line
+    return None
+
+
 def _query_battery_info() -> dict:
     # Find battery device
-    code, out, err = run_command(["upower", "-e"], timeout=10)
-    battery_path = None
-    if code == 0:
-        for line in out.split("\n"):
-            if "battery" in line.lower() and "line_power" not in line.lower():
-                battery_path = line.strip()
-                break
-
+    battery_path = _get_upower_device()
     if not battery_path:
         # Try the known path
         battery_path = "/org/freedesktop/UPower/devices/battery_qcom_battery"

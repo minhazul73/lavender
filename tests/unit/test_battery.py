@@ -64,3 +64,35 @@ def test_battery_cache_defensive_copy():
 
         res2 = battery_svc.get_battery_info()
         assert res2["percentage"] == 90  # cache untouched
+
+
+def test_get_upower_device_returns_none_on_missing():
+    with patch("server.services.battery.run_command", return_value=(0, "line_power_AC\n", "")):
+        device = battery_svc._get_upower_device()
+        assert device is None
+
+    with patch("server.services.battery.run_command", return_value=(1, "", "error")):
+        device = battery_svc._get_upower_device()
+        assert device is None
+
+
+def test_get_upower_device_returns_path_when_present():
+    with patch(
+        "server.services.battery.run_command",
+        return_value=(0, "/org/freedesktop/UPower/devices/line_power_AC\n/org/freedesktop/UPower/devices/battery_BAT0\n", "")
+    ):
+        device = battery_svc._get_upower_device()
+        assert device == "/org/freedesktop/UPower/devices/battery_BAT0"
+
+
+def test_collector_get_upower_device_returns_none_not_empty_string():
+    from server.services.collectors.battery import BatteryCollector
+
+    collector = BatteryCollector()
+    with patch("subprocess.check_output", side_effect=Exception("not found")):
+        device = collector._get_upower_device()
+        assert device is None
+        assert collector._upower_device is None
+        # Second call returns cached None
+        assert collector._get_upower_device() is None
+
