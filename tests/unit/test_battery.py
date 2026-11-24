@@ -6,9 +6,16 @@ import pytest
 import server.services.battery as battery_svc
 
 
-def test_battery_ttl_cache_avoids_repeated_subprocess():
+@pytest.fixture(autouse=True)
+def clear_battery_cache():
     battery_svc._clear_battery_cache()
+    try:
+        yield
+    finally:
+        battery_svc._clear_battery_cache()
 
+
+def test_battery_ttl_cache_avoids_repeated_subprocess():
     dummy_result = {"percentage": 75, "state": "discharging", "capacity": 98.0}
     with patch("server.services.battery._query_battery_info", return_value=dummy_result) as mock_query:
         first = battery_svc.get_battery_info()
@@ -27,8 +34,6 @@ def test_battery_ttl_cache_avoids_repeated_subprocess():
 
 
 def test_battery_ttl_cache_expires_after_5_seconds():
-    battery_svc._clear_battery_cache()
-
     start_time = 1000.0
     dummy_result_1 = {"percentage": 80, "state": "charging"}
     dummy_result_2 = {"percentage": 81, "state": "charging"}
@@ -55,8 +60,6 @@ def test_battery_ttl_cache_expires_after_5_seconds():
 
 
 def test_battery_cache_defensive_copy():
-    battery_svc._clear_battery_cache()
-
     dummy_result = {"percentage": 90, "state": "charging"}
     with patch("server.services.battery._query_battery_info", return_value=dummy_result):
         res1 = battery_svc.get_battery_info()

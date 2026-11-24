@@ -4,6 +4,17 @@ import os
 import re
 from typing import NamedTuple, Protocol
 
+_INVALID_CMD_SPEC = "Invalid command specification"
+
+
+async def _kill_proc(proc: asyncio.subprocess.Process | None) -> None:
+    if proc:
+        try:
+            proc.kill()
+            await proc.wait()
+        except ProcessLookupError:
+            pass
+
 
 class CommandResult(NamedTuple):
     returncode: int
@@ -16,37 +27,21 @@ class CommandExecutor(Protocol):
     """Mockable interface for all subprocess execution."""
 
     async def run(
-        self,
-        cmd: list[str],
-        timeout: float = 15.0,
-        env_overrides: dict[str, str] | None = None,
+        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
     ) -> CommandResult:
         """Run a command and capture output."""
         ...
 
-    async def run_with_stdin(
-        self,
-        cmd: list[str],
-        stdin_data: str,
-        timeout: float = 15.0,
-    ) -> CommandResult:
+    async def run_with_stdin(self, cmd: list[str], stdin_data: str, timeout: float = 15.0) -> CommandResult:
         """Run a command with data piped to stdin (e.g., sudo -S, chpasswd)."""
         ...
 
-    async def run_as_user(
-        self,
-        uid: int,
-        cmd: list[str],
-        timeout: float = 15.0,
-    ) -> CommandResult:
+    async def run_as_user(self, uid: int, cmd: list[str], timeout: float = 15.0) -> CommandResult:
         """Run command with user environment for systemd --user."""
         ...
 
     def run_sync(
-        self,
-        cmd: list[str],
-        timeout: float = 15.0,
-        env_overrides: dict[str, str] | None = None,
+        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
     ) -> CommandResult:
         """Synchronous command execution helper for worker threads."""
         ...
@@ -56,26 +51,30 @@ class SystemCommandExecutor:
     """Production executor running real Linux subprocesses."""
 
     _SAFE_EXECUTABLES = frozenset([
-        "echo", "cat", "sleep", "uname", "test", "id", "groups", "who", "last",
-        "systemctl", "journalctl", "loginctl", "hostnamectl", "kill", "pkill", "ps",
-        "sudo", "doas", "poweroff", "reboot", "shutdown", "lsblk", "chpasswd", "visudo",
-        "ip", "iw", "iwconfig", "nmcli", "wpa_cli", "rfkill", "ping", "resolvectl", "systemd-resolve",
-        "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm", "dnf", "zypper", "flatpak", "snap", "checkupdates",
-        "cpupower", "upower", "df", "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort", "uniq", "wc",
-        "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup", "delgroup", "umount",
+        "echo", "cat", "sleep", "uname", "test", "id", "groups", "who", "last", "systemctl",
+        "journalctl", "loginctl", "hostnamectl", "kill", "pkill", "ps", "sudo", "doas",
+        "poweroff", "reboot", "shutdown", "lsblk", "chpasswd", "visudo", "ip", "iw",
+        "iwconfig", "nmcli", "wpa_cli", "rfkill", "ping", "resolvectl", "systemd-resolve",
+        "apk", "apt", "apt-cache", "apt-get", "dpkg", "dpkg-query", "pacman", "rpm",
+        "dnf", "zypper", "flatpak", "snap", "checkupdates", "cpupower", "upower", "df",
+        "du", "free", "find", "head", "tail", "grep", "awk", "sed", "cut", "tr", "sort",
+        "uniq", "wc", "cp", "mv", "rm", "mkdir", "chmod", "usermod", "gpasswd", "addgroup",
+        "delgroup", "umount",
     ])
     _TRUSTED_PATH_DIRS = frozenset(["/bin", "/usr/bin", "/sbin", "/usr/sbin", "/usr/local/bin", "/usr/local/sbin"])
     _SUDO_OPTS_WITH_ARG = frozenset([
-        "-u", "--user", "-g", "--group", "-p", "--prompt", "-C", "--close-from",
-        "-D", "--chdir", "-h", "--host", "-R", "--chroot", "-T", "--command-timeout", "-U", "--other-user", "-a",
+        "-u", "--user", "-g", "--group", "-p", "--prompt", "-C", "--close-from", "-D",
+        "--chdir", "-h", "--host", "-R", "--chroot", "-T", "--command-timeout", "-U", "--other-user", "-a",
     ])
+    _SHORT_OPTS_WITH_VAL = frozenset("ugpCDhRTUa")
     _SUDO_VAL_PREFIXES = ("--user=", "--group=", "--prompt=", "--chdir=", "--host=", "--chroot=")
+    _SUDO_STANDALONE_FLAGS = frozenset({"-v", "-k", "-K", "-l", "--validate", "--kill", "--reset-timestamp", "--list"})
     _HOST_RE = re.compile(r"^[a-zA-Z0-9.:_-]+$")
     _UNIT_RE = re.compile(r"^[a-zA-Z0-9_@.][a-zA-Z0-9_\-@.]*$")
 
     def _validate_executable(self, exe_token: str) -> str | None:
         if not exe_token:
-            return "Invalid command specification"
+            return _INVALID_CMD_SPEC
         dir_path = os.path.dirname(exe_token)
         if dir_path and dir_path not in self._TRUSTED_PATH_DIRS:
             return f"Executable path not trusted: {exe_token}"
@@ -84,9 +83,43 @@ class SystemCommandExecutor:
             return f"Executable not allowed: {exe_name}"
         return None
 
+    def _parse_sudo_command(self, cmd: list[str]) -> tuple[str | None, str | None]:
+        i = 1
+        n = len(cmd)
+        while i < n:
+            arg = cmd[i]
+            if arg == "--":
+                i += 1
+                break
+            if arg.startswith("--"):
+                if any(arg.startswith(p) for p in self._SUDO_VAL_PREFIXES):
+                    i += 1
+                elif arg in self._SUDO_OPTS_WITH_ARG:
+                    i += 2
+                else:
+                    i += 1
+                continue
+            if arg.startswith("-") and len(arg) > 1:
+                consumed = False
+                for j, ch in enumerate(arg[1:], start=1):
+                    if ch in self._SHORT_OPTS_WITH_VAL:
+                        i += 1 if j + 1 < len(arg) else 2
+                        consumed = True
+                        break
+                if not consumed:
+                    i += 1
+                continue
+            break
+
+        if i < n:
+            return cmd[i], None
+        if any(c in self._SUDO_STANDALONE_FLAGS for c in cmd[1:]):
+            return None, None
+        return None, _INVALID_CMD_SPEC
+
     def _validate_command(self, cmd: list[str]) -> str | None:
         if not cmd:
-            return "Invalid command specification"
+            return _INVALID_CMD_SPEC
         err = self._validate_executable(cmd[0])
         if err:
             return err
@@ -94,34 +127,14 @@ class SystemCommandExecutor:
         exe = os.path.basename(cmd[0])
         actual_exe = exe
         if exe in {"sudo", "doas"}:
-            i = 1
-            while i < len(cmd):
-                arg = cmd[i]
-                if arg == "--":
-                    i += 1
-                    break
-                if arg in self._SUDO_OPTS_WITH_ARG:
-                    i += 2
-                    continue
-                if any(arg.startswith(p) for p in self._SUDO_VAL_PREFIXES):
-                    i += 1
-                    continue
-                if arg.startswith("-") and len(arg) > 1 and arg[1] in "ugpCDhRTUa" and not arg.startswith("--"):
-                    i += 1
-                    continue
-                if arg.startswith("-"):
-                    i += 1
-                    continue
-                break
-
-            if i < len(cmd):
-                target_token = cmd[i]
+            target_token, err = self._parse_sudo_command(cmd)
+            if err:
+                return err
+            if target_token:
                 sub_err = self._validate_executable(target_token)
                 if sub_err:
                     return sub_err
                 actual_exe = os.path.basename(target_token)
-            elif not any(c in {"-v", "-k", "-K", "-l", "--validate", "--kill", "--reset-timestamp", "--list"} for c in cmd[1:]):
-                return "Invalid command specification"
 
         if actual_exe == "ping":
             target = cmd[-1]
@@ -143,13 +156,10 @@ class SystemCommandExecutor:
         return env
 
     async def run(
-        self,
-        cmd: list[str],
-        timeout: float = 15.0,
-        env_overrides: dict[str, str] | None = None,
+        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
     ) -> CommandResult:
         if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
-            return CommandResult(-1, "", "Invalid command specification")
+            return CommandResult(-1, "", _INVALID_CMD_SPEC)
         validation_error = self._validate_command(list(cmd))
         if validation_error:
             return CommandResult(-1, "", validation_error)
@@ -170,24 +180,14 @@ class SystemCommandExecutor:
                 timed_out=False,
             )
         except TimeoutError:
-            if proc:
-                try:
-                    proc.kill()
-                    await proc.wait()
-                except ProcessLookupError:
-                    pass
+            await _kill_proc(proc)
             return CommandResult(-1, "", "Command timed out", timed_out=True)
         except FileNotFoundError:
             return CommandResult(127, "", f"Executable not found: {cmd[0] if cmd else ''}")
         except Exception as e:
             return CommandResult(-1, "", str(e))
 
-    async def run_with_stdin(
-        self,
-        cmd: list[str],
-        stdin_data: str,
-        timeout: float = 15.0,
-    ) -> CommandResult:
+    async def run_with_stdin(self, cmd: list[str], stdin_data: str, timeout: float = 15.0) -> CommandResult:
         validation_error = self._validate_command(cmd)
         if validation_error:
             return CommandResult(-1, "", validation_error)
@@ -211,12 +211,7 @@ class SystemCommandExecutor:
                 timed_out=False,
             )
         except TimeoutError:
-            if proc:
-                try:
-                    proc.kill()
-                    await proc.wait()
-                except ProcessLookupError:
-                    pass
+            await _kill_proc(proc)
             return CommandResult(-1, "", "Command timed out", timed_out=True)
         except FileNotFoundError:
             return CommandResult(127, "", f"Executable not found: {cmd[0] if cmd else ''}")
@@ -236,10 +231,7 @@ class SystemCommandExecutor:
         return await self.run(cmd, timeout=timeout, env_overrides=env_overrides)
 
     def run_sync(
-        self,
-        cmd: list[str],
-        timeout: float = 15.0,
-        env_overrides: dict[str, str] | None = None,
+        self, cmd: list[str], timeout: float = 15.0, env_overrides: dict[str, str] | None = None
     ) -> CommandResult:
         """Run a command synchronously, reusing the module thread pool when an event loop is running.
 
@@ -252,7 +244,7 @@ class SystemCommandExecutor:
             CommandResult containing returncode, stdout, and stderr.
         """
         if not cmd or not isinstance(cmd, (list, tuple)) or not all(isinstance(c, str) for c in cmd):
-            return CommandResult(-1, "", "Invalid command specification")
+            return CommandResult(-1, "", _INVALID_CMD_SPEC)
         validation_error = self._validate_command(list(cmd))
         if validation_error:
             return CommandResult(-1, "", validation_error)

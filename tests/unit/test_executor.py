@@ -52,8 +52,13 @@ def test_system_executor_validate_sudo_options_and_paths():
 
     # Sudo options with separate or attached values
     assert executor._validate_command(["sudo", "-u", "alice", "cat", "/etc/hosts"]) is None
+    assert executor._validate_command(["sudo", "-nu", "alice", "cat", "/etc/hosts"]) is None
+    assert executor._validate_command(["sudo", "-nualice", "cat"]) is None
+    assert executor._validate_command(["sudo", "--", "cat", "-n"]) is None
     assert executor._validate_command(["sudo", "-S", "-p", "", "cat"]) is None
     assert executor._validate_command(["sudo", "--user=alice", "cat"]) is None
+    assert executor._validate_command(["sudo", "-u"]) == "Invalid command specification"
+    assert executor._validate_command(["sudo", "--"]) == "Invalid command specification"
 
     # Sudo with disallowed command after options
     assert executor._validate_command(["sudo", "-u", "alice", "evil_cmd"]) == "Executable not allowed: evil_cmd"

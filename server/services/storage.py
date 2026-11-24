@@ -8,27 +8,13 @@ from typing import Any
 from server.core.executor import get_executor
 
 SYSTEM_ROOTS = frozenset(["/", "/proc", "/sys", "/dev"])
-
 PSEUDO_FS = frozenset([
-    "tmpfs", "devtmpfs", "devpts", "proc", "sysfs", "cgroup",
-    "cgroup2", "debugfs", "tracefs", "fusectl", "pstore",
-    "bpf", "configfs", "securityfs", "hugetlbfs",
-    "dev", "run",  # pseudo mounts with no device prefix
+    "tmpfs", "devtmpfs", "devpts", "proc", "sysfs", "cgroup", "cgroup2",
+    "debugfs", "tracefs", "fusectl", "pstore", "bpf", "configfs", "securityfs",
+    "hugetlbfs", "dev", "run",
 ])
-
-# Mount paths to exclude from user-facing storage list
-HIDDEN_MOUNTS = frozenset([
-    "/boot",            # system partition, not useful for users
-])
-
-# Mount path prefixes to exclude (firmware, system internals)
-HIDDEN_MOUNT_PREFIXES = (
-    "/run/msm-firmware-loader/",
-    "/run/docker/",
-    "/var/lib/docker/",
-)
-
-# Mount path prefixes considered "external" / user-accessible storage
+HIDDEN_MOUNTS = frozenset(["/boot"])
+HIDDEN_MOUNT_PREFIXES = ("/run/msm-firmware-loader/", "/run/docker/", "/var/lib/docker/")
 EXTERNAL_PREFIXES = ("/mnt/", "/media/", "/storage/", "/sdcard", "/external")
 
 
@@ -155,59 +141,54 @@ def _format_size(num_bytes: int | float) -> str:
     return f"{num_bytes:.1f}P"
 
 
-def get_dir_usage() -> list[dict[str, Any]]:
-    """Get directory usage via statvfs for partitions and du --max-depth=1 for folders."""
-    paths = ['/', '/home', '/var', '/tmp']
-    result = []
-    for path in paths:
-        if path == '/':
-            try:
-                st = os.statvfs(path)
-                used_bytes = (st.f_blocks - st.f_bfree) * st.f_frsize
-                size = _format_size(used_bytes)
-                result.append({
-                    "base_path": path,
-                    "total_size": size,
-                    "directories": [{"path": path, "size": size}],
-                })
-            except Exception:
-                result.append({
-                    "base_path": path,
-                    "total_size": '?',
-                    "directories": [],
-                })
-            continue
+def _statvfs_usage(path: str) -> dict[str, Any]:
+    """Acquire filesystem usage via statvfs for partition root."""
+    try:
+        st = os.statvfs(path)
+        size = _format_size((st.f_blocks - st.f_bfree) * st.f_frsize)
+        return {"base_path": path, "total_size": size, "directories": [{"path": path, "size": size}]}
+    except Exception:
+        return {"base_path": path, "total_size": "?", "directories": []}
 
-        try:
-            p = get_executor().run_sync(
-                ["du", "-h", "-0", "--max-depth=1", path],
-                timeout=30.0,
-            )
-            dirs = []
-            total_size = '?'
-            if p.returncode == 0 and p.stdout:
-                records = [r for r in p.stdout.split('\x00') if r]
-                for record in records:
-                    parts = record.split('\t', 1)
-                    if len(parts) == 2:
-                        entry_size, entry_path = parts[0].strip(), parts[1]
-                        dirs.append({"path": entry_path, "size": entry_size})
-                        if entry_path == path:
-                            total_size = entry_size
-                if total_size == '?' and dirs:
-                    total_size = dirs[-1]["size"]
-            result.append({
+
+def _parse_du_records(stdout: str, base_path: str) -> tuple[list[dict[str, str]], str]:
+    """Parse NUL-delimited records from du stdout preserving embedded newlines in paths."""
+    dirs: list[dict[str, str]] = []
+    total_size = "?"
+    for record in stdout.split("\x00"):
+        if not record:
+            continue
+        parts = record.split("\t", 1)
+        if len(parts) == 2:
+            entry_size, entry_path = parts[0].strip(), parts[1]
+            dirs.append({"path": entry_path, "size": entry_size})
+            if entry_path == base_path:
+                total_size = entry_size
+    if total_size == "?" and dirs:
+        total_size = dirs[-1]["size"]
+    return dirs, total_size
+
+
+def _query_dir_usage(path: str) -> dict[str, Any]:
+    """Execute du and construct directory usage record with fallback."""
+    try:
+        p = get_executor().run_sync(["du", "-h", "-0", "--max-depth=1", path], timeout=30.0)
+        if p.returncode == 0 and p.stdout:
+            dirs, total_size = _parse_du_records(p.stdout, path)
+            return {
                 "base_path": path,
                 "total_size": total_size,
                 "directories": dirs or [{"path": path, "size": total_size}],
-            })
-        except Exception:
-            result.append({
-                "base_path": path,
-                "total_size": '?',
-                "directories": [],
-            })
-    return result
+            }
+    except Exception:
+        pass
+    return {"base_path": path, "total_size": "?", "directories": []}
+
+
+def get_dir_usage() -> list[dict[str, Any]]:
+    """Get directory usage via statvfs for partitions and du --max-depth=1 for folders."""
+    paths = ["/", "/home", "/var", "/tmp"]
+    return [_statvfs_usage(p) if p == "/" else _query_dir_usage(p) for p in paths]
 
 
 def _decode_mount_path(path: str) -> str:
