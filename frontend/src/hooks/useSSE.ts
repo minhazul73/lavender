@@ -1,14 +1,32 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LiveTelemetryData } from '../api/types/device';
+import type {
+  LiveTelemetryData,
+  CpuInfo,
+  RamInfo,
+  BatteryTelemetry,
+  NetworkTelemetry,
+} from '../api/types/device';
 
 export type SSEConnectionStatus = 'connected' | 'connecting' | 'disconnected';
+
+export type LiveTelemetryMetric =
+  | { metric: 'cpu'; data: CpuInfo }
+  | { metric: 'ram'; data: RamInfo }
+  | { metric: 'battery'; data: BatteryTelemetry }
+  | { metric: 'thermal'; data: LiveTelemetryData['thermal'] }
+  | { metric: 'network'; data: NetworkTelemetry };
+
+export type LiveMetricCallback = <K extends LiveTelemetryMetric['metric']>(
+  metric: K,
+  data: Extract<LiveTelemetryMetric, { metric: K }>['data']
+) => void;
 
 interface UseSSEOptions {
   url?: string;
   enabled?: boolean;
   maxReconnectDelay?: number;
   initialReconnectDelay?: number;
-  onMetric?: (metric: string, data: any) => void;
+  onMetric?: LiveMetricCallback;
 }
 
 export function useSSE(options: UseSSEOptions = {}) {
@@ -69,14 +87,30 @@ export function useSSE(options: UseSSEOptions = {}) {
                 ...prev,
                 [parsed.metric]: parsed.data,
               }));
-              onMetricRef.current?.(parsed.metric, parsed.data);
+              if (
+                parsed.metric === 'cpu' ||
+                parsed.metric === 'ram' ||
+                parsed.metric === 'battery' ||
+                parsed.metric === 'thermal' ||
+                parsed.metric === 'network'
+              ) {
+                onMetricRef.current?.(parsed.metric, parsed.data);
+              }
             } else {
               setData((prev) => ({
                 ...prev,
                 ...parsed,
               }));
               Object.entries(parsed).forEach(([k, v]) => {
-                onMetricRef.current?.(k, v);
+                if (
+                  k === 'cpu' ||
+                  k === 'ram' ||
+                  k === 'battery' ||
+                  k === 'thermal' ||
+                  k === 'network'
+                ) {
+                  onMetricRef.current?.(k, v as any);
+                }
               });
             }
           }
