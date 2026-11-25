@@ -179,4 +179,62 @@ describe('API Client', () => {
     expect(bodiesSent[0]).toBe(JSON.stringify({ key: 'original' }));
     expect(bodiesSent[1]).toBe(JSON.stringify({ key: 'original' }));
   });
+
+  it('handles custom abort signal and non-elevation 403 errors', async () => {
+    registerElevationHandler(vi.fn());
+    const controller = new AbortController();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      clone: () => ({ json: () => Promise.reject(new Error('no json')) }),
+      json: () => Promise.resolve({ detail: 'Access denied' }),
+    });
+
+    await expect(api.get('/test', { signal: controller.signal })).rejects.toThrow('Access denied');
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/test',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
+
+  it('rejects when elevation handler declines elevation or response is not json', async () => {
+    const mockElevationHandler = vi.fn().mockResolvedValue(false);
+    registerElevationHandler(mockElevationHandler);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      clone: () => ({ json: () => Promise.resolve({ detail: 'elevate required' }) }),
+      json: () => Promise.resolve({ detail: 'elevate required' }),
+    });
+
+    await expect(api.get('/admin')).rejects.toThrow('elevate required');
+    expect(mockElevationHandler).toHaveBeenCalledTimes(1);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Error',
+      json: () => Promise.reject(new Error('Invalid JSON')),
+    });
+    await expect(api.get('/fail')).rejects.toThrow('Internal Error');
+  });
+
+  it('supports FormData in api.post', async () => {
+    const formData = new FormData();
+    formData.append('key', 'val');
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ uploaded: true })),
+      json: () => Promise.resolve({ uploaded: true }),
+    });
+
+    const res = await api.post('/upload', formData);
+    expect(res).toEqual({ uploaded: true });
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/upload',
+      expect.objectContaining({ body: formData })
+    );
+  });
 });

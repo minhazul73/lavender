@@ -132,9 +132,14 @@ describe('useSSE Hook', () => {
         metric: 'thermal',
         data: [{ name: 'cpu-ss0', temp: 45 }],
       });
+      MockEventSource.instances[0].emitMessage({
+        metric: 'network',
+        data: { tx_rate: 10, rx_rate: 20 },
+      });
     });
 
     expect(onMetric).toHaveBeenCalledWith('thermal', [{ name: 'cpu-ss0', temp: 45 }]);
+    expect(onMetric).toHaveBeenCalledWith('network', { tx_rate: 10, rx_rate: 20 });
   });
 
   it('handles disconnect and attempts reconnection', async () => {
@@ -173,5 +178,41 @@ describe('useSSE Hook', () => {
 
     unmount();
     expect(instance.closed).toBe(true);
+  });
+
+  it('handles tab visibility changes and dispatches all metric events', async () => {
+    const onMetric = vi.fn();
+    renderHook(() => useSSE({ url: '/api/test/stream', onMetric }));
+
+    await act(async () => {
+      vi.advanceTimersByTime(10);
+    });
+
+    act(() => {
+      MockEventSource.instances[0].emitMessage({
+        cpu: { count: 4, load5: 0.5, per_core_usage: [] },
+        ram: { total: 4000, used: 2000, used_pct: 50 },
+        battery: { present: true, percentage: 90, charging: true },
+        thermal: [{ name: 'cpu', temp: 50 }],
+        network: { tx_rate: 100, rx_rate: 200 },
+      });
+    });
+
+    expect(onMetric).toHaveBeenCalledWith('network', { tx_rate: 100, rx_rate: 200 });
+    expect(onMetric).toHaveBeenCalledWith('battery', { present: true, percentage: 90, charging: true });
+
+    // Simulate tab becoming hidden, then visible
+    act(() => {
+      Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(MockEventSource.instances[0].closed).toBe(true);
+
+    act(() => {
+      Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      vi.advanceTimersByTime(10);
+    });
+    expect(MockEventSource.instances.length).toBe(2);
   });
 });
