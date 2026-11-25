@@ -86,13 +86,17 @@ export interface NetworkTelemetry {
   tx_bytes_sec?: number;
 }
 
+export interface ThermalTelemetryData {
+  zones: ThermalZone[];
+}
+
 export interface LiveTelemetryData {
   cpu?: CpuInfo;
   ram?: RamInfo;
   battery?: BatteryTelemetry;
   thermal?: {
-    zones?: ThermalZone[];
-  } | ThermalZone[];
+    zones: ThermalZone[];
+  };
   network?: NetworkTelemetry;
 }
 
