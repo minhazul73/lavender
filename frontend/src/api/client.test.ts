@@ -175,7 +175,7 @@ describe('API Client', () => {
     const result = await api.post<{ ok: boolean }>('/api/admin/action', mutablePayload);
     expect(result).toEqual({ ok: true });
     expect(callCount).toBe(2);
-    expect(bodiesSent.length).toBe(2);
+    expect(bodiesSent).toHaveLength(2);
     expect(bodiesSent[0]).toBe(JSON.stringify({ key: 'original' }));
     expect(bodiesSent[1]).toBe(JSON.stringify({ key: 'original' }));
   });
