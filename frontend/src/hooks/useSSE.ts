@@ -6,6 +6,7 @@ import type {
   BatteryTelemetry,
   NetworkTelemetry,
 } from '../api/types/device';
+import { useReconnect } from './useReconnect';
 
 export type SSEConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
@@ -43,24 +44,26 @@ export function useSSE(options: UseSSEOptions = {}) {
   const [error, setError] = useState<Error | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reconnectDelayRef = useRef(initialReconnectDelay);
   const onMetricRef = useRef(onMetric);
+  const connectRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     onMetricRef.current = onMetric;
   }, [onMetric]);
 
+  const { cancel, reset, schedule } = useReconnect({
+    initialDelay: initialReconnectDelay,
+    maxDelay: maxReconnectDelay,
+    onReconnect: () => connectRef.current(),
+  });
+
   const closeStream = useCallback(() => {
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
+    cancel();
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
     }
-  }, []);
+  }, [cancel]);
 
   const connect = useCallback(() => {
     if (!enabled || typeof EventSource === 'undefined') return;
@@ -75,7 +78,7 @@ export function useSSE(options: UseSSEOptions = {}) {
 
       es.onopen = () => {
         setStatus('connected');
-        reconnectDelayRef.current = initialReconnectDelay;
+        reset();
       };
 
       es.onmessage = (event) => {
@@ -121,22 +124,21 @@ export function useSSE(options: UseSSEOptions = {}) {
 
       es.onerror = () => {
         setStatus('disconnected');
-        closeStream();
-
-        // Queue reconnect
-        reconnectTimerRef.current = setTimeout(() => {
-          reconnectDelayRef.current = Math.min(
-            reconnectDelayRef.current * 2,
-            maxReconnectDelay
-          );
-          connect();
-        }, reconnectDelayRef.current);
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+        schedule();
       };
     } catch (err) {
       setStatus('disconnected');
       setError(err instanceof Error ? err : new Error('Failed to initialize SSE'));
     }
-  }, [url, enabled, initialReconnectDelay, maxReconnectDelay, closeStream]);
+  }, [url, enabled, closeStream, reset, schedule]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Tab visibility: pause stream in background to save device power & CPU
   useEffect(() => {
@@ -145,7 +147,7 @@ export function useSSE(options: UseSSEOptions = {}) {
         closeStream();
         setStatus('disconnected');
       } else if (enabled) {
-        reconnectDelayRef.current = initialReconnectDelay;
+        reset();
         connect();
       }
     };
@@ -154,7 +156,7 @@ export function useSSE(options: UseSSEOptions = {}) {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [enabled, initialReconnectDelay, connect, closeStream]);
+  }, [enabled, connect, closeStream, reset]);
 
   useEffect(() => {
     if (enabled) {
