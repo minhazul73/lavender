@@ -7,6 +7,7 @@ import type {
   NetworkTelemetry,
 } from '../api/types/device';
 import { useReconnect } from './useReconnect';
+import { DEFAULT_SSE_URL } from '../constants/metrics';
 
 export type SSEConnectionStatus = 'connected' | 'connecting' | 'disconnected';
 
@@ -32,7 +33,7 @@ interface UseSSEOptions {
 
 export function useSSE(options: UseSSEOptions = {}) {
   const {
-    url = '/api/device/live?metrics=cpu,ram,thermal,battery,network',
+    url = DEFAULT_SSE_URL,
     enabled = true,
     initialReconnectDelay = 1000,
     maxReconnectDelay = 15000,
