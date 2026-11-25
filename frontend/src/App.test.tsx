@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { App } from './App';
 import { api } from './api/client';
 
@@ -91,5 +91,24 @@ describe('App Routing and Homepage Public Access', () => {
     // Should redirect to LoginPage
     expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
     expect(screen.getByText(/sign in with your linux system credentials/i)).toBeInTheDocument();
+  });
+
+  it('displays timeout fallback message when loading takes longer than 6 seconds', () => {
+    vi.useFakeTimers();
+    window.history.pushState({}, 'Test', '/services');
+    (api.get as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {}));
+
+    try {
+      render(<App />);
+      expect(screen.getByText('Initializing Lavender...')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(6100);
+      });
+
+      expect(screen.getByText('Waiting for response from the FastAPI backend...')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

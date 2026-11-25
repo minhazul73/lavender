@@ -90,9 +90,7 @@ export interface LiveTelemetryData {
   cpu?: CpuInfo;
   ram?: RamInfo;
   battery?: BatteryTelemetry;
-  thermal?: {
-    zones?: ThermalZone[];
-  } | ThermalZone[];
+  thermal?: ThermalZone[];
   network?: NetworkTelemetry;
 }
 

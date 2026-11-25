@@ -1,0 +1,25 @@
+.auth-loading-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  gap: 16px;
+}
+
+.auth-loading-fallback {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.auth-loading-message {
+  margin: 0 0 10px;
+}
+
+.auth-loading-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}

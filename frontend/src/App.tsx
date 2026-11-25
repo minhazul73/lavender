@@ -6,6 +6,7 @@ import { AppShell } from './components/layout/AppShell';
 import { LoginPage } from './pages/Login/LoginPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import './App.css';
 
 const OverviewPage = React.lazy(() => import('./pages/Overview/OverviewPage').then(m => ({ default: m.OverviewPage })));
 const ServicesPage = React.lazy(() => import('./pages/Services/ServicesPage').then(m => ({ default: m.ServicesPage })));
@@ -32,22 +33,12 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-base)',
-          gap: '16px',
-        }}
-      >
+      <div className="auth-loading-container">
         <LoadingSpinner size={36} label="Initializing Lavender..." />
         {tookTooLong && (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-            <p style={{ margin: '0 0 10px' }}>Waiting for response from the FastAPI backend...</p>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+          <div className="auth-loading-fallback">
+            <p className="auth-loading-message">Waiting for response from the FastAPI backend...</p>
+            <div className="auth-loading-actions">
               <button
                 className="btn btn-xs btn-secondary"
                 onClick={() => {

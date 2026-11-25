@@ -105,4 +105,136 @@ describe('API Client', () => {
     expect(result).toEqual({ success: true, rebooted: true });
     expect(callCount).toBe(2);
   });
+
+  it('returns null when elevation retry succeeds with a null payload', async () => {
+    const mockElevationHandler = vi.fn().mockResolvedValue(true);
+    registerElevationHandler(mockElevationHandler);
+
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 403,
+          clone: () => ({
+            json: () => Promise.resolve({ detail: 'Administrative elevation required' }),
+          }),
+          json: () => Promise.resolve({ detail: 'Administrative elevation required' }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('null'),
+        json: () => Promise.resolve(null),
+      });
+    });
+
+    const result = await api.get<null>('/api/admin/data');
+    expect(mockElevationHandler).toHaveBeenCalledTimes(1);
+    expect(result).toBeNull();
+    expect(callCount).toBe(2);
+  });
+
+  it('preserves originally serialized body across elevation retry without re-serializing', async () => {
+    const mutablePayload: Record<string, unknown> = { key: 'original' };
+    const bodiesSent: string[] = [];
+
+    const mockElevationHandler = vi.fn().mockImplementation(async () => {
+      // Mutate the original object during elevation prompt
+      mutablePayload.key = 'mutated';
+      return true;
+    });
+    registerElevationHandler(mockElevationHandler);
+
+    let callCount = 0;
+    global.fetch = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+      callCount++;
+      if (init?.body && typeof init.body === 'string') {
+        bodiesSent.push(init.body);
+      }
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 403,
+          clone: () => ({
+            json: () => Promise.resolve({ detail: 'Administrative elevation required' }),
+          }),
+          json: () => Promise.resolve({ detail: 'Administrative elevation required' }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+        json: () => Promise.resolve({ ok: true }),
+      });
+    });
+
+    const result = await api.post<{ ok: boolean }>('/api/admin/action', mutablePayload);
+    expect(result).toEqual({ ok: true });
+    expect(callCount).toBe(2);
+    expect(bodiesSent).toHaveLength(2);
+    expect(bodiesSent[0]).toBe(JSON.stringify({ key: 'original' }));
+    expect(bodiesSent[1]).toBe(JSON.stringify({ key: 'original' }));
+  });
+
+  it('handles custom abort signal and non-elevation 403 errors', async () => {
+    registerElevationHandler(vi.fn());
+    const controller = new AbortController();
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      clone: () => ({ json: () => Promise.reject(new Error('no json')) }),
+      json: () => Promise.resolve({ detail: 'Access denied' }),
+    });
+
+    await expect(api.get('/test', { signal: controller.signal })).rejects.toThrow('Access denied');
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/test',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
+
+  it('rejects when elevation handler declines elevation or response is not json', async () => {
+    const mockElevationHandler = vi.fn().mockResolvedValue(false);
+    registerElevationHandler(mockElevationHandler);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      clone: () => ({ json: () => Promise.resolve({ detail: 'elevate required' }) }),
+      json: () => Promise.resolve({ detail: 'elevate required' }),
+    });
+
+    await expect(api.get('/admin')).rejects.toThrow('elevate required');
+    expect(mockElevationHandler).toHaveBeenCalledTimes(1);
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Error',
+      json: () => Promise.reject(new Error('Invalid JSON')),
+    });
+    await expect(api.get('/fail')).rejects.toThrow('Internal Error');
+  });
+
+  it('supports FormData in api.post', async () => {
+    const formData = new FormData();
+    formData.append('key', 'val');
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ uploaded: true })),
+      json: () => Promise.resolve({ uploaded: true }),
+    });
+
+    const res = await api.post('/upload', formData);
+    expect(res).toEqual({ uploaded: true });
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/upload',
+      expect.objectContaining({ body: formData })
+    );
+  });
 });
