@@ -61,7 +61,7 @@ describe('useSSE Hook', () => {
     const { result } = renderHook(() => useSSE({ url: '/api/test/stream' }));
 
     expect(result.current.status).toBe('connecting');
-    expect(MockEventSource.instances.length).toBe(1);
+    expect(MockEventSource.instances).toHaveLength(1);
     expect(MockEventSource.instances[0].withCredentials).toBe(true);
 
     await act(async () => {
@@ -163,7 +163,7 @@ describe('useSSE Hook', () => {
       vi.advanceTimersByTime(600);
     });
 
-    expect(MockEventSource.instances.length).toBe(2);
+    expect(MockEventSource.instances).toHaveLength(2);
   });
 
   it('closes EventSource when unmounted', async () => {
@@ -213,6 +213,6 @@ describe('useSSE Hook', () => {
       document.dispatchEvent(new Event('visibilitychange'));
       vi.advanceTimersByTime(10);
     });
-    expect(MockEventSource.instances.length).toBe(2);
+    expect(MockEventSource.instances).toHaveLength(2);
   });
 });
