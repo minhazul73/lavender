@@ -22,22 +22,34 @@ export function unregisterElevationHandler() {
   onElevationRequired = null;
 }
 
-interface RequestOptions extends RequestInit {
+export interface RequestOptions extends RequestInit {
+  json?: unknown;
   retryOnElevation?: boolean;
   timeoutMs?: number;
 }
 
 export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { retryOnElevation = true, timeoutMs = 15000, signal, ...fetchOptions } = options;
+  const {
+    json,
+    retryOnElevation = true,
+    timeoutMs = 15000,
+    signal,
+    headers: initHeaders,
+    body: initBody,
+    ...fetchOptions
+  } = options;
 
-  const headers = new Headers(fetchOptions.headers || {});
+  const headers = new Headers(initHeaders || {});
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json');
   }
 
-  // Auto-set Content-Type for JSON objects
-  if (fetchOptions.body && typeof fetchOptions.body === 'string' && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+  let body: BodyInit | null | undefined = initBody;
+  if (json !== undefined) {
+    body = JSON.stringify(json);
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
   }
 
   // Use timeout signal if caller did not supply one
@@ -48,6 +60,7 @@ export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}
 
   const config: RequestInit = {
     ...fetchOptions,
+    body,
     headers,
     signal: requestSignal,
     credentials: 'include', // Ensures lavender_session cookie is sent
@@ -108,7 +121,7 @@ export const api = {
     apiFetch<T>(url, {
       ...options,
       method: 'POST',
-      body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+      ...(body instanceof FormData ? { body } : body !== undefined ? { json: body } : {}),
     }),
   postForm: <T>(url: string, formData: FormData, options?: RequestOptions) =>
     apiFetch<T>(url, {
