@@ -59,13 +59,17 @@ function prepareRequestHeadersAndBody(
   return { headers, body };
 }
 
+type ElevationRetryResult<T> =
+  | { retried: false }
+  | { retried: true; value: T };
+
 async function handleElevationRetry<T>(
   endpoint: string,
   response: Response,
   options: RequestOptions
-): Promise<T | null> {
+): Promise<ElevationRetryResult<T>> {
   if (!onElevationRequired) {
-    return null;
+    return { retried: false };
   }
 
   let detail = '';
@@ -79,15 +83,16 @@ async function handleElevationRetry<T>(
   const isElevationError =
     detail.toLowerCase().includes('admin') || detail.toLowerCase().includes('elevate');
   if (!isElevationError) {
-    return null;
+    return { retried: false };
   }
 
   const elevated = await onElevationRequired();
   if (!elevated) {
-    return null;
+    return { retried: false };
   }
 
-  return apiFetch<T>(endpoint, { ...options, retryOnElevation: false });
+  const value = await apiFetch<T>(endpoint, options);
+  return { retried: true, value };
 }
 
 async function parseErrorResponse(response: Response): Promise<{ message: string; data: unknown }> {
@@ -142,9 +147,16 @@ export async function apiFetch<T>(endpoint: string, options: RequestOptions = {}
   const response = await fetch(endpoint, config);
 
   if (response.status === 403 && retryOnElevation) {
-    const retryResult = await handleElevationRetry<T>(endpoint, response, options);
-    if (retryResult !== null) {
-      return retryResult;
+    const { json: _ignored, ...optionsWithoutJson } = options;
+    const retryOptions: RequestOptions = {
+      ...optionsWithoutJson,
+      headers,
+      body,
+      retryOnElevation: false,
+    };
+    const retryResult = await handleElevationRetry<T>(endpoint, response, retryOptions);
+    if (retryResult.retried) {
+      return retryResult.value;
     }
   }
 
@@ -163,8 +175,10 @@ export const api = {
     const postOptions: RequestOptions = { ...options, method: 'POST' };
     if (body instanceof FormData) {
       postOptions.body = body;
+      delete postOptions.json;
     } else if (body !== undefined) {
       postOptions.json = body;
+      delete postOptions.body;
     }
     return apiFetch<T>(url, postOptions);
   },
