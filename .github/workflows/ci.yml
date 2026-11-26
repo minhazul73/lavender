@@ -30,19 +30,19 @@ jobs:
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra dev --python ${{ matrix.python-version }}
+        run: uv sync --frozen --extra dev --python ${{ matrix.python-version }}
 
       - name: Lint backend (Ruff)
-        run: uv run ruff check server/ tests/ || true
+        run: uv run --no-sync --frozen ruff check server/ tests/ || true
         # || true: non-blocking during initial adoption. Remove in a future task.
 
       - name: Run pytest (with coverage on Python 3.11)
         if: matrix.python-version == '3.11'
-        run: uv run --python 3.11 pytest --cov=server --cov-report=xml:coverage.xml --cov-report=term -v
+        run: uv run --no-sync --frozen --python 3.11 pytest --cov=server --cov-report=xml:coverage.xml --cov-report=term -v
 
       - name: Run pytest
         if: matrix.python-version != '3.11'
-        run: uv run --python ${{ matrix.python-version }} pytest -v
+        run: uv run --no-sync --frozen --python ${{ matrix.python-version }} pytest -v
 
       - name: Upload backend coverage
         if: matrix.python-version == '3.11'
