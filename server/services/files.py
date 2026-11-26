@@ -578,9 +578,19 @@ def delete_entries(paths: list[str], is_admin: bool = False) -> dict[str, Any]:
     return {"success": True, "deleted": results}
 
 
+def _is_valid_bookmark_dir(path: str) -> bool:
+    """Verify that a candidate bookmark path exists and is a valid directory."""
+    try:
+        return stat.S_ISDIR(os.stat(path).st_mode)
+    except OSError:
+        return False
+
+
 def get_quick_bookmarks(user_home: str | None = None) -> list[dict[str, Any]]:
     """Return common user folders and system shortcut bookmarks."""
-    home = sanitize_path(user_home or os.path.expanduser("~"))
+    base_home = user_home if user_home is not None else os.path.expanduser("~")
+    home = sanitize_path(base_home)
+    system_tmp = os.path.realpath(tempfile.gettempdir())
 
     candidates = [
         {"name": "Home", "path": home, "icon": "home", "type": "user"},
@@ -593,13 +603,14 @@ def get_quick_bookmarks(user_home: str | None = None) -> list[dict[str, Any]]:
         {"name": "Root (/)", "path": "/", "icon": "hard-drive", "type": "system"},
         {"name": "/etc", "path": "/etc", "icon": "settings", "type": "system"},
         {"name": "/var/log", "path": "/var/log", "icon": "terminal", "type": "system"},
-        {"name": "/tmp", "path": "/tmp", "icon": "zap", "type": "system"},
+        {"name": "Temp", "path": system_tmp, "icon": "zap", "type": "system"},
     ]
 
     valid_bookmarks = []
     for b in candidates:
-        if os.path.exists(b["path"]) and os.path.isdir(b["path"]):
-            valid_bookmarks.append(b)
+        canonical_path = os.path.realpath(b["path"])
+        if _is_valid_bookmark_dir(canonical_path):
+            valid_bookmarks.append({**b, "path": canonical_path})
 
     return valid_bookmarks
 
