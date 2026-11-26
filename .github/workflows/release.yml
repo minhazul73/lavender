@@ -27,7 +27,7 @@ jobs:
       - name: Build React frontend SPA
         working-directory: frontend
         run: |
-          bun install --frozen-lockfile
+          bun install --frozen-lockfile --ignore-scripts
           bun run typecheck
           bun run test
           bun run build
