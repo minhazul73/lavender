@@ -581,6 +581,7 @@ def delete_entries(paths: list[str], is_admin: bool = False) -> dict[str, Any]:
 def get_quick_bookmarks(user_home: str | None = None) -> list[dict[str, Any]]:
     """Return common user folders and system shortcut bookmarks."""
     home = sanitize_path(user_home or os.path.expanduser("~"))
+    system_tmp = os.path.realpath(tempfile.gettempdir())
 
     candidates = [
         {"name": "Home", "path": home, "icon": "home", "type": "user"},
@@ -593,13 +594,21 @@ def get_quick_bookmarks(user_home: str | None = None) -> list[dict[str, Any]]:
         {"name": "Root (/)", "path": "/", "icon": "hard-drive", "type": "system"},
         {"name": "/etc", "path": "/etc", "icon": "settings", "type": "system"},
         {"name": "/var/log", "path": "/var/log", "icon": "terminal", "type": "system"},
-        {"name": "/tmp", "path": "/tmp", "icon": "zap", "type": "system"},
+        {"name": "Temp", "path": system_tmp, "icon": "zap", "type": "system"},
     ]
 
     valid_bookmarks = []
     for b in candidates:
-        if os.path.exists(b["path"]) and os.path.isdir(b["path"]):
-            valid_bookmarks.append(b)
+        canonical_path = sanitize_path(b["path"])
+        if os.path.exists(canonical_path) and os.path.isdir(canonical_path):
+            if canonical_path == system_tmp:
+                try:
+                    st = os.stat(canonical_path)
+                    if not stat.S_ISDIR(st.st_mode):
+                        continue
+                except OSError:
+                    continue
+            valid_bookmarks.append({**b, "path": canonical_path})
 
     return valid_bookmarks
 
