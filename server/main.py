@@ -228,7 +228,10 @@ async def spa_fallback(path: str) -> Response:
     return _serve_spa_index()
 
 
-def run():
+def run(host: str | None = None, port: int | None = None):
     """CLI entry point for running the Lavender server."""
     import uvicorn
-    uvicorn.run("server.main:app", host="0.0.0.0", port=8080, reload=False)
+
+    from server.core.config import HOST, PORT
+
+    uvicorn.run("server.main:app", host=host or HOST, port=port or PORT, reload=False)

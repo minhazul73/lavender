@@ -6,7 +6,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 PORT = int(os.environ.get("LAVENDER_PORT", os.environ.get("PORT", "8080")))
-HOST = os.environ.get("LAVENDER_HOST", os.environ.get("HOST", "0.0.0.0"))
+HOST = os.environ.get("LAVENDER_HOST", os.environ.get("HOST", "127.0.0.1"))
 DEBUG = os.environ.get("LAVENDER_DEBUG", "false").lower() in ("1", "true", "yes")
 
 # Comma-separated list of allowed CORS origins; empty means same-origin only

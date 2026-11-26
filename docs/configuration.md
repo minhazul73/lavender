@@ -11,7 +11,7 @@ All Lavender configuration constants are defined in [`server/core/config.py`](fi
 | Variable | Default | Description |
 |:---|:---|:---|
 | `LAVENDER_PORT` / `PORT` | `8080` | Port for the FastAPI web server |
-| `LAVENDER_HOST` / `HOST` | `"0.0.0.0"` | Bind network interface (`0.0.0.0` binds all interfaces) |
+| `LAVENDER_HOST` / `HOST` | `"127.0.0.1"` | Bind network interface (`127.0.0.1` binds localhost, `0.0.0.0` binds all interfaces) |
 | `LAVENDER_DEBUG` | `False` | Enable debug mode (`true`/`false` or `1`/`0`) |
 | `LAVENDER_CORS_ORIGINS` | `""` | Comma-separated list of allowed CORS origins (empty allows same-origin only) |
 | `APP_VERSION` | `"0.5.0"` | Current application version |

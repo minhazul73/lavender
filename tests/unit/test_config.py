@@ -48,3 +48,32 @@ def test_secret_key_fallback_on_oserror(tmp_path, monkeypatch):
     with patch.object(Path, "mkdir", side_effect=OSError("Read-only file system")):
         key = _get_or_create_secret_key()
         assert len(key) == 64
+
+
+def test_host_config_precedence(monkeypatch):
+    import importlib
+
+    import server.core.config as config
+
+    # Default host is localhost 127.0.0.1
+    monkeypatch.delenv("LAVENDER_HOST", raising=False)
+    monkeypatch.delenv("HOST", raising=False)
+    importlib.reload(config)
+    assert config.HOST == "127.0.0.1"
+
+    # HOST fallback
+    monkeypatch.setenv("HOST", "0.0.0.0")
+    importlib.reload(config)
+    assert config.HOST == "0.0.0.0"
+
+    # LAVENDER_HOST takes precedence
+    monkeypatch.setenv("LAVENDER_HOST", "192.168.1.100")
+    importlib.reload(config)
+    assert config.HOST == "192.168.1.100"
+
+    # Reset
+    monkeypatch.delenv("LAVENDER_HOST", raising=False)
+    monkeypatch.delenv("HOST", raising=False)
+    importlib.reload(config)
+    assert config.HOST == "127.0.0.1"
+
