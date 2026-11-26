@@ -234,4 +234,6 @@ def run(host: str | None = None, port: int | None = None):
 
     from server.core.config import HOST, PORT
 
-    uvicorn.run("server.main:app", host=host or HOST, port=port or PORT, reload=False)
+    resolved_host = HOST if host is None else host
+    resolved_port = PORT if port is None else port
+    uvicorn.run("server.main:app", host=resolved_host, port=resolved_port, reload=False)

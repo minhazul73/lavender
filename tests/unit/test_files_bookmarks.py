@@ -53,3 +53,18 @@ def test_get_quick_bookmarks_skips_invalid_temp(tmp_path):
     with patch("os.stat", side_effect=mocked_stat):
         bookmarks = get_quick_bookmarks(user_home=user_home)
         assert not any(b["path"] == real_tmp for b in bookmarks)
+
+
+def test_get_quick_bookmarks_preserves_trailing_whitespace_in_symlink_targets(tmp_path):
+    target_dir = tmp_path / "target with space "
+    target_dir.mkdir()
+    symlink_home = tmp_path / "home_symlink"
+    symlink_home.symlink_to(target_dir)
+
+    bookmarks = get_quick_bookmarks(user_home=str(symlink_home))
+    paths = [b["path"] for b in bookmarks]
+
+    expected_path = os.path.realpath(str(target_dir))
+    assert expected_path in paths
+    assert expected_path.endswith(" ")
+

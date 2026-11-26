@@ -599,7 +599,7 @@ def get_quick_bookmarks(user_home: str | None = None) -> list[dict[str, Any]]:
 
     valid_bookmarks = []
     for b in candidates:
-        canonical_path = sanitize_path(b["path"])
+        canonical_path = os.path.realpath(b["path"])
         if os.path.exists(canonical_path) and os.path.isdir(canonical_path):
             if canonical_path == system_tmp:
                 try:
