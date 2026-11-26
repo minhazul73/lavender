@@ -26,7 +26,11 @@ def test_run_custom_arguments():
 
 
 def test_run_explicit_zero_port():
-    with patch("server.core.config.PORT", 8080), patch("uvicorn.run") as mock_run:
+    with (
+        patch("server.core.config.HOST", "127.0.0.1"),
+        patch("server.core.config.PORT", 8080),
+        patch("uvicorn.run") as mock_run,
+    ):
         run(port=0)
         mock_run.assert_called_once_with(
             "server.main:app",
