@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +7,7 @@ from server.auth.bridge import run_command_async, run_sudo_async, run_user_servi
 
 async def _timeout_side_effect(coro, *args, **kwargs):
     coro.close()
-    raise asyncio.TimeoutError()
+    raise TimeoutError()
 
 
 @pytest.mark.asyncio
